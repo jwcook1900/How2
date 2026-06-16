@@ -200,6 +200,21 @@
     container.appendChild(field);
     attachMic(container, field, q.type === "textarea");
     wrap.appendChild(container);
+
+    // Polish action for this answer
+    var actions = document.createElement("div");
+    actions.className = "field-actions";
+    var polishBtn = document.createElement("button");
+    polishBtn.type = "button";
+    polishBtn.className = "tool-btn";
+    polishBtn.textContent = "✨ Polish";
+    polishBtn.addEventListener("click", function () {
+      polishInto(function () { return field.value; },
+        function (v) { field.value = v; }, polishBtn);
+    });
+    actions.appendChild(polishBtn);
+    wrap.appendChild(actions);
+
     setTimeout(function () { field.focus(); }, 50);
 
     // Enter advances on single-line inputs
@@ -316,6 +331,110 @@
     }
   }
 
+  /* ---------- AI Polish (bring-your-own Anthropic key) ---------- */
+  var KEY_STORE = "how2_anthropic_key";
+  var POLISH_MODEL = "claude-opus-4-8";
+  var POLISH_SYSTEM =
+    "You are an editor for How2, a tool for creating friendly, shareable how-to guides. " +
+    "Rewrite the user's text so it reads clearly, warmly and professionally — easy for anyone to follow. " +
+    "Keep the original meaning and every specific detail (names, numbers, times, phone numbers, medication doses, addresses). " +
+    "Keep it concise. Preserve line breaks and any list structure. " +
+    "Do not add new information, headings, or commentary. " +
+    "Return only the rewritten text, with no preamble and no surrounding quotation marks.";
+
+  function getApiKey() {
+    try { return localStorage.getItem(KEY_STORE) || ""; } catch (e) { return ""; }
+  }
+  function setApiKey(k) {
+    try {
+      if (k) localStorage.setItem(KEY_STORE, k);
+      else localStorage.removeItem(KEY_STORE);
+    } catch (e) {}
+  }
+
+  // Built-in cleanup — no key, no cost, works offline.
+  function localPolish(text) {
+    var lines = String(text).replace(/\r/g, "").split("\n");
+    lines = lines.map(function (line) {
+      var s = line.replace(/[ \t]+/g, " ").trim();
+      if (!s) return "";
+      s = s.replace(/([.!?,;:])(?=[A-Za-z])/g, "$1 "); // space after punctuation
+      s = s.replace(/\bi\b/g, "I"); // standalone i
+      s = s.replace(/^(\s*[-*•\d.]*\s*)?([a-z])/, function (m, pre, ch) {
+        return (pre || "") + ch.toUpperCase(); // capitalize first letter
+      });
+      s = s.replace(/([.!?]\s+)([a-z])/g, function (m, p, ch) {
+        return p + ch.toUpperCase(); // capitalize after sentence enders
+      });
+      return s;
+    });
+    return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  // Real rewrite via Claude, called directly from the browser with the user's key.
+  function polishWithClaude(text, key) {
+    return fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: POLISH_MODEL,
+        max_tokens: 1024,
+        system: POLISH_SYSTEM,
+        messages: [{ role: "user", content: text }]
+      })
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.json().catch(function () { return null; }).then(function (j) {
+          var msg = j && j.error && j.error.message ? j.error.message : "HTTP " + res.status;
+          throw new Error(msg);
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      var out = "";
+      (data.content || []).forEach(function (b) { if (b.type === "text") out += b.text; });
+      out = out.trim().replace(/^["'“”]|["'“”]$/g, "").trim();
+      if (!out) throw new Error("Empty response");
+      return out;
+    });
+  }
+
+  // Chooses Claude when a key is set, otherwise the local tidy-up. Always resolves.
+  function polish(text) {
+    var key = getApiKey();
+    if (!key) {
+      showToast("Tidied up — tap ✨ AI to enable smarter polish.");
+      return Promise.resolve(localPolish(text));
+    }
+    return polishWithClaude(text, key).then(
+      function (out) { showToast("Polished with AI ✨"); return out; },
+      function (err) {
+        showToast("AI polish failed (" + err.message + ") — used basic tidy-up.");
+        return localPolish(text);
+      }
+    );
+  }
+
+  // Wires a Polish button to read/replace a piece of text with a loading state.
+  function polishInto(getText, setText, btn) {
+    var text = (getText() || "").trim();
+    if (!text || text === "Tap to add details…") { showToast("Nothing to polish yet."); return; }
+    var orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "✨ Polishing…";
+    polish(text).then(function (out) {
+      setText(out);
+    }).then(null, function () {}).then(function () {
+      btn.disabled = false;
+      btn.textContent = orig;
+    });
+  }
+
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
     showStep("building");
@@ -425,6 +544,7 @@
           '<button class="btn btn-primary btn-sm" type="button">Embed</button>' +
         "</div>" +
         '<div class="sec-tools">' +
+          '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
           '<button class="tool-btn" data-act="photo" type="button">📸 Photo</button>' +
           '<button class="tool-btn" data-act="video" type="button">🎬 Video</button>' +
           '<button class="tool-btn danger" data-act="remove" type="button">🗑 Remove</button>' +
@@ -451,6 +571,14 @@
     });
     var photoBtn = tools.querySelector('[data-act="photo"]');
     photoBtn.addEventListener("click", function () { pickPhoto(sec, el); });
+
+    var polishBtn = tools.querySelector('[data-act="polish"]');
+    polishBtn.addEventListener("click", function () {
+      var contentEl = el.querySelector(".acc-content");
+      if (!el.classList.contains("open")) el.classList.add("open");
+      polishInto(function () { return contentEl.innerText; },
+        function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn);
+    });
 
     var videoRow = el.querySelector(".video-input-row");
     tools.querySelector('[data-act="video"]').addEventListener("click", function () {
@@ -723,6 +851,30 @@
   $("editAgain").addEventListener("click", function () { showStep(3); });
   $("copyBtn").addEventListener("click", copyLink);
   $("downloadQr").addEventListener("click", downloadQR);
+
+  // AI Polish key modal
+  var keyModal = $("keyModal");
+  function openKeyModal() {
+    $("keyInput").value = getApiKey();
+    keyModal.hidden = false;
+    setTimeout(function () { $("keyInput").focus(); }, 50);
+  }
+  function closeKeyModal() { keyModal.hidden = true; }
+  $("aiBtn").addEventListener("click", openKeyModal);
+  $("keyClose").addEventListener("click", closeKeyModal);
+  keyModal.addEventListener("click", function (e) { if (e.target === keyModal) closeKeyModal(); });
+  $("keySave").addEventListener("click", function () {
+    var k = $("keyInput").value.trim();
+    setApiKey(k);
+    closeKeyModal();
+    showToast(k ? "AI key saved ✨" : "AI key removed.");
+  });
+  $("keyClear").addEventListener("click", function () {
+    setApiKey("");
+    $("keyInput").value = "";
+    closeKeyModal();
+    showToast("AI key removed.");
+  });
 
   showStep(1);
 })();

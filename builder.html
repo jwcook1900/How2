@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#FF6B35" />
+  <title>Build your guide — How2</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="How2 home"><span class="logo-mark">How2</span></a>
+      <a href="index.html" class="btn btn-ghost btn-sm">Exit</a>
+    </div>
+  </header>
+
+  <main class="builder-main">
+    <div class="container builder-wrap">
+
+      <!-- Progress dots -->
+      <div class="wizard-progress" id="wizardProgress" aria-hidden="true">
+        <span class="dot" data-step="1"></span>
+        <span class="dot" data-step="2"></span>
+        <span class="dot" data-step="3"></span>
+        <span class="dot" data-step="4"></span>
+      </div>
+
+      <!-- STEP 1 — Category -->
+      <section class="step" id="step1" data-step="1">
+        <span class="step-eyebrow">Step 1 of 4</span>
+        <h1 class="step-heading">What are you guiding?</h1>
+        <p class="step-lead">Pick a category — we'll ask the right questions for it.</p>
+        <div class="cat-grid" id="catGrid"><!-- categories injected --></div>
+      </section>
+
+      <!-- STEP 2 — Questions -->
+      <section class="step" id="step2" data-step="2">
+        <span class="step-eyebrow" id="qEyebrow">Step 2 of 4</span>
+        <h1 class="step-heading">A few quick questions</h1>
+        <p class="step-lead" id="qLead">Answer what you can — you can edit everything later.</p>
+
+        <div class="q-bar"><div class="q-bar-fill" id="qBarFill"></div></div>
+        <p class="q-count" id="qCount"></p>
+
+        <div class="q-card">
+          <h2 class="q-title" id="qTitle"></h2>
+          <p class="q-hint" id="qHint"></p>
+          <div id="qFieldWrap"></div>
+          <div class="q-nav">
+            <button class="btn-link" id="qBack" type="button">← Back</button>
+            <button class="btn btn-primary" id="qNext" type="button">Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Building loader -->
+      <section class="step" id="stepBuilding" data-step="2">
+        <div class="building">
+          <div class="spinner"></div>
+          <div class="building-title">Building your guide…</div>
+          <p class="building-sub">Structuring your answers into something beautiful.</p>
+        </div>
+      </section>
+
+      <!-- STEP 3 — Preview & edit -->
+      <section class="step" id="step3" data-step="3">
+        <span class="step-eyebrow">Step 3 of 4</span>
+        <h1 class="step-heading">Make it yours</h1>
+        <p class="step-lead">Tap any text to edit. Expand a section to add photos or video.</p>
+
+        <div class="guide-doc" id="guideDoc"><!-- guide rendered here --></div>
+
+        <div class="add-block-row">
+          <button class="tool-btn" id="addSection" type="button">＋ Add section</button>
+          <button class="tool-btn" id="addLog" type="button">＋ Add a log</button>
+        </div>
+
+        <div class="builder-toolbar">
+          <button class="btn btn-ghost" id="previewBack" type="button">← Back to questions</button>
+          <button class="btn btn-primary" id="publishBtn" type="button">Publish &amp; share →</button>
+        </div>
+      </section>
+
+      <!-- STEP 4 — Share -->
+      <section class="step" id="step4" data-step="4">
+        <span class="step-eyebrow">Step 4 of 4</span>
+        <h1 class="step-heading">Your guide is live 🎉</h1>
+        <p class="step-lead">Share the link or QR code — it opens on any phone, no app needed.</p>
+
+        <div class="share-card">
+          <span class="share-emoji" id="shareEmoji">📘</span>
+          <div class="share-title" id="shareTitle">Your guide</div>
+          <p class="share-sub">Anyone with this link can view it.</p>
+
+          <div class="qr-box" id="qrBox"></div>
+
+          <div class="share-link">
+            <input type="text" id="shareUrl" readonly />
+            <button class="btn btn-primary btn-sm" id="copyBtn" type="button">Copy</button>
+          </div>
+
+          <div class="share-actions">
+            <button class="btn btn-ghost btn-sm" id="downloadQr" type="button">Download QR</button>
+            <a class="btn btn-ghost btn-sm" id="openGuide" target="_blank" rel="noopener">Open guide ↗</a>
+          </div>
+        </div>
+
+        <div class="builder-toolbar">
+          <button class="btn btn-ghost" id="editAgain" type="button">← Keep editing</button>
+          <a class="btn btn-primary" href="builder.html">Create another</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- QR library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/builder.js"></script>
+</body>
+</html>

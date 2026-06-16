@@ -1,0 +1,122 @@
+/* ============================================================
+   How2 — Published guide view (read-only)
+   Loads a guide from localStorage by ?g=slug and renders it
+   in the same style as the builder preview.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function getSlug() {
+    var m = location.search.match(/[?&]g=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function loadGuide(slug) {
+    try {
+      var all = JSON.parse(localStorage.getItem("how2_guides") || "{}");
+      return all[slug] || null;
+    } catch (e) { return null; }
+  }
+  // turn "tel"-like values into links
+  function linkify(value) {
+    var safe = esc(value);
+    var phone = value.match(/(\+?[\d][\d\s().-]{6,}\d)/);
+    if (phone) {
+      var tel = phone[1].replace(/[^\d+]/g, "");
+      safe = safe.replace(phone[1], '<a href="tel:' + tel + '">' + esc(phone[1]) + "</a>");
+    }
+    return safe;
+  }
+
+  var doc = document.getElementById("guideDoc");
+  var footer = document.getElementById("guideFooter");
+  var slug = getSlug();
+  var guide = slug ? loadGuide(slug) : null;
+
+  if (!guide) {
+    doc.innerHTML =
+      '<div class="guide-cover"><span class="cover-emoji">🔍</span>' +
+      '<div class="cover-title">Guide not found</div>' +
+      '<div class="cover-sub">This guide may have been created on another device or browser.</div></div>' +
+      '<p style="text-align:center;margin-top:24px"><a class="btn btn-primary" href="builder.html">Create a guide →</a></p>';
+    document.title = "Guide not found — How2";
+    return;
+  }
+
+  document.title = guide.title + " — How2";
+
+  var html = "";
+
+  // Cover
+  html +=
+    '<div class="guide-cover">' +
+      '<span class="cover-emoji">' + guide.emoji + "</span>" +
+      '<div class="cover-title">' + esc(guide.title) + "</div>" +
+      '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
+    "</div>";
+
+  // Sections
+  (guide.sections || []).forEach(function (sec, i) {
+    var media = "";
+    if (sec.photo) media += '<div class="sec-media"><img class="sec-photo" src="' + sec.photo + '" alt="" /></div>';
+    if (sec.videoId) {
+      media += '<div class="sec-media"><div class="sec-video"><iframe src="https://www.youtube.com/embed/' +
+        sec.videoId + '" allowfullscreen loading="lazy"></iframe></div></div>';
+    }
+    html +=
+      '<div class="guide-section' + (i === 0 ? " open" : "") + '">' +
+        '<button class="acc-header" type="button">' +
+          '<span class="acc-icon">' + sec.icon + "</span>" +
+          '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
+          '<span class="acc-chevron">▾</span>' +
+        "</button>" +
+        '<div class="acc-body"><div class="acc-body-inner">' +
+          '<div class="acc-content">' + esc(sec.body) + "</div>" +
+          media +
+        "</div></div>" +
+      "</div>";
+  });
+
+  // Emergency contacts
+  if (guide.contacts && guide.contacts.length) {
+    html += '<div class="guide-emergency"><div class="em-head">🚨 Emergency Contacts</div>';
+    guide.contacts.forEach(function (c) {
+      html +=
+        '<div class="contact-row">' +
+          '<span class="contact-label">' + esc(c.label) + "</span>" +
+          '<span class="contact-value">' + linkify(c.value) + "</span>" +
+        "</div>";
+    });
+    html += "</div>";
+  }
+
+  // Logs
+  (guide.logs || []).forEach(function (log) {
+    html += '<div class="guide-log"><div class="log-head">📓 ' + esc(log.title) + "</div>";
+    html += '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead><tbody>';
+    (log.rows || []).forEach(function (r) {
+      if (!r.when && !r.note) return;
+      html += "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
+    });
+    html += "</tbody></table></div>";
+  });
+
+  doc.innerHTML = html;
+
+  // Accordion behaviour
+  doc.querySelectorAll(".guide-section").forEach(function (sec) {
+    sec.querySelector(".acc-header").addEventListener("click", function () {
+      sec.classList.toggle("open");
+    });
+  });
+
+  // Footer (How2 branding for free tier)
+  if (guide.branding !== false) {
+    footer.innerHTML = 'Made with <a href="index.html">How2</a> · The guide you always meant to write';
+  } else {
+    footer.innerHTML = "";
+  }
+})();

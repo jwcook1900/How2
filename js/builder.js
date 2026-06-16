@@ -200,7 +200,9 @@
       if (e.key === "Enter" && q.type !== "textarea") { e.preventDefault(); nextQuestion(); }
     });
 
-    $("qBack").disabled = i === 0;
+    // On the first question, Back returns to the landing page; otherwise it
+    // steps to the previous question.
+    $("qBack").textContent = i === 0 ? "← Home" : "← Back";
     $("qNext").textContent = i === qs.length - 1 ? "Build my guide →" : "Next →";
   }
 
@@ -229,7 +231,13 @@
   }
   function prevQuestion() {
     captureAnswer();
-    if (state.qIndex > 0) { state.qIndex--; renderQuestion(); }
+    if (state.qIndex > 0) {
+      state.qIndex--;
+      renderQuestion();
+    } else {
+      // First question of the category — go back to the home page.
+      window.location.href = "index.html";
+    }
   }
 
   /* ---------- Generate guide from answers ---------- */

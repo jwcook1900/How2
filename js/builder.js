@@ -179,7 +179,12 @@
     $("qHint").textContent = q.hint || "";
 
     var wrap = $("qFieldWrap");
+    stopMic();
     wrap.innerHTML = "";
+
+    var container = document.createElement("div");
+    container.className = "field-with-mic";
+
     var field;
     if (q.type === "textarea") {
       field = document.createElement("textarea");
@@ -192,7 +197,9 @@
     field.id = "qField";
     field.placeholder = q.ph || "";
     field.value = state.answers[q.id] || "";
-    wrap.appendChild(field);
+    container.appendChild(field);
+    attachMic(container, field, q.type === "textarea");
+    wrap.appendChild(container);
     setTimeout(function () { field.focus(); }, 50);
 
     // Enter advances on single-line inputs
@@ -215,9 +222,78 @@
   }
 
   function captureAnswer() {
+    stopMic();
     var q = state.category.questions[state.qIndex];
     var field = $("qField");
     if (field) state.answers[q.id] = field.value.trim();
+  }
+
+  /* ---------- Voice dictation (Web Speech API) ---------- */
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var micRec = null; // the currently-running recognition, if any
+
+  function stopMic() {
+    if (micRec) { try { micRec.stop(); } catch (e) {} micRec = null; }
+  }
+
+  // Adds a mic button to `container` that dictates into `field`.
+  // Silently does nothing if the browser has no speech recognition.
+  function attachMic(container, field, isArea) {
+    if (!SpeechRec) return;
+
+    field.classList.add("has-mic");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mic-btn" + (isArea ? " mic-btn--area" : "");
+    btn.setAttribute("aria-label", "Dictate your answer");
+    btn.title = "Tap to dictate";
+    btn.textContent = "🎤";
+    container.appendChild(btn);
+
+    btn.addEventListener("click", function () {
+      // Tapping while listening stops it.
+      if (micRec) { stopMic(); return; }
+
+      var rec = new SpeechRec();
+      rec.lang = document.documentElement.lang || navigator.language || "en-US";
+      rec.interimResults = true;
+      rec.continuous = true;
+
+      // Append dictation after any text already in the field.
+      var base = field.value ? field.value.replace(/\s+$/, "") + " " : "";
+      var finalText = "";
+
+      rec.onstart = function () {
+        btn.classList.add("listening");
+        btn.title = "Listening… tap to stop";
+        field.focus();
+      };
+      rec.onresult = function (e) {
+        var interim = "";
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          var r = e.results[i];
+          if (r.isFinal) finalText += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        field.value = base + finalText + interim;
+      };
+      rec.onerror = function (e) {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          showToast("Microphone access was blocked.");
+        } else if (e.error === "no-speech") {
+          showToast("Didn't catch that — try again.");
+        }
+      };
+      rec.onend = function () {
+        btn.classList.remove("listening");
+        btn.title = "Tap to dictate";
+        if (micRec === rec) micRec = null;
+      };
+
+      micRec = rec;
+      try { rec.start(); }
+      catch (err) { micRec = null; showToast("Couldn't start the microphone."); }
+    });
   }
 
   function nextQuestion() {

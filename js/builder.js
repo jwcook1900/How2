@@ -6,21 +6,14 @@
 (function () {
   "use strict";
 
-  /* ---------- Storage helpers ---------- */
-  var STORE_KEY = "how2_guides";
-  function loadGuides() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY) || "{}"); }
-    catch (e) { return {}; }
-  }
-  function saveGuide(guide) {
-    var all = loadGuides();
-    all[guide.slug] = guide;
-    localStorage.setItem(STORE_KEY, JSON.stringify(all));
-  }
+  /* ---------- Id helpers (persistence lives in js/store.js) ---------- */
   function makeSlug() {
     var words = ["sunny", "cosy", "happy", "swift", "calm", "bright", "lucky", "warm"];
     var w = words[Math.floor(Math.random() * words.length)];
     return w + "-" + Math.random().toString(36).slice(2, 8);
+  }
+  function makeToken() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
   }
   function uid() { return Math.random().toString(36).slice(2, 9); }
 
@@ -110,7 +103,9 @@
     category: null,
     qIndex: 0,
     answers: {},
-    guide: null
+    guide: null,
+    editToken: null,
+    created: false
   };
 
   /* ---------- DOM refs ---------- */
@@ -578,6 +573,30 @@
     }
   }
 
+  // Downscale + re-encode an image file to keep guides small enough to store.
+  function compressImage(file, maxDim, quality) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var img = new Image();
+        img.onload = function () {
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var cw = Math.round(img.width * scale);
+          var ch = Math.round(img.height * scale);
+          var canvas = document.createElement("canvas");
+          canvas.width = cw; canvas.height = ch;
+          canvas.getContext("2d").drawImage(img, 0, 0, cw, ch);
+          try { resolve(canvas.toDataURL("image/jpeg", quality)); }
+          catch (e) { resolve(reader.result); }
+        };
+        img.onerror = function () { resolve(reader.result); };
+        img.src = reader.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   function pickCover(coverEl) {
     var input = document.createElement("input");
     input.type = "file";
@@ -585,13 +604,10 @@
     input.addEventListener("change", function () {
       var file = input.files[0];
       if (!file) return;
-      if (file.size > 3 * 1024 * 1024) showToast("Image is large — try one under 3MB.");
-      var reader = new FileReader();
-      reader.onload = function () {
-        state.guide.cover = reader.result;
+      compressImage(file, 1400, 0.78).then(function (dataUrl) {
+        state.guide.cover = dataUrl;
         applyCover(coverEl, state.guide);
-      };
-      reader.readAsDataURL(file);
+      });
     });
     input.click();
   }
@@ -750,14 +766,11 @@
     input.addEventListener("change", function () {
       var file = input.files[0];
       if (!file) return;
-      if (file.size > 2.5 * 1024 * 1024) { showToast("Image is a bit large — try one under 2.5MB."); }
-      var reader = new FileReader();
-      reader.onload = function () {
-        sec.photo = reader.result;
+      compressImage(file, 1200, 0.72).then(function (dataUrl) {
+        sec.photo = dataUrl;
         renderSectionMedia(el, sec);
         if (!el.classList.contains("open")) el.classList.add("open");
-      };
-      reader.readAsDataURL(file);
+      });
     });
     input.click();
   }
@@ -923,15 +936,45 @@
   /* ---------- Step 4: publish & share ---------- */
   function publish() {
     var g = state.guide;
-    saveGuide(g);
-    var url = guideUrl(g.slug);
+    if (!state.editToken) state.editToken = makeToken();
+
+    // Guard against guides whose images are too big for the database (Phase 1).
+    var size = JSON.stringify(g).length;
+    if (size > 380000) {
+      showToast("This guide's images are too large to publish online yet — try removing one.");
+      return;
+    }
+
+    var btn = $("publishBtn");
+    btn.disabled = true;
+    btn.textContent = "Publishing…";
+
+    var op = state.created
+      ? How2Store.update(g)
+      : How2Store.create(g, state.editToken);
+
+    op.then(function (res) {
+      state.created = true;
+      showShare(g, res && res.cloud);
+    }).catch(function (err) {
+      showToast("Couldn't publish: " + (err.message || "try again"));
+    }).then(function () {
+      btn.disabled = false;
+      btn.textContent = "Publish & share →";
+    });
+  }
+
+  function showShare(g, isCloud) {
+    var url = pageUrl("guide.html", "g=" + encodeURIComponent(g.slug));
+    var editLink = pageUrl("builder.html", "g=" + encodeURIComponent(g.slug) + "&t=" + encodeURIComponent(state.editToken));
 
     $("shareEmoji").textContent = g.emoji;
     $("shareTitle").textContent = g.title;
     $("shareUrl").value = url;
+    $("editUrl").value = editLink;
     $("openGuide").href = url;
 
-    // QR code
+    // QR code (of the view link)
     var box = $("qrBox");
     box.innerHTML = "";
     if (window.QRCode) {
@@ -939,17 +982,21 @@
     } else {
       box.innerHTML = '<p style="font-size:.85rem;color:var(--ink-muted)">QR unavailable offline</p>';
     }
+    if (!isCloud) {
+      showToast("Saved on this device. (Cloud sharing activates once the backend is live.)");
+    }
     showStep(4);
   }
 
-  function guideUrl(slug) {
-    var base = location.href.replace(/builder\.html.*$/, "");
-    return base + "guide.html?g=" + encodeURIComponent(slug);
+  // Builds an absolute URL to another page in the same folder.
+  function pageUrl(page, qs) {
+    var base = location.href.replace(/[^/]*(\?.*)?(#.*)?$/, "");
+    return base + page + (qs ? "?" + qs : "");
   }
 
-  function copyLink() {
-    var input = $("shareUrl");
-    var ok = function () { showToast("Link copied!"); };
+  function copyFrom(id, msg) {
+    var input = $(id);
+    var ok = function () { showToast(msg); };
     if (navigator.clipboard) {
       navigator.clipboard.writeText(input.value).then(ok, function () { legacyCopy(input, ok); });
     } else { legacyCopy(input, ok); }
@@ -983,7 +1030,8 @@
   $("addLog").addEventListener("click", addLog);
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
-  $("copyBtn").addEventListener("click", copyLink);
+  $("copyBtn").addEventListener("click", function () { copyFrom("shareUrl", "Link copied!"); });
+  $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
 
   // AI Polish key modal
@@ -1010,5 +1058,38 @@
     showToast("AI key removed.");
   });
 
-  showStep(1);
+  // Entry: an edit link (?g=slug&t=token) opens that guide; otherwise start fresh.
+  function getParam(name) {
+    var m = location.search.match(new RegExp("[?&]" + name + "=([^&]+)"));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function enterEditMode(slug, token) {
+    steps.building.querySelector(".building-title").textContent = "Loading your guide…";
+    showStep("building");
+    How2Store.getForEdit(slug).then(function (rec) {
+      if (!rec || !rec.guide) {
+        showToast("Guide not found.");
+        showStep(1);
+        return;
+      }
+      if (rec.editToken && token !== rec.editToken) {
+        // Not the owner — send to the read-only view instead.
+        window.location.href = pageUrl("guide.html", "g=" + encodeURIComponent(slug));
+        return;
+      }
+      state.guide = rec.guide;
+      state.editToken = rec.editToken || token;
+      state.created = true;
+      renderGuideEditor();
+      showStep(3);
+    }).catch(function () {
+      showToast("Couldn't load that guide.");
+      showStep(1);
+    });
+  }
+
+  var editSlug = getParam("g");
+  var editToken = getParam("t");
+  if (editSlug && editToken) enterEditMode(editSlug, editToken);
+  else showStep(1);
 })();

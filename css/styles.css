@@ -1021,6 +1021,14 @@ ul { margin: 0; padding: 0; list-style: none; }
   margin-bottom: 22px;
 }
 .qr-box canvas, .qr-box img { display: block; }
+.share-label {
+  display: block;
+  text-align: left;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 4px 2px 6px;
+}
 .share-link {
   display: flex; gap: 8px; margin-bottom: 16px;
   background: var(--bg); border: 1.5px solid var(--line);

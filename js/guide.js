@@ -14,12 +14,6 @@
     var m = location.search.match(/[?&]g=([^&]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   }
-  function loadGuide(slug) {
-    try {
-      var all = JSON.parse(localStorage.getItem("how2_guides") || "{}");
-      return all[slug] || null;
-    } catch (e) { return null; }
-  }
   // turn "tel"-like values into links
   function linkify(value) {
     var safe = esc(value);
@@ -34,9 +28,9 @@
   var doc = document.getElementById("guideDoc");
   var footer = document.getElementById("guideFooter");
   var slug = getSlug();
-  var guide = slug ? loadGuide(slug) : null;
 
-  if (!guide) {
+  function render(guide) {
+    if (!guide) {
     doc.innerHTML =
       '<div class="guide-cover"><span class="cover-emoji">🔍</span>' +
       '<div class="cover-title">Guide not found</div>' +
@@ -154,5 +148,15 @@
     footer.innerHTML = 'Made with <a href="index.html">How2</a> · The guide you always meant to write';
   } else {
     footer.innerHTML = "";
+  }
+  }
+
+  // Load the guide (cloud or local), then render.
+  if (!slug) {
+    render(null);
+  } else {
+    doc.innerHTML = '<div class="guide-cover"><span class="cover-emoji">⏳</span>' +
+      '<div class="cover-title">Loading…</div></div>';
+    How2Store.get(slug).then(render).catch(function () { render(null); });
   }
 })();

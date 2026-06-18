@@ -104,9 +104,16 @@
 
           <div class="qr-box" id="qrBox"></div>
 
+          <label class="share-label">Share this link (view only)</label>
           <div class="share-link">
             <input type="text" id="shareUrl" readonly />
             <button class="btn btn-primary btn-sm" id="copyBtn" type="button">Copy</button>
+          </div>
+
+          <label class="share-label">Your private edit link — keep it safe 🔒</label>
+          <div class="share-link">
+            <input type="text" id="editUrl" readonly />
+            <button class="btn btn-ghost btn-sm" id="copyEditBtn" type="button">Copy</button>
           </div>
 
           <div class="share-actions">
@@ -151,6 +158,7 @@
 
   <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/store.js"></script>
   <script src="js/builder.js"></script>
 </body>
 </html>

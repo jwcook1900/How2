@@ -568,6 +568,59 @@
     input.click();
   }
 
+  // Reorders state.guide.sections to match the current DOM order.
+  function syncSectionOrder() {
+    var ids = Array.prototype.map.call(
+      $("guideDoc").querySelectorAll(".guide-section"),
+      function (el) { return el.dataset.id; }
+    );
+    state.guide.sections.sort(function (a, b) {
+      return ids.indexOf(a.id) - ids.indexOf(b.id);
+    });
+  }
+
+  // Drag-to-reorder via a grip handle. Pointer events → works on mouse + touch.
+  function enableSectionDrag(handle, sectionEl) {
+    if (!handle) return;
+    handle.addEventListener("click", function (e) { e.stopPropagation(); });
+    handle.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var doc = $("guideDoc");
+      sectionEl.classList.add("dragging");
+
+      function onMove(ev) {
+        var y = ev.clientY;
+        var sections = Array.prototype.slice.call(doc.querySelectorAll(".guide-section"));
+        var placed = false;
+        for (var i = 0; i < sections.length; i++) {
+          var s = sections[i];
+          if (s === sectionEl) continue;
+          var r = s.getBoundingClientRect();
+          if (y < r.top + r.height / 2) {
+            doc.insertBefore(sectionEl, s);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          // Below all sections — drop just before the emergency block.
+          var emg = doc.querySelector(".guide-emergency");
+          if (emg) doc.insertBefore(sectionEl, emg);
+          else doc.appendChild(sectionEl);
+        }
+      }
+      function onUp() {
+        sectionEl.classList.remove("dragging");
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        syncSectionOrder();
+      }
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    });
+  }
+
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
     el.className = "guide-section" + (openFirst ? " open" : "");
@@ -575,6 +628,7 @@
 
     el.innerHTML =
       '<button class="acc-header" type="button">' +
+        '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
         '<span class="acc-icon">' + sec.icon + "</span>" +
         '<span class="acc-title-text" contenteditable="true">' + esc(sec.title) + "</span>" +
         '<span class="acc-chevron">▾</span>' +
@@ -597,9 +651,11 @@
     // Accordion toggle (ignore clicks on the editable title)
     var header = el.querySelector(".acc-header");
     header.addEventListener("click", function (e) {
-      if (e.target.classList.contains("acc-title-text")) return;
+      if (e.target.classList.contains("acc-title-text") ||
+          e.target.classList.contains("drag-handle")) return;
       el.classList.toggle("open");
     });
+    enableSectionDrag(el.querySelector(".drag-handle"), el);
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; });

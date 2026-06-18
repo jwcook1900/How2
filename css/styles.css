@@ -768,6 +768,37 @@ ul { margin: 0; padding: 0; list-style: none; }
 .guide-cover .cover-sub { font-size: 1rem; opacity: 0.95; margin-top: 6px; }
 .guide-cover [contenteditable]:focus { outline: 2px dashed rgba(255,255,255,0.7); border-radius: 6px; }
 
+/* Cover photo */
+.guide-cover.has-cover {
+  background-size: cover;
+  background-position: center;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.guide-cover.has-cover .cover-emoji,
+.guide-cover.has-cover .cover-title,
+.guide-cover.has-cover .cover-sub {
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+.cover-tools { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
+.cover-btn {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  transition: background 0.18s var(--ease);
+}
+.cover-btn:hover { background: rgba(255, 255, 255, 0.34); }
+
 /* Accordion sections */
 .guide-section {
   background: var(--white);

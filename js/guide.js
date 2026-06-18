@@ -106,6 +106,16 @@
 
   doc.innerHTML = html;
 
+  // Cover photo (set via JS to avoid escaping the data URL in an attribute)
+  if (guide.cover) {
+    var coverEl = doc.querySelector(".guide-cover");
+    if (coverEl) {
+      coverEl.classList.add("has-cover");
+      coverEl.style.backgroundImage =
+        "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + guide.cover + ")";
+    }
+  }
+
   // Accordion behaviour
   doc.querySelectorAll(".guide-section").forEach(function (sec) {
     sec.querySelector(".acc-header").addEventListener("click", function () {

@@ -470,6 +470,7 @@
       emoji: cat.emoji,
       title: title,
       subtitle: cat.coverSub,
+      cover: null,
       sections: sections,
       contacts: contacts,
       logs: [],
@@ -508,9 +509,18 @@
     cover.innerHTML =
       '<span class="cover-emoji">' + g.emoji + "</span>" +
       '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
-      '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>";
+      '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
+      '<div class="cover-tools">' +
+        '<button class="cover-btn" data-act="cover-photo" type="button">📸 Cover photo</button>' +
+        '<button class="cover-btn" data-act="cover-remove" type="button" hidden>Remove photo</button>' +
+      "</div>";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
     bindEditable(cover.querySelector('[data-bind="subtitle"]'), function (v) { g.subtitle = v; });
+    applyCover(cover, g);
+    cover.querySelector('[data-act="cover-photo"]').addEventListener("click", function () { pickCover(cover); });
+    cover.querySelector('[data-act="cover-remove"]').addEventListener("click", function () {
+      g.cover = null; applyCover(cover, g);
+    });
     doc.appendChild(cover);
 
     // Sections
@@ -523,6 +533,39 @@
 
     // Logs
     g.logs.forEach(function (log) { doc.appendChild(buildLogEl(log)); });
+  }
+
+  // Paints the cover photo (with a dark overlay for legible text) or clears it.
+  function applyCover(coverEl, g) {
+    var removeBtn = coverEl.querySelector('[data-act="cover-remove"]');
+    if (g.cover) {
+      coverEl.classList.add("has-cover");
+      coverEl.style.backgroundImage =
+        "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + g.cover + ")";
+      if (removeBtn) removeBtn.hidden = false;
+    } else {
+      coverEl.classList.remove("has-cover");
+      coverEl.style.backgroundImage = "";
+      if (removeBtn) removeBtn.hidden = true;
+    }
+  }
+
+  function pickCover(coverEl) {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      if (file.size > 3 * 1024 * 1024) showToast("Image is large — try one under 3MB.");
+      var reader = new FileReader();
+      reader.onload = function () {
+        state.guide.cover = reader.result;
+        applyCover(coverEl, state.guide);
+      };
+      reader.readAsDataURL(file);
+    });
+    input.click();
   }
 
   function buildSectionEl(sec, openFirst) {

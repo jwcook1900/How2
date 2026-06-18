@@ -58,16 +58,18 @@
       '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
     "</div>";
 
-  // Sections
-  (guide.sections || []).forEach(function (sec, i) {
+  // ---- Block renderers ----
+  var firstSectionOpen = true;
+  function sectionHtml(sec) {
     var media = "";
     if (sec.photo) media += '<div class="sec-media"><img class="sec-photo" src="' + sec.photo + '" alt="" /></div>';
     if (sec.videoId) {
       media += '<div class="sec-media"><div class="sec-video"><iframe src="https://www.youtube.com/embed/' +
         sec.videoId + '" allowfullscreen loading="lazy"></iframe></div></div>';
     }
-    html +=
-      '<div class="guide-section' + (i === 0 ? " open" : "") + '">' +
+    var open = firstSectionOpen ? " open" : "";
+    firstSectionOpen = false;
+    return '<div class="guide-section' + open + '">' +
         '<button class="acc-header" type="button">' +
           '<span class="acc-icon">' + sec.icon + "</span>" +
           '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
@@ -78,31 +80,55 @@
           media +
         "</div></div>" +
       "</div>";
-  });
-
-  // Emergency contacts
-  if (guide.contacts && guide.contacts.length) {
-    html += '<div class="guide-emergency"><div class="em-head">🚨 Emergency Contacts</div>';
+  }
+  function emergencyHtml() {
+    if (!(guide.contacts && guide.contacts.length)) return "";
+    var s = '<div class="guide-emergency"><div class="em-head">🚨 Emergency Contacts</div>';
     guide.contacts.forEach(function (c) {
-      html +=
-        '<div class="contact-row">' +
+      s += '<div class="contact-row">' +
           '<span class="contact-label">' + esc(c.label) + "</span>" +
           '<span class="contact-value">' + linkify(c.value) + "</span>" +
         "</div>";
     });
-    html += "</div>";
+    return s + "</div>";
   }
-
-  // Logs
-  (guide.logs || []).forEach(function (log) {
-    html += '<div class="guide-log"><div class="log-head">📓 ' + esc(log.title) + "</div>";
-    html += '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead><tbody>';
+  function logHtml(log) {
+    var s = '<div class="guide-log"><div class="log-head">📓 ' + esc(log.title) + "</div>";
+    s += '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead><tbody>';
     (log.rows || []).forEach(function (r) {
       if (!r.when && !r.note) return;
-      html += "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
+      s += "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
     });
-    html += "</tbody></table></div>";
+    return s + "</tbody></table></div>";
+  }
+  function byId(list, id) {
+    list = list || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  // ---- Render blocks in saved order (fall back to a sensible default) ----
+  var order = guide.blockOrder && guide.blockOrder.length ? guide.blockOrder.slice() : null;
+  if (!order) {
+    order = (guide.sections || []).map(function (s) { return "s:" + s.id; });
+    order.push("e");
+    (guide.logs || []).forEach(function (l) { order.push("l:" + l.id); });
+  }
+  var done = {};
+  order.forEach(function (tok) {
+    if (tok === "e") { html += emergencyHtml(); done.e = true; }
+    else if (tok.indexOf("s:") === 0) {
+      var sec = byId(guide.sections, tok.slice(2));
+      if (sec) { html += sectionHtml(sec); done[tok] = true; }
+    } else if (tok.indexOf("l:") === 0) {
+      var log = byId(guide.logs, tok.slice(2));
+      if (log) { html += logHtml(log); done[tok] = true; }
+    }
   });
+  // Reconcile anything missing from the order
+  (guide.sections || []).forEach(function (sec) { if (!done["s:" + sec.id]) html += sectionHtml(sec); });
+  if (!done.e) html += emergencyHtml();
+  (guide.logs || []).forEach(function (log) { if (!done["l:" + log.id]) html += logHtml(log); });
 
   doc.innerHTML = html;
 

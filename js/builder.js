@@ -474,6 +474,7 @@
       sections: sections,
       contacts: contacts,
       logs: [],
+      blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
       branding: true,
       createdAt: Date.now()
     };
@@ -523,16 +524,43 @@
     });
     doc.appendChild(cover);
 
-    // Sections
-    g.sections.forEach(function (sec, idx) {
-      doc.appendChild(buildSectionEl(sec, idx === 0));
+    // Render blocks (sections / emergency / logs) in the saved order
+    if (!g.blockOrder || !g.blockOrder.length) {
+      g.blockOrder = g.sections.map(function (s) { return "s:" + s.id; })
+        .concat(["e"]).concat(g.logs.map(function (l) { return "l:" + l.id; }));
+    }
+    if (g.blockOrder.indexOf("e") === -1) g.blockOrder.push("e");
+
+    var rendered = {};
+    var firstSection = true;
+    g.blockOrder.forEach(function (tok) {
+      if (tok === "e") {
+        doc.appendChild(buildEmergencyEl());
+        rendered.e = true;
+      } else if (tok.indexOf("s:") === 0) {
+        var sec = findSection(tok.slice(2));
+        if (sec) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; rendered[tok] = true; }
+      } else if (tok.indexOf("l:") === 0) {
+        var log = findLog(tok.slice(2));
+        if (log) { doc.appendChild(buildLogEl(log)); rendered[tok] = true; }
+      }
     });
+    // Reconcile anything missing from blockOrder (e.g. legacy guides)
+    if (!rendered.e) doc.appendChild(buildEmergencyEl());
+    g.sections.forEach(function (sec) {
+      if (!rendered["s:" + sec.id]) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; }
+    });
+    g.logs.forEach(function (log) {
+      if (!rendered["l:" + log.id]) doc.appendChild(buildLogEl(log));
+    });
+    syncBlockOrder();
+  }
 
-    // Emergency block (always available)
-    doc.appendChild(buildEmergencyEl());
-
-    // Logs
-    g.logs.forEach(function (log) { doc.appendChild(buildLogEl(log)); });
+  function findSection(id) {
+    return state.guide.sections.filter(function (s) { return s.id === id; })[0];
+  }
+  function findLog(id) {
+    return state.guide.logs.filter(function (l) { return l.id === id; })[0];
   }
 
   // Paints the cover photo (with a dark overlay for legible text) or clears it.
@@ -568,53 +596,46 @@
     input.click();
   }
 
-  // Reorders state.guide.sections to match the current DOM order.
-  function syncSectionOrder() {
-    var ids = Array.prototype.map.call(
-      $("guideDoc").querySelectorAll(".guide-section"),
-      function (el) { return el.dataset.id; }
-    );
-    state.guide.sections.sort(function (a, b) {
-      return ids.indexOf(a.id) - ids.indexOf(b.id);
+  // Records the current DOM order of all blocks (sections / emergency / logs).
+  var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log";
+  function syncBlockOrder() {
+    var order = [];
+    Array.prototype.forEach.call($("guideDoc").children, function (el) {
+      if (el.classList.contains("guide-section")) order.push("s:" + el.dataset.id);
+      else if (el.classList.contains("guide-emergency")) order.push("e");
+      else if (el.classList.contains("guide-log")) order.push("l:" + el.dataset.id);
     });
+    state.guide.blockOrder = order;
   }
 
   // Drag-to-reorder via a grip handle. Pointer events → works on mouse + touch.
-  function enableSectionDrag(handle, sectionEl) {
+  // Works for any block: content sections, emergency contacts, and logs.
+  function enableDrag(handle, blockEl) {
     if (!handle) return;
     handle.addEventListener("click", function (e) { e.stopPropagation(); });
     handle.addEventListener("pointerdown", function (e) {
       e.preventDefault();
       e.stopPropagation();
       var doc = $("guideDoc");
-      sectionEl.classList.add("dragging");
+      blockEl.classList.add("dragging");
 
       function onMove(ev) {
         var y = ev.clientY;
-        var sections = Array.prototype.slice.call(doc.querySelectorAll(".guide-section"));
+        var blocks = Array.prototype.slice.call(doc.querySelectorAll(DRAG_SELECTOR));
         var placed = false;
-        for (var i = 0; i < sections.length; i++) {
-          var s = sections[i];
-          if (s === sectionEl) continue;
-          var r = s.getBoundingClientRect();
-          if (y < r.top + r.height / 2) {
-            doc.insertBefore(sectionEl, s);
-            placed = true;
-            break;
-          }
+        for (var i = 0; i < blocks.length; i++) {
+          var b = blocks[i];
+          if (b === blockEl) continue;
+          var r = b.getBoundingClientRect();
+          if (y < r.top + r.height / 2) { doc.insertBefore(blockEl, b); placed = true; break; }
         }
-        if (!placed) {
-          // Below all sections — drop just before the emergency block.
-          var emg = doc.querySelector(".guide-emergency");
-          if (emg) doc.insertBefore(sectionEl, emg);
-          else doc.appendChild(sectionEl);
-        }
+        if (!placed) doc.appendChild(blockEl); // below everything
       }
       function onUp() {
-        sectionEl.classList.remove("dragging");
+        blockEl.classList.remove("dragging");
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
-        syncSectionOrder();
+        syncBlockOrder();
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
@@ -655,7 +676,7 @@
           e.target.classList.contains("drag-handle")) return;
       el.classList.toggle("open");
     });
-    enableSectionDrag(el.querySelector(".drag-handle"), el);
+    enableDrag(el.querySelector(".drag-handle"), el);
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; });
@@ -667,6 +688,7 @@
     tools.querySelector('[data-act="remove"]').addEventListener("click", function () {
       state.guide.sections = state.guide.sections.filter(function (s) { return s.id !== sec.id; });
       el.remove();
+      syncBlockOrder();
     });
     var photoBtn = tools.querySelector('[data-act="photo"]');
     photoBtn.addEventListener("click", function () { pickPhoto(sec, el); });
@@ -744,7 +766,12 @@
     var g = state.guide;
     var el = document.createElement("div");
     el.className = "guide-emergency";
-    el.innerHTML = '<div class="em-head">🚨 Emergency Contacts</div>';
+    el.innerHTML =
+      '<div class="em-head">' +
+        '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
+        "<span>🚨 Emergency Contacts</span>" +
+      "</div>";
+    enableDrag(el.querySelector(".drag-handle"), el);
     var list = document.createElement("div");
     list.className = "em-list";
     el.appendChild(list);
@@ -794,12 +821,17 @@
     el.className = "guide-log";
     el.dataset.id = log.id;
     el.innerHTML =
-      '<div class="log-head">📓 <span contenteditable="true" class="log-title">' + esc(log.title) + "</span>" +
-      '<button class="contact-del" type="button" style="margin-left:auto" title="Remove log">✕</button></div>';
+      '<div class="log-head">' +
+        '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
+        '📓 <span contenteditable="true" class="log-title">' + esc(log.title) + "</span>" +
+        '<button class="contact-del" type="button" style="margin-left:auto" title="Remove log">✕</button>' +
+      "</div>";
+    enableDrag(el.querySelector(".drag-handle"), el);
     bindEditable(el.querySelector(".log-title"), function (v) { log.title = v; });
     el.querySelector(".log-head .contact-del").addEventListener("click", function () {
       state.guide.logs = state.guide.logs.filter(function (l) { return l.id !== log.id; });
       el.remove();
+      syncBlockOrder();
     });
 
     var table = document.createElement("table");
@@ -846,9 +878,11 @@
     var sec = { id: uid(), icon: "📄", title: "New section", body: "Tap to add details…", photo: null, videoId: null };
     state.guide.sections.push(sec);
     var el = buildSectionEl(sec, true);
-    // insert before emergency block
+    // insert before emergency block (or at the end if it isn't present)
     var emg = $("guideDoc").querySelector(".guide-emergency");
-    $("guideDoc").insertBefore(el, emg);
+    if (emg) $("guideDoc").insertBefore(el, emg);
+    else $("guideDoc").appendChild(el);
+    syncBlockOrder();
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function addLog() {
@@ -856,6 +890,7 @@
     state.guide.logs.push(log);
     var el = buildLogEl(log);
     $("guideDoc").appendChild(el);
+    syncBlockOrder();
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 

@@ -977,11 +977,17 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .drag-handle:hover { color: var(--coral); }
 .drag-handle:active { cursor: grabbing; }
-.guide-section.dragging {
-  opacity: 0.7;
+.guide-section.dragging,
+.guide-emergency.dragging,
+.guide-log.dragging {
+  opacity: 0.9;
   box-shadow: var(--shadow-lg);
   transform: scale(1.01);
+  outline: 2px dashed var(--coral);
+  outline-offset: 3px;
 }
+/* Drag handle also shown on emergency/log headers */
+.em-head .drag-handle, .log-head .drag-handle { margin-right: 2px; }
 
 .guide-footer {
   text-align: center;

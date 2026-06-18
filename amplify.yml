@@ -1,0 +1,12 @@
+version: 1
+frontend:
+  phases:
+    build:
+      commands: []
+  artifacts:
+    # Static site — publish the repo root as-is (no build step yet).
+    baseDirectory: /
+    files:
+      - '**/*'
+  cache:
+    paths: []

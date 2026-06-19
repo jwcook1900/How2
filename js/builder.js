@@ -242,6 +242,16 @@
   var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   var micRec = null; // the currently-running recognition, if any
 
+  // Modern line-style microphone (inherits currentColor for hover/listening states).
+  var MIC_SVG =
+    '<svg class="mic-ico" viewBox="0 0 24 24" width="19" height="19" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
+    '<path d="M5.5 11a6.5 6.5 0 0 0 13 0"/>' +
+    '<line x1="12" y1="17.5" x2="12" y2="21"/>' +
+    '<line x1="8.5" y1="21" x2="15.5" y2="21"/>' +
+    "</svg>";
+
   function stopMic() {
     if (micRec) { try { micRec.stop(); } catch (e) {} micRec = null; }
   }
@@ -257,7 +267,7 @@
     btn.className = "mic-btn" + (isArea ? " mic-btn--area" : "");
     btn.setAttribute("aria-label", "Dictate your answer");
     btn.title = "Tap to dictate";
-    btn.textContent = "🎤";
+    btn.innerHTML = MIC_SVG;
     container.appendChild(btn);
 
     btn.addEventListener("click", function () {

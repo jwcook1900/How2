@@ -984,6 +984,24 @@
     $("editUrl").value = editLink;
     $("openGuide").href = url;
 
+    // Share-to channels
+    var msg = "Check out my How2 guide — " + g.title + ": " + url;
+    $("shareWhatsapp").href = "https://wa.me/?text=" + encodeURIComponent(msg);
+    $("shareSms").href = "sms:?&body=" + encodeURIComponent(msg);
+    $("shareEmail").href = "mailto:?subject=" + encodeURIComponent(g.title + " — a How2 guide") +
+      "&body=" + encodeURIComponent(msg);
+
+    var nativeBtn = $("shareNative");
+    if (navigator.share) {
+      nativeBtn.hidden = false;
+      nativeBtn.onclick = function () {
+        navigator.share({ title: g.title, text: "Check out my How2 guide:", url: url })
+          .catch(function () {});
+      };
+    } else {
+      nativeBtn.hidden = true;
+    }
+
     // QR code (of the view link)
     var box = $("qrBox");
     box.innerHTML = "";

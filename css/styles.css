@@ -1038,6 +1038,29 @@ ul { margin: 0; padding: 0; list-style: none; }
   flex: 1; border: none; background: none; font-family: inherit;
   font-size: 0.92rem; color: var(--ink-soft); outline: none; min-width: 0;
 }
+.share-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), transform 0.15s var(--ease);
+}
+.chip:hover { border-color: var(--coral); transform: translateY(-2px); }
 .share-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);

@@ -111,16 +111,34 @@
     function stop() { if (timer) { clearInterval(timer); timer = null; } }
     function restart() { stop(); start(); }
 
-    // Swipe (pointer events: works for touch + mouse drag)
-    var startX = null;
-    track.addEventListener("pointerdown", function (e) { startX = e.clientX; stop(); });
-    window.addEventListener("pointerup", function (e) {
-      if (startX === null) return;
-      var dx = e.clientX - startX;
-      if (Math.abs(dx) > 40) go(idx + (dx < 0 ? 1 : -1));
-      startX = null;
-      start();
+    // Swipe (pointer events: works for touch + mouse drag). The track follows
+    // the finger in real time, then snaps to the next/prev slide on release.
+    var startX = null, baseX = 0, width = 0, dragging = false;
+    track.addEventListener("pointerdown", function (e) {
+      width = track.getBoundingClientRect().width || 1;
+      startX = e.clientX;
+      baseX = -idx * width;
+      dragging = true;
+      track.style.transition = "none";
+      stop();
+      try { track.setPointerCapture(e.pointerId); } catch (err) {}
     });
+    track.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      track.style.transform = "translateX(" + (baseX + (e.clientX - startX)) + "px)";
+    });
+    function endDrag(e) {
+      if (!dragging) return;
+      dragging = false;
+      track.style.transition = "";
+      var dx = e.clientX - startX;
+      startX = null;
+      if (Math.abs(dx) > Math.min(60, width * 0.2)) go(idx + (dx < 0 ? 1 : -1));
+      else go(idx); // not far enough — snap back
+      start(); // resume auto-rotate
+    }
+    track.addEventListener("pointerup", endDrag);
+    track.addEventListener("pointercancel", endDrag);
 
     go(0);
     start();

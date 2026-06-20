@@ -409,20 +409,29 @@
     });
   }
 
-  // Chooses Claude when a key is set, otherwise the local tidy-up. Always resolves.
+  // Polish order: keyless cloud AI → your own key (BYOK) → local tidy-up.
   function polish(text) {
-    var key = getApiKey();
-    if (!key) {
-      showToast("Tidied up — tap ✨ AI to enable smarter polish.");
-      return Promise.resolve(localPolish(text));
-    }
-    return polishWithClaude(text, key).then(
-      function (out) { showToast("Polished with AI ✨"); return out; },
-      function (err) {
-        showToast("AI polish failed (" + err.message + ") — used basic tidy-up.");
-        return localPolish(text);
+    return How2Store.ai("polish", text).then(function (res) {
+      if (res && typeof res.text === "string" && res.text.trim()) {
+        showToast("Polished with AI ✨");
+        return res.text;
       }
-    );
+      return polishByokOrLocal(text); // no cloud backend
+    }, function () {
+      return polishByokOrLocal(text); // cloud errored
+    });
+  }
+
+  function polishByokOrLocal(text) {
+    var key = getApiKey();
+    if (key) {
+      return polishWithClaude(text, key).then(
+        function (out) { showToast("Polished with AI ✨"); return out; },
+        function () { showToast("AI polish failed — used basic tidy-up."); return localPolish(text); }
+      );
+    }
+    showToast("Tidied up ✨");
+    return localPolish(text);
   }
 
   // Wires a Polish button to read/replace a piece of text with a loading state.

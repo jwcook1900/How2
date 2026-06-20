@@ -92,6 +92,22 @@ window.How2Store = (function () {
       });
     },
 
+    // Server-side AI (keyless). Resolves with the handler's JSON result, or
+    // null when no cloud backend is configured (so callers can fall back).
+    ai: function (mode, text, category) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Ai($mode: String!, $text: String!, $category: String){ " +
+          "aiAssist(mode: $mode, text: $text, category: $category) }";
+        return gql(cfg, q, { mode: mode, text: text, category: category || null })
+          .then(function (d) {
+            var r = d.aiAssist;
+            if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+            return r;
+          });
+      });
+    },
+
     // Read a guide plus its edit token (for the edit-link flow).
     getForEdit: function (slug) {
       return loadConfig().then(function (cfg) {

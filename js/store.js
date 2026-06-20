@@ -39,6 +39,34 @@ window.How2Store = (function () {
     });
   }
 
+  /* ---- optional password protection (AES-GCM, key from PBKDF2) ----
+     A locked guide is stored as an envelope { enc:1, slug, salt, iv, ct }.
+     The real guide JSON is encrypted in `ct`; nothing readable is stored,
+     so the content is private even from the database. Needs a secure
+     context (https / localhost) for window.crypto.subtle. */
+  function subtle() {
+    return (window.crypto && window.crypto.subtle) ? window.crypto.subtle : null;
+  }
+  function b64(buf) {
+    var bytes = new Uint8Array(buf), s = "";
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  }
+  function unb64(str) {
+    var bin = atob(str), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function deriveKey(password, salt) {
+    var enc = new TextEncoder();
+    return subtle().importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"])
+      .then(function (base) {
+        return subtle().deriveKey(
+          { name: "PBKDF2", salt: salt, iterations: 150000, hash: "SHA-256" },
+          base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+      });
+  }
+
   /* ---- localStorage fallback ---- */
   function localGuides() {
     try { return JSON.parse(localStorage.getItem(GUIDES_KEY) || "{}"); } catch (e) { return {}; }
@@ -59,6 +87,35 @@ window.How2Store = (function () {
   return {
     // Is the cloud backend available?
     isCloud: function () { return loadConfig().then(function (c) { return !!c; }); },
+
+    // Can we password-protect (needs a secure context)?
+    canEncrypt: function () { return !!subtle(); },
+
+    // True if a stored object is a locked/encrypted envelope.
+    isEncrypted: function (obj) { return !!(obj && obj.enc === 1 && obj.ct); },
+
+    // Encrypt a guide object with a password → storable envelope.
+    encrypt: function (guide, password) {
+      if (!subtle()) return Promise.reject(new Error("Password protection needs https"));
+      var salt = window.crypto.getRandomValues(new Uint8Array(16));
+      var iv = window.crypto.getRandomValues(new Uint8Array(12));
+      return deriveKey(password, salt).then(function (key) {
+        var data = new TextEncoder().encode(JSON.stringify(guide));
+        return subtle().encrypt({ name: "AES-GCM", iv: iv }, key, data);
+      }).then(function (ct) {
+        return { enc: 1, slug: guide.slug, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+      });
+    },
+
+    // Decrypt an envelope with a password → guide object (rejects if wrong).
+    decrypt: function (env, password) {
+      if (!subtle()) return Promise.reject(new Error("Password protection needs https"));
+      return deriveKey(password, unb64(env.salt)).then(function (key) {
+        return subtle().decrypt({ name: "AES-GCM", iv: unb64(env.iv) }, key, unb64(env.ct));
+      }).then(function (pt) {
+        return JSON.parse(new TextDecoder().decode(pt));
+      });
+    },
 
     // Create a new guide. Resolves with { cloud: bool }.
     create: function (guide, editToken) {

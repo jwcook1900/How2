@@ -1064,15 +1064,24 @@
     return null;
   }
 
+  /* ---------- Password lock controls (step 3) ---------- */
+  function toggleLockUI() {
+    var on = $("lockOn").checked;
+    $("lockPass").hidden = !on;
+    $("lockHint").hidden = !on;
+    if (on) setTimeout(function () { $("lockPass").focus(); }, 50);
+  }
+
   /* ---------- Step 4: publish & share ---------- */
   function publish() {
     var g = state.guide;
     if (!state.editToken) state.editToken = makeToken();
 
-    // Guard against guides whose images are too big for the database (Phase 1).
-    var size = JSON.stringify(g).length;
-    if (size > 380000) {
-      showToast("This guide's images are too large to publish online yet — try removing one.");
+    var locked = $("lockOn").checked;
+    var pass = locked ? ($("lockPass").value || "").trim() : "";
+    if (locked && !pass) { showToast("Enter a password, or untick the lock."); return; }
+    if (locked && !How2Store.canEncrypt()) {
+      showToast("Password protection needs the live (https) site.");
       return;
     }
 
@@ -1080,27 +1089,44 @@
     btn.disabled = true;
     btn.textContent = "Publishing…";
 
-    var op = state.created
-      ? How2Store.update(g)
-      : How2Store.create(g, state.editToken);
+    // Encrypt into a storage envelope when locked; otherwise store the guide as-is.
+    var prep = (locked && pass) ? How2Store.encrypt(g, pass) : Promise.resolve(g);
 
-    op.then(function (res) {
+    prep.then(function (payloadObj) {
+      // Guard against guides whose images are too big for the database (Phase 1).
+      if (JSON.stringify(payloadObj).length > 380000) throw new Error("__TOOBIG__");
+      state.password = pass; // remember for re-publish in this session
+      var op = state.created
+        ? How2Store.update(payloadObj)
+        : How2Store.create(payloadObj, state.editToken);
+      return op;
+    }).then(function (res) {
       state.created = true;
-      showShare(g, res && res.cloud);
+      showShare(g, res && res.cloud, locked);
     }).catch(function (err) {
-      showToast("Couldn't publish: " + (err.message || "try again"));
+      if (err && err.message === "__TOOBIG__") {
+        showToast("This guide's images are too large to publish online yet — try removing one.");
+      } else {
+        showToast("Couldn't publish: " + (err.message || "try again"));
+      }
     }).then(function () {
       btn.disabled = false;
       btn.textContent = "Publish & share →";
     });
   }
 
-  function showShare(g, isCloud) {
+  function showShare(g, isCloud, locked) {
     var url = pageUrl("guide.html", "g=" + encodeURIComponent(g.slug));
     var editLink = pageUrl("builder.html", "g=" + encodeURIComponent(g.slug) + "&t=" + encodeURIComponent(state.editToken));
 
     $("shareEmoji").textContent = g.emoji;
     $("shareTitle").textContent = g.title;
+    var sub = document.querySelector("#step4 .share-sub");
+    if (sub) {
+      sub.textContent = locked
+        ? "🔒 Password-protected — only people with the password can read it."
+        : "Anyone with this link can view it.";
+    }
     $("shareUrl").value = url;
     $("editUrl").value = editLink;
     $("openGuide").href = url;
@@ -1182,6 +1208,7 @@
   $("copyBtn").addEventListener("click", function () { copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
+  $("lockOn").addEventListener("change", toggleLockUI);
 
   // Entry: an edit link (?g=slug&t=token) opens that guide; otherwise start fresh.
   function getParam(name) {
@@ -1202,15 +1229,33 @@
         window.location.href = pageUrl("guide.html", "g=" + encodeURIComponent(slug));
         return;
       }
-      state.guide = rec.guide;
-      state.editToken = rec.editToken || token;
-      state.created = true;
-      renderGuideEditor();
-      showStep(3);
+      if (How2Store.isEncrypted(rec.guide)) {
+        var pass = window.prompt("This guide is password-protected. Enter its password to edit:");
+        if (pass == null) { window.location.href = "index.html"; return; }
+        How2Store.decrypt(rec.guide, pass).then(function (real) {
+          state.password = pass;
+          $("lockOn").checked = true;
+          toggleLockUI();
+          $("lockPass").value = pass;
+          finishEnterEdit(real, rec.editToken || token);
+        }, function () {
+          showToast("Wrong password.");
+          showStep(1);
+        });
+        return;
+      }
+      finishEnterEdit(rec.guide, rec.editToken || token);
     }).catch(function () {
       showToast("Couldn't load that guide.");
       showStep(1);
     });
+  }
+  function finishEnterEdit(guide, token) {
+    state.guide = guide;
+    state.editToken = token;
+    state.created = true;
+    renderGuideEditor();
+    showStep(3);
   }
 
   var editSlug = getParam("g");

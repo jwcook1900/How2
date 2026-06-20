@@ -151,12 +151,49 @@
   }
   }
 
-  // Load the guide (cloud or local), then render.
+  // Password-protected guides arrive as an encrypted envelope — show an unlock
+  // screen and decrypt in the browser once the right password is entered.
+  function showLock(env) {
+    document.title = "Protected guide — How2";
+    doc.innerHTML =
+      '<div class="guide-cover"><span class="cover-emoji">🔒</span>' +
+        '<div class="cover-title">This guide is protected</div>' +
+        '<div class="cover-sub">Enter the password to view it.</div></div>' +
+      '<div class="lock-screen">' +
+        '<input type="password" id="unlockPass" class="q-input" placeholder="Password" autocomplete="off" />' +
+        '<button class="btn btn-primary" id="unlockBtn" type="button">Unlock</button>' +
+        '<p class="lock-error" id="unlockErr" hidden>Wrong password — try again.</p>' +
+      "</div>";
+    var input = document.getElementById("unlockPass");
+    var btn = document.getElementById("unlockBtn");
+    var err = document.getElementById("unlockErr");
+    function attempt() {
+      var p = input.value;
+      if (!p) return;
+      err.hidden = true;
+      btn.disabled = true; btn.textContent = "Unlocking…";
+      How2Store.decrypt(env, p).then(function (real) {
+        render(real);
+      }, function () {
+        err.hidden = false;
+        btn.disabled = false; btn.textContent = "Unlock";
+        input.select();
+      });
+    }
+    btn.addEventListener("click", attempt);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") attempt(); });
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  // Load the guide (cloud or local), then render (or prompt to unlock).
   if (!slug) {
     render(null);
   } else {
     doc.innerHTML = '<div class="guide-cover"><span class="cover-emoji">⏳</span>' +
       '<div class="cover-title">Loading…</div></div>';
-    How2Store.get(slug).then(render).catch(function () { render(null); });
+    How2Store.get(slug).then(function (obj) {
+      if (How2Store.isEncrypted(obj)) showLock(obj);
+      else render(obj);
+    }).catch(function () { render(null); });
   }
 })();

@@ -84,6 +84,17 @@
           <button class="add-block" id="addLog" type="button">＋ Add a log</button>
         </div>
 
+        <div class="lock-row">
+          <label class="lock-toggle">
+            <input type="checkbox" id="lockOn" /> 🔒 Require a password to view
+          </label>
+          <input type="password" id="lockPass" class="q-input" placeholder="Choose a password" autocomplete="new-password" hidden />
+          <p class="lock-hint" id="lockHint" hidden>
+            The guide is encrypted — viewers must enter this password to read it.
+            Keep it safe: if it's lost, the guide can't be recovered.
+          </p>
+        </div>
+
         <div class="builder-toolbar">
           <button class="btn btn-ghost" id="previewBack" type="button">← Back to questions</button>
           <button class="btn btn-primary" id="publishBtn" type="button">Publish &amp; share →</button>

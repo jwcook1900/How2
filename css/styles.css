@@ -248,6 +248,31 @@ ul { margin: 0; padding: 0; list-style: none; }
   padding: 18px 14px;
   overflow: hidden;
 }
+.mock-track {
+  display: flex;
+  transition: transform 0.5s var(--ease);
+  touch-action: pan-y;
+}
+.mock-slide {
+  min-width: 100%;
+  box-sizing: border-box;
+}
+.mock-dots {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 14px;
+}
+.mock-dot {
+  width: 7px; height: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: background 0.25s, transform 0.25s;
+}
+.mock-dot.active { background: var(--white); transform: scale(1.35); }
 .mock-cover {
   background: linear-gradient(135deg, var(--coral), var(--amber));
   border-radius: var(--radius);
@@ -1148,6 +1173,33 @@ ul { margin: 0; padding: 0; list-style: none; }
 .import-file-btn { cursor: pointer; display: inline-flex; align-items: center; }
 .import-file-name { color: var(--ink-muted); font-size: 0.85rem; word-break: break-all; }
 .import-go { width: 100%; }
+
+/* Password lock — builder control + viewer unlock screen */
+.lock-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin: 18px 0;
+  background: var(--white);
+}
+.lock-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lock-row .q-input { margin-top: 12px; }
+.lock-hint { color: var(--ink-muted); font-size: 0.82rem; margin-top: 10px; line-height: 1.5; }
+
+.lock-screen {
+  max-width: 360px;
+  margin: 24px auto 0;
+  text-align: center;
+}
+.lock-screen .q-input { margin-bottom: 12px; }
+.lock-screen .btn { width: 100%; }
+.lock-error { color: var(--coral-dark); font-size: 0.88rem; margin-top: 10px; }
 
 /* Builder responsive */
 @media (max-width: 640px) {

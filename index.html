@@ -49,38 +49,45 @@
           <p class="hero-note">No sign-up needed to start · Works on any phone</p>
         </div>
 
-        <!-- Decorative phone mockup -->
+        <!-- Decorative phone mockup — swipeable category examples -->
         <div class="hero-visual reveal" aria-hidden="true">
           <div class="phone">
             <div class="phone-notch"></div>
             <div class="phone-screen">
-              <div class="mock-cover">
-                <span class="mock-emoji">🐶</span>
-                <div class="mock-title">Whiskey 101</div>
-                <div class="mock-subtitle">Everything my dog sitter needs</div>
-              </div>
-              <div class="mock-card">
-                <span class="mock-card-icon">🦴</span>
-                <div>
-                  <div class="mock-card-title">Daily Routine</div>
-                  <div class="mock-card-bar"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <span class="mock-card-icon">💊</span>
-                <div>
-                  <div class="mock-card-title">Medications</div>
-                  <div class="mock-card-bar short"></div>
-                </div>
-              </div>
-              <div class="mock-card">
-                <span class="mock-card-icon">🚨</span>
-                <div>
-                  <div class="mock-card-title">Emergency Contacts</div>
-                  <div class="mock-card-bar"></div>
+              <div class="mock-track" id="mockTrack">
+                <!-- First slide is static so it shows even without JS;
+                     js/app.js adds the rest and enables swiping. -->
+                <div class="mock-slide">
+                  <div class="mock-cover">
+                    <span class="mock-emoji">🐶</span>
+                    <div class="mock-title">Whiskey 101</div>
+                    <div class="mock-subtitle">Everything my dog sitter needs</div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">🦴</span>
+                    <div>
+                      <div class="mock-card-title">Daily Routine</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">💊</span>
+                    <div>
+                      <div class="mock-card-title">Medications</div>
+                      <div class="mock-card-bar short"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">🚨</span>
+                    <div>
+                      <div class="mock-card-title">Emergency Contacts</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+            <div class="mock-dots" id="mockDots"></div>
           </div>
           <div class="blob blob-1"></div>
           <div class="blob blob-2"></div>

@@ -704,28 +704,102 @@
     }
   }
 
-  // Downscale + re-encode an image file to keep guides small enough to store.
-  function compressImage(file, maxDim, quality) {
+  // ---- Image helpers: downscale + re-encode so guides fit the store limit ----
+  function readFileAsDataURL(file) {
     return new Promise(function (resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        var img = new Image();
-        img.onload = function () {
-          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-          var cw = Math.round(img.width * scale);
-          var ch = Math.round(img.height * scale);
-          var canvas = document.createElement("canvas");
-          canvas.width = cw; canvas.height = ch;
-          canvas.getContext("2d").drawImage(img, 0, 0, cw, ch);
-          try { resolve(canvas.toDataURL("image/jpeg", quality)); }
-          catch (e) { resolve(reader.result); }
-        };
-        img.onerror = function () { resolve(reader.result); };
-        img.src = reader.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      var r = new FileReader();
+      r.onload = function () { resolve(r.result); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
     });
+  }
+  function loadImageEl(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+  function encodeJpeg(img, maxDim, quality) {
+    var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    var cw = Math.max(1, Math.round(img.width * scale));
+    var ch = Math.max(1, Math.round(img.height * scale));
+    var canvas = document.createElement("canvas");
+    canvas.width = cw; canvas.height = ch;
+    canvas.getContext("2d").drawImage(img, 0, 0, cw, ch);
+    try { return canvas.toDataURL("image/jpeg", quality); }
+    catch (e) { return null; }
+  }
+  // Re-encode a loaded image, stepping down quality (then size) until it fits
+  // within maxBytes (data-URL character length). No budget = single pass.
+  function encodeToBudget(img, maxDim, quality, maxBytes) {
+    var dim = maxDim, q = quality;
+    var out = encodeJpeg(img, dim, q);
+    if (!out || !maxBytes) return out;
+    var guard = 0;
+    while (out.length > maxBytes && guard++ < 16) {
+      if (q > 0.4) { q = Math.round((q - 0.08) * 100) / 100; }
+      else { dim = Math.round(dim * 0.82); q = 0.6; if (dim < 320) break; }
+      var next = encodeJpeg(img, dim, q);
+      if (!next) break;
+      out = next;
+    }
+    return out;
+  }
+  // Compress an uploaded file to (optionally) fit within maxBytes.
+  function compressImage(file, maxDim, quality, maxBytes) {
+    return readFileAsDataURL(file).then(function (srcUrl) {
+      return loadImageEl(srcUrl).then(function (img) {
+        return encodeToBudget(img, maxDim, quality, maxBytes) || srcUrl;
+      }, function () { return srcUrl; }); // undecodable (e.g. some HEIC) → keep original
+    });
+  }
+
+  // Collect mutable references to every stored image in a guide.
+  function imageRefs(g) {
+    var refs = [];
+    if (g.cover) refs.push({ get: function () { return g.cover; }, set: function (v) { g.cover = v; } });
+    (g.sections || []).forEach(function (s) {
+      if (s.photo) refs.push({ get: function () { return s.photo; }, set: function (v) { s.photo = v; } });
+    });
+    return refs;
+  }
+  // Re-encode the guide's images so the whole guide JSON fits under `target`
+  // characters. Returns whether the guide actually had any images to shrink.
+  function shrinkImagesToTarget(g, target) {
+    var refs = imageRefs(g);
+    if (!refs.length) return Promise.resolve(false);
+    var imgChars = refs.reduce(function (a, r) { return a + r.get().length; }, 0);
+    var nonImg = JSON.stringify(g).length - imgChars;
+    var budget = Math.max(30000, Math.floor((target - nonImg) / refs.length));
+    return refs.reduce(function (chain, ref) {
+      return chain.then(function () {
+        return loadImageEl(ref.get()).then(function (img) {
+          var out = encodeToBudget(img, 1400, 0.78, budget);
+          if (out && out.length < ref.get().length) ref.set(out);
+        }, function () {});
+      });
+    }, Promise.resolve()).then(function () { return true; });
+  }
+  // Build the object we'll actually store, auto-shrinking images (and retrying)
+  // until the final payload — encrypted or not — fits the backend's hard limit.
+  function buildStorable(g, locked, pass, hardLimit) {
+    function attempt(n) {
+      var prep = (locked && pass) ? How2Store.encrypt(g, pass) : Promise.resolve(g);
+      return prep.then(function (payloadObj) {
+        if (JSON.stringify(payloadObj).length <= hardLimit) return payloadObj;
+        if (n >= 5) throw new Error("__TOOBIG__");
+        // Encryption re-encodes the (already base64) images, so aim lower when locked.
+        var base = locked ? hardLimit / 1.45 : hardLimit;
+        var target = Math.floor(base * Math.pow(0.82, n) - 1500);
+        return shrinkImagesToTarget(g, target).then(function (hasImages) {
+          if (!hasImages) throw new Error("__TOOBIG__");
+          return attempt(n + 1);
+        });
+      });
+    }
+    return attempt(0);
   }
 
   function pickCover(coverEl) {
@@ -735,7 +809,7 @@
     input.addEventListener("change", function () {
       var file = input.files[0];
       if (!file) return;
-      compressImage(file, 1400, 0.78).then(function (dataUrl) {
+      compressImage(file, 1400, 0.78, 300000).then(function (dataUrl) {
         state.guide.cover = dataUrl;
         applyCover(coverEl, state.guide);
       });
@@ -897,7 +971,7 @@
     input.addEventListener("change", function () {
       var file = input.files[0];
       if (!file) return;
-      compressImage(file, 1200, 0.72).then(function (dataUrl) {
+      compressImage(file, 1200, 0.72, 220000).then(function (dataUrl) {
         sec.photo = dataUrl;
         renderSectionMedia(el, sec);
         if (!el.classList.contains("open")) el.classList.add("open");
@@ -1089,12 +1163,8 @@
     btn.disabled = true;
     btn.textContent = "Publishing…";
 
-    // Encrypt into a storage envelope when locked; otherwise store the guide as-is.
-    var prep = (locked && pass) ? How2Store.encrypt(g, pass) : Promise.resolve(g);
-
-    prep.then(function (payloadObj) {
-      // Guard against guides whose images are too big for the database (Phase 1).
-      if (JSON.stringify(payloadObj).length > 380000) throw new Error("__TOOBIG__");
+    // Auto-resize images (and encrypt when locked) so the payload fits the store.
+    buildStorable(g, locked, pass, 380000).then(function (payloadObj) {
       state.password = pass; // remember for re-publish in this session
       var op = state.created
         ? How2Store.update(payloadObj)
@@ -1102,10 +1172,11 @@
       return op;
     }).then(function (res) {
       state.created = true;
+      renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
     }).catch(function (err) {
       if (err && err.message === "__TOOBIG__") {
-        showToast("This guide's images are too large to publish online yet — try removing one.");
+        showToast("Even after resizing, there's too much image data — try removing a photo.");
       } else {
         showToast("Couldn't publish: " + (err.message || "try again"));
       }

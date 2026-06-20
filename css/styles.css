@@ -1120,6 +1120,35 @@ ul { margin: 0; padding: 0; list-style: none; }
 .modal-text a, .modal-hint a { color: var(--coral); font-weight: 600; }
 .modal-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
 
+/* Build-from-notes/file panel (first question of each category) */
+.import-panel {
+  border: 1px solid var(--coral-soft);
+  background: var(--bg-tint);
+  border-radius: var(--radius);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.import-toggle {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 14px 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--coral-dark);
+  cursor: pointer;
+}
+.import-toggle:hover { background: var(--coral-soft); }
+.import-toggle.open { border-bottom: 1px solid var(--coral-soft); }
+.import-body { padding: 4px 18px 18px; }
+.import-lead { color: var(--ink-soft); font-size: 0.92rem; margin: 8px 0 12px; line-height: 1.5; }
+.import-text { width: 100%; min-height: 110px; margin-bottom: 12px; }
+.import-file-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.import-file-btn { cursor: pointer; display: inline-flex; align-items: center; }
+.import-file-name { color: var(--ink-muted); font-size: 0.85rem; word-break: break-all; }
+.import-go { width: 100%; }
+
 /* Builder responsive */
 @media (max-width: 640px) {
   .cat-grid { grid-template-columns: repeat(2, 1fr); }

@@ -107,6 +107,7 @@
     editToken: null,
     created: false
   };
+  var importFile = null; // file chosen in the "build from notes/file" panel
 
   /* ---------- DOM refs ---------- */
   var $ = function (id) { return document.getElementById(id); };
@@ -205,7 +206,7 @@
     polishBtn.textContent = "✨ Polish";
     polishBtn.addEventListener("click", function () {
       polishInto(function () { return field.value; },
-        function (v) { field.value = v; }, polishBtn);
+        function (v) { field.value = v; }, polishBtn, aiCtx(fillName(q.q)));
     });
     actions.appendChild(polishBtn);
     wrap.appendChild(actions);
@@ -221,6 +222,166 @@
     // steps to the previous question.
     $("qBack").textContent = i === 0 ? "← Home" : "← Back";
     $("qNext").textContent = i === qs.length - 1 ? "Build my guide →" : "Next →";
+
+    // First question of every category offers a shortcut: paste notes / upload a
+    // file and let the AI build the whole guide instead of answering questions.
+    var oldPanel = document.getElementById("importPanel");
+    if (oldPanel) oldPanel.remove();
+    if (i === 0) {
+      var card = document.querySelector("#step2 .q-card");
+      card.parentNode.insertBefore(buildImportPanel(), card);
+    }
+  }
+
+  /* ---------- Build instantly from notes / a file ---------- */
+  function buildImportPanel() {
+    importFile = null;
+    var panel = document.createElement("div");
+    panel.id = "importPanel";
+    panel.className = "import-panel";
+    panel.innerHTML =
+      '<button class="import-toggle" type="button">⚡ Already written it down? Build instantly from notes or a file</button>' +
+      '<div class="import-body" hidden>' +
+        '<p class="import-lead">Paste your notes, or add a PDF, photo, or text file — our AI turns it into a guide you can edit.</p>' +
+        '<textarea class="q-textarea import-text" placeholder="Paste everything you already have here…"></textarea>' +
+        '<div class="import-file-row">' +
+          '<label class="tool-btn import-file-btn">📎 Add a file' +
+            '<input type="file" accept=".pdf,.txt,.md,.csv,text/plain,image/*" hidden /></label>' +
+          '<span class="import-file-name"></span>' +
+        '</div>' +
+        '<button class="btn btn-primary import-go" type="button">✨ Build my guide</button>' +
+      "</div>";
+
+    var toggle = panel.querySelector(".import-toggle");
+    var body = panel.querySelector(".import-body");
+    toggle.addEventListener("click", function () {
+      var willOpen = body.hasAttribute("hidden");
+      if (willOpen) body.removeAttribute("hidden"); else body.setAttribute("hidden", "");
+      toggle.classList.toggle("open", willOpen);
+    });
+
+    var fileInput = panel.querySelector('input[type="file"]');
+    var fileName = panel.querySelector(".import-file-name");
+    fileInput.addEventListener("change", function () {
+      importFile = fileInput.files[0] || null;
+      fileName.textContent = importFile ? importFile.name : "";
+    });
+
+    panel.querySelector(".import-go").addEventListener("click", function () {
+      runImport(panel.querySelector(".import-text").value.trim(), importFile);
+    });
+    return panel;
+  }
+
+  function runImport(rawText, file) {
+    if (!rawText && !file) { showToast("Paste some notes or add a file first."); return; }
+    steps.building.querySelector(".building-title").textContent = "Reading your notes…";
+    steps.building.querySelector(".building-sub").textContent = "Turning what you have into a guide.";
+    showStep("building");
+
+    getFilePayload(file).then(function (fp) {
+      if (fp && fp.error) { showToast(fp.error); showStep(2); return; }
+      var mergedText = rawText || "";
+      if (fp && fp.text) mergedText = (mergedText ? mergedText + "\n\n" : "") + fp.text;
+
+      return How2Store.ai("import", {
+        text: mergedText,
+        category: state.category.name,
+        fileData: fp && fp.data,
+        fileType: fp && fp.type
+      }).then(function (res) {
+        if (res && res.sections && res.sections.length) {
+          buildGuideFromAI(res, state.category, mergedText);
+          renderGuideEditor();
+          showStep(3);
+          showToast("Built from your notes ✨");
+        } else {
+          importFallback(mergedText, !res); // null = no cloud backend
+        }
+      });
+    }).catch(function () {
+      importFallback(rawText || "", false);
+    });
+  }
+
+  // Reads an uploaded file into something the AI can use:
+  //   images → compressed base64; PDFs → base64; text files → plain text.
+  function getFilePayload(file) {
+    if (!file) return Promise.resolve(null);
+    var type = file.type || "";
+    var isImage = type.indexOf("image/") === 0;
+    var isPdf = type === "application/pdf" || /\.pdf$/i.test(file.name);
+    var isText = type.indexOf("text/") === 0 || /\.(txt|md|csv)$/i.test(file.name);
+
+    if (isImage) {
+      return compressImage(file, 1600, 0.8).then(function (dataUrl) {
+        return { data: dataUrl.split(",")[1], type: "image/jpeg" };
+      });
+    }
+    if (isPdf) {
+      if (file.size > 4.5 * 1024 * 1024) {
+        return Promise.resolve({ error: "That PDF is too large (max ~4MB). Try a smaller file or paste the text." });
+      }
+      return readAsBase64(file).then(function (b64) { return { data: b64, type: "application/pdf" }; });
+    }
+    if (isText) {
+      return file.text().then(function (t) { return { text: t.slice(0, 8000) }; });
+    }
+    return Promise.resolve({ error: "Unsupported file — use a PDF, image, or text file." });
+  }
+
+  function readAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload = function () { resolve(String(r.result).split(",")[1]); };
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  // Maps the AI's import result (or a fallback) into a fresh editable guide.
+  function buildGuideFromAI(ai, cat, rawText) {
+    var sections = (ai.sections || []).map(function (s) {
+      return {
+        id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
+        body: (s.body || "").trim() || "Tap to add details…", photo: null, videoId: null
+      };
+    });
+    if (!sections.length) {
+      sections.push({ id: uid(), icon: "📝", title: "My notes", body: rawText || "Tap to add details…", photo: null, videoId: null });
+    }
+    var contacts = (ai.contacts || [])
+      .filter(function (c) { return c && (c.label || c.value); })
+      .map(function (c) { return { id: uid(), label: c.label || "Contact", value: c.value || "" }; });
+
+    state.guide = {
+      slug: makeSlug(),
+      category: cat.id,
+      emoji: cat.emoji,
+      title: (ai.title || "").trim() || ("My " + cat.name + " Guide"),
+      subtitle: cat.coverSub,
+      cover: null,
+      sections: sections,
+      contacts: contacts,
+      logs: [],
+      blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
+      branding: true,
+      createdAt: Date.now()
+    };
+    state.created = false;
+  }
+
+  function importFallback(rawText, noCloud) {
+    buildGuideFromAI({
+      title: "My " + state.category.name + " Guide",
+      sections: [{ emoji: "📝", title: "My notes", body: rawText || "Tap to add details…" }],
+      contacts: []
+    }, state.category, rawText);
+    renderGuideEditor();
+    showStep(3);
+    showToast(noCloud
+      ? "Saved your notes — shape them into a guide below."
+      : "AI couldn't process that — added your notes to edit.");
   }
 
   function fillName(str) {
@@ -336,28 +497,9 @@
     }
   }
 
-  /* ---------- AI Polish (bring-your-own Anthropic key) ---------- */
-  var KEY_STORE = "how2_anthropic_key";
-  var POLISH_MODEL = "claude-opus-4-8";
-  var POLISH_SYSTEM =
-    "You are an editor for How2, a tool for creating friendly, shareable how-to guides. " +
-    "Rewrite the user's text so it reads clearly, warmly and professionally — easy for anyone to follow. " +
-    "Keep the original meaning and every specific detail (names, numbers, times, phone numbers, medication doses, addresses). " +
-    "Keep it concise. Preserve line breaks and any list structure. " +
-    "Do not add new information, headings, or commentary. " +
-    "Return only the rewritten text, with no preamble and no surrounding quotation marks.";
+  /* ---------- AI Polish (keyless — runs through the How2 backend) ---------- */
 
-  function getApiKey() {
-    try { return localStorage.getItem(KEY_STORE) || ""; } catch (e) { return ""; }
-  }
-  function setApiKey(k) {
-    try {
-      if (k) localStorage.setItem(KEY_STORE, k);
-      else localStorage.removeItem(KEY_STORE);
-    } catch (e) {}
-  }
-
-  // Built-in cleanup — no key, no cost, works offline.
+  // Built-in cleanup — no AI, no cost, works offline. Used as a fallback.
   function localPolish(text) {
     var lines = String(text).replace(/\r/g, "").split("\n");
     lines = lines.map(function (line) {
@@ -376,77 +518,47 @@
     return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
-  // Real rewrite via Claude, called directly from the browser with the user's key.
-  function polishWithClaude(text, key) {
-    return fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: POLISH_MODEL,
-        max_tokens: 1024,
-        system: POLISH_SYSTEM,
-        messages: [{ role: "user", content: text }]
-      })
+  // Keyless cloud AI (knows the category + question for context) → local tidy-up.
+  function polish(text, ctx) {
+    ctx = ctx || {};
+    function fallback() { showToast("Tidied up ✨"); return localPolish(text); }
+    return How2Store.ai("polish", {
+      text: text, category: ctx.category, question: ctx.question
     }).then(function (res) {
-      if (!res.ok) {
-        return res.json().catch(function () { return null; }).then(function (j) {
-          var msg = j && j.error && j.error.message ? j.error.message : "HTTP " + res.status;
-          throw new Error(msg);
-        });
-      }
-      return res.json();
-    }).then(function (data) {
-      var out = "";
-      (data.content || []).forEach(function (b) { if (b.type === "text") out += b.text; });
-      out = out.trim().replace(/^["'“”]|["'“”]$/g, "").trim();
-      if (!out) throw new Error("Empty response");
-      return out;
-    });
-  }
-
-  // Polish order: keyless cloud AI → your own key (BYOK) → local tidy-up.
-  function polish(text) {
-    return How2Store.ai("polish", text).then(function (res) {
       if (res && typeof res.text === "string" && res.text.trim()) {
         showToast("Polished with AI ✨");
         return res.text;
       }
-      return polishByokOrLocal(text); // no cloud backend
-    }, function () {
-      return polishByokOrLocal(text); // cloud errored
-    });
-  }
-
-  function polishByokOrLocal(text) {
-    var key = getApiKey();
-    if (key) {
-      return polishWithClaude(text, key).then(
-        function (out) { showToast("Polished with AI ✨"); return out; },
-        function () { showToast("AI polish failed — used basic tidy-up."); return localPolish(text); }
-      );
-    }
-    showToast("Tidied up ✨");
-    return localPolish(text);
+      return fallback(); // no cloud backend
+    }, fallback);        // cloud errored
   }
 
   // Wires a Polish button to read/replace a piece of text with a loading state.
-  function polishInto(getText, setText, btn) {
+  // `ctx` ({ category, question }) gives the AI context about what it's editing.
+  function polishInto(getText, setText, btn, ctx) {
     var text = (getText() || "").trim();
     if (!text || text === "Tap to add details…") { showToast("Nothing to polish yet."); return; }
     var orig = btn.textContent;
     btn.disabled = true;
     btn.textContent = "✨ Polishing…";
-    polish(text).then(function (out) {
+    polish(text, ctx).then(function (out) {
       setText(out);
     }).then(null, function () {}).then(function () {
       btn.disabled = false;
       btn.textContent = orig;
     });
+  }
+
+  // Builds AI context for a field. `state.category` is set during the wizard;
+  // when editing an existing guide we look the name up from its category id.
+  function aiCtx(question) {
+    var name = (state.category && state.category.name) ||
+      (state.guide && catName(state.guide.category)) || "a how-to guide";
+    return { category: name, question: question || "" };
+  }
+  function catName(id) {
+    for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].id === id) return CATEGORIES[i].name;
+    return "a how-to guide";
   }
 
   /* ---------- Generate guide from answers ---------- */
@@ -733,7 +845,7 @@
       var contentEl = el.querySelector(".acc-content");
       if (!el.classList.contains("open")) el.classList.add("open");
       polishInto(function () { return contentEl.innerText; },
-        function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn);
+        function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn, aiCtx(sec.title));
     });
 
     var videoRow = el.querySelector(".video-input-row");
@@ -1070,30 +1182,6 @@
   $("copyBtn").addEventListener("click", function () { copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
-
-  // AI Polish key modal
-  var keyModal = $("keyModal");
-  function openKeyModal() {
-    $("keyInput").value = getApiKey();
-    keyModal.hidden = false;
-    setTimeout(function () { $("keyInput").focus(); }, 50);
-  }
-  function closeKeyModal() { keyModal.hidden = true; }
-  $("aiBtn").addEventListener("click", openKeyModal);
-  $("keyClose").addEventListener("click", closeKeyModal);
-  keyModal.addEventListener("click", function (e) { if (e.target === keyModal) closeKeyModal(); });
-  $("keySave").addEventListener("click", function () {
-    var k = $("keyInput").value.trim();
-    setApiKey(k);
-    closeKeyModal();
-    showToast(k ? "AI key saved ✨" : "AI key removed.");
-  });
-  $("keyClear").addEventListener("click", function () {
-    setApiKey("");
-    $("keyInput").value = "";
-    closeKeyModal();
-    showToast("AI key removed.");
-  });
 
   // Entry: an edit link (?g=slug&t=token) opens that guide; otherwise start fresh.
   function getParam(name) {

@@ -92,19 +92,29 @@ window.How2Store = (function () {
       });
     },
 
-    // Server-side AI (keyless). Resolves with the handler's JSON result, or
-    // null when no cloud backend is configured (so callers can fall back).
-    ai: function (mode, text, category) {
+    // Server-side AI (keyless). `opts` may include text, category, question,
+    // fileData (base64) and fileType. Resolves with the handler's JSON result,
+    // or null when no cloud backend is configured (so callers can fall back).
+    ai: function (mode, opts) {
+      opts = opts || {};
       return loadConfig().then(function (cfg) {
         if (!cfg) return null;
-        var q = "query Ai($mode: String!, $text: String!, $category: String){ " +
-          "aiAssist(mode: $mode, text: $text, category: $category) }";
-        return gql(cfg, q, { mode: mode, text: text, category: category || null })
-          .then(function (d) {
-            var r = d.aiAssist;
-            if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
-            return r;
-          });
+        var q = "query Ai($mode: String!, $text: String, $category: String, " +
+          "$question: String, $fileData: String, $fileType: String){ " +
+          "aiAssist(mode: $mode, text: $text, category: $category, " +
+          "question: $question, fileData: $fileData, fileType: $fileType) }";
+        return gql(cfg, q, {
+          mode: mode,
+          text: opts.text || null,
+          category: opts.category || null,
+          question: opts.question || null,
+          fileData: opts.fileData || null,
+          fileType: opts.fileType || null
+        }).then(function (d) {
+          var r = d.aiAssist;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+          return r;
+        });
       });
     },
 

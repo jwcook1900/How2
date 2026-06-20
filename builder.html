@@ -18,7 +18,6 @@
     <div class="container header-inner">
       <a href="index.html" class="logo" aria-label="How2 home"><span class="logo-mark">How2</span></a>
       <div class="header-actions">
-        <button id="aiBtn" class="btn btn-ghost btn-sm" type="button" title="AI Polish settings">✨ AI</button>
         <a href="index.html" class="btn btn-ghost btn-sm">Exit</a>
       </div>
     </div>
@@ -140,29 +139,6 @@
   </main>
 
   <div class="toast" id="toast"></div>
-
-  <!-- AI Polish key modal -->
-  <div class="modal-overlay" id="keyModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
-      <button class="modal-close" id="keyClose" type="button" aria-label="Close">✕</button>
-      <h2 class="modal-title" id="keyTitle">✨ AI Polish</h2>
-      <p class="modal-text">
-        Paste your Anthropic API key to rewrite text so it reads clear, warm and
-        professional. Your key is stored <strong>only in this browser</strong> and
-        sent straight to Anthropic — never to How2. Without a key, Polish still
-        works using a built-in tidy-up.
-      </p>
-      <input type="password" class="q-input" id="keyInput" placeholder="sk-ant-..." autocomplete="off" />
-      <p class="modal-hint">
-        Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
-        Polishing uses Claude and costs a small amount per use, billed to your own account.
-      </p>
-      <div class="modal-actions">
-        <button class="btn btn-ghost btn-sm" id="keyClear" type="button">Remove key</button>
-        <button class="btn btn-primary btn-sm" id="keySave" type="button">Save key</button>
-      </div>
-    </div>
-  </div>
 
   <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>

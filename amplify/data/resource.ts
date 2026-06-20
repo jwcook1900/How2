@@ -25,8 +25,11 @@ const schema = a.schema({
     .query()
     .arguments({
       mode: a.string().required(),
-      text: a.string().required(),
+      text: a.string(),
       category: a.string(),
+      question: a.string(),
+      fileData: a.string(),
+      fileType: a.string(),
     })
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])

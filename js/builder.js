@@ -1186,6 +1186,46 @@
     });
   }
 
+  // Optional: email the creator their links (and password, if the guide is
+  // locked) so a lost edit link doesn't orphan the guide.
+  function emailMyLinks() {
+    var input = $("emailLinksInput");
+    var note = $("emailLinksNote");
+    var btn = $("emailLinksBtn");
+    var email = (input.value || "").trim();
+    function say(kind, msg) { note.className = "email-links-note " + kind; note.textContent = msg; note.hidden = false; }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      say("err", "Please enter a valid email address.");
+      input.focus();
+      return;
+    }
+    var g = state.guide;
+    btn.disabled = true; btn.textContent = "Sending…";
+    note.hidden = true;
+
+    How2Store.sendLinks({
+      email: email,
+      slug: g.slug,
+      editToken: state.editToken,
+      origin: window.location.origin,
+      title: g.title,
+      emoji: g.emoji,
+      password: state.password || ""
+    }).then(function (res) {
+      if (res === null) {
+        say("err", "Emailing links needs the published (online) site.");
+      } else {
+        say("ok", "✓ Sent — check your inbox (and spam folder).");
+        input.value = "";
+      }
+    }).catch(function (err) {
+      say("err", "Couldn't send: " + (err.message || "try again") + ".");
+    }).then(function () {
+      btn.disabled = false; btn.textContent = "Send";
+    });
+  }
+
   function showShare(g, isCloud, locked) {
     var url = pageUrl("guide.html", "g=" + encodeURIComponent(g.slug));
     var editLink = pageUrl("builder.html", "g=" + encodeURIComponent(g.slug) + "&t=" + encodeURIComponent(state.editToken));
@@ -1198,6 +1238,13 @@
         ? "🔒 Password-protected — only people with the password can read it."
         : "Anyone with this link can view it.";
     }
+    // Reset the "email me my links" field; note whether the password is included.
+    $("emailLinksInput").value = "";
+    $("emailLinksNote").hidden = true;
+    $("emailLinksHint").textContent = locked
+      ? "Includes your view link, edit link and password. ⚠️ Anyone who sees that email can open the guide."
+      : "So you don't lose them — includes your view and edit links.";
+
     $("shareUrl").value = url;
     $("editUrl").value = editLink;
     $("openGuide").href = url;
@@ -1280,6 +1327,8 @@
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
   $("lockOn").addEventListener("change", toggleLockUI);
+  $("emailLinksBtn").addEventListener("click", emailMyLinks);
+  $("emailLinksInput").addEventListener("keydown", function (e) { if (e.key === "Enter") emailMyLinks(); });
 
   // Entry: an edit link (?g=slug&t=token) opens that guide; otherwise start fresh.
   function getParam(name) {

@@ -134,6 +134,14 @@
             <a class="chip" id="shareEmail">✉️ Email</a>
           </div>
 
+          <label class="share-label">Email yourself these links (optional)</label>
+          <p class="email-links-hint" id="emailLinksHint">So you don't lose them — includes your view and edit links.</p>
+          <div class="share-link">
+            <input type="email" id="emailLinksInput" placeholder="you@email.com" autocomplete="email" />
+            <button class="btn btn-primary btn-sm" id="emailLinksBtn" type="button">Send</button>
+          </div>
+          <p class="email-links-note" id="emailLinksNote" hidden></p>
+
           <div class="share-actions">
             <button class="btn btn-ghost btn-sm" id="downloadQr" type="button">Download QR</button>
             <a class="btn btn-ghost btn-sm" id="openGuide" target="_blank" rel="noopener">Open guide ↗</a>

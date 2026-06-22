@@ -9,6 +9,7 @@
   "devDependencies": {
     "@aws-amplify/backend": "^1.4.0",
     "@aws-amplify/backend-cli": "^1.2.0",
+    "@aws-sdk/client-ses": "^3.1074.0",
     "@types/node": "^20.14.0",
     "aws-cdk-lib": "^2.158.0",
     "constructs": "^10.3.0",

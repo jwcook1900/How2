@@ -1192,6 +1192,19 @@ ul { margin: 0; padding: 0; list-style: none; }
 .lock-row .q-input { margin-top: 12px; }
 .lock-hint { color: var(--ink-muted); font-size: 0.82rem; margin-top: 10px; line-height: 1.5; }
 
+.email-links-hint {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.email-links-note {
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+.email-links-note.ok { color: var(--coral-dark); }
+.email-links-note.err { color: var(--coral-dark); }
+
 .lock-screen {
   max-width: 360px;
   margin: 24px auto 0;

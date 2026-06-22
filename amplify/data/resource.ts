@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { aiFn } from "../functions/ai/resource";
+import { emailFn } from "../functions/email/resource";
 
 /**
  * How2 data model.
@@ -34,6 +35,22 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(aiFn)),
+
+  // Emails a creator their guide links (and password, if set) at publish time.
+  sendLinks: a
+    .query()
+    .arguments({
+      email: a.string().required(),
+      slug: a.string().required(),
+      editToken: a.string().required(),
+      origin: a.string().required(),
+      title: a.string(),
+      emoji: a.string(),
+      password: a.string(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(emailFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

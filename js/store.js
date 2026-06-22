@@ -175,6 +175,33 @@ window.How2Store = (function () {
       });
     },
 
+    // Email a creator their links (server-side via SES). `opts`: email, slug,
+    // editToken, origin, and optional title/emoji/password. Resolves with the
+    // handler result, or null when there's no cloud backend to send through.
+    sendLinks: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Send($email: String!, $slug: String!, $editToken: String!, " +
+          "$origin: String!, $title: String, $emoji: String, $password: String){ " +
+          "sendLinks(email: $email, slug: $slug, editToken: $editToken, origin: $origin, " +
+          "title: $title, emoji: $emoji, password: $password) }";
+        return gql(cfg, q, {
+          email: opts.email,
+          slug: opts.slug,
+          editToken: opts.editToken,
+          origin: opts.origin,
+          title: opts.title || null,
+          emoji: opts.emoji || null,
+          password: opts.password || null
+        }).then(function (d) {
+          var r = d.sendLinks;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+          return r;
+        });
+      });
+    },
+
     // Read a guide plus its edit token (for the edit-link flow).
     getForEdit: function (slug) {
       return loadConfig().then(function (cfg) {

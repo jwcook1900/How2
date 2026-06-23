@@ -89,7 +89,7 @@
       var dot = document.createElement("button");
       dot.type = "button";
       dot.className = "mock-dot";
-      (function (j) { dot.addEventListener("click", function () { go(j); restart(); }); })(i);
+      (function (j) { dot.addEventListener("click", function () { go(j); pauseAuto(); }); })(i);
       dotsWrap.appendChild(dot);
     }
     var dots = dotsWrap.children;
@@ -100,45 +100,63 @@
       for (var k = 0; k < n; k++) dots[k].classList.toggle("active", k === idx);
     }
 
-    var timer = null;
-    function start() {
-      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var timer = null, resumeT = null;
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function startAuto() {
+      stopAuto();
+      if (reduce) return;
       timer = setInterval(function () { go(idx + 1); }, 3600);
     }
-    function stop() { if (timer) { clearInterval(timer); timer = null; } }
-    function restart() { stop(); start(); }
+    function stopAuto() { if (timer) { clearInterval(timer); timer = null; } }
+    // After the user interacts, hold auto-rotate so it doesn't fight them.
+    function pauseAuto() { stopAuto(); clearTimeout(resumeT); resumeT = setTimeout(startAuto, 9000); }
 
-    // Swipe (pointer events: works for touch + mouse drag). The track follows
-    // the finger in real time, then snaps to the next/prev slide on release.
-    var startX = null, baseX = 0, width = 0, dragging = false;
+    // Drag/swipe (pointer events; window-level so the gesture can't get lost).
+    // We commit to a horizontal drag only once it clearly beats vertical, so the
+    // page can still scroll when a touch starts on the carousel.
+    var pid = null, downX = 0, downY = 0, curX = 0, width = 0, dragging = false, decided = false;
     track.addEventListener("pointerdown", function (e) {
+      if (pid !== null) return;
+      pid = e.pointerId;
+      downX = curX = e.clientX;
+      downY = e.clientY;
+      dragging = false; decided = false;
       width = track.getBoundingClientRect().width || 1;
-      startX = e.clientX;
-      baseX = -idx * width;
-      dragging = true;
-      track.style.transition = "none";
-      stop();
-      try { track.setPointerCapture(e.pointerId); } catch (err) {}
+      stopAuto();
     });
-    track.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
-      track.style.transform = "translateX(" + (baseX + (e.clientX - startX)) + "px)";
-    });
-    function endDrag(e) {
-      if (!dragging) return;
-      dragging = false;
-      track.style.transition = "";
-      var dx = e.clientX - startX;
-      startX = null;
-      if (Math.abs(dx) > Math.min(60, width * 0.2)) go(idx + (dx < 0 ? 1 : -1));
-      else go(idx); // not far enough — snap back
-      start(); // resume auto-rotate
+    function onMove(e) {
+      if (pid === null || e.pointerId !== pid) return;
+      var dx = e.clientX - downX, dy = e.clientY - downY;
+      if (!decided) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        decided = true;
+        dragging = Math.abs(dx) > Math.abs(dy);
+        if (dragging) track.style.transition = "none";
+        else { pid = null; pauseAuto(); return; } // vertical — let the page scroll
+      }
+      if (dragging) {
+        e.preventDefault();
+        curX = e.clientX;
+        track.style.transform = "translateX(" + (-idx * width + (curX - downX)) + "px)";
+      }
     }
-    track.addEventListener("pointerup", endDrag);
-    track.addEventListener("pointercancel", endDrag);
+    function onUp(e) {
+      if (pid === null || (e.pointerId !== undefined && e.pointerId !== pid)) return;
+      var wasDragging = dragging, dx = curX - downX;
+      pid = null; dragging = false; decided = false;
+      if (wasDragging) {
+        track.style.transition = "";
+        if (Math.abs(dx) > Math.min(50, width * 0.18)) go(idx + (dx < 0 ? 1 : -1));
+        else go(idx); // not far enough — snap back
+      }
+      pauseAuto();
+    }
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
 
     go(0);
-    start();
+    startAuto();
   })();
 
   /* ---- Waitlist form (simulated for MVP) ---- */

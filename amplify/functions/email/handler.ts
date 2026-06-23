@@ -49,10 +49,10 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
 
   const text =
     emoji + " " + title + "\n\n" +
-    "Here are your How2 guide links — keep this email safe.\n\n" +
+    "Here are your GotIt Guides guide links — keep this email safe.\n\n" +
     "View / share link:\n" + viewUrl + "\n\n" +
     "Private edit link (lets you change the guide — don't share it):\n" + editUrl +
-    passText + "\n\n— How2";
+    passText + "\n\n— GotIt Guides";
 
   const passHtml = password
     ? '<p style="margin:18px 0 4px;font-weight:600">Password (needed to view this guide)</p>' +
@@ -65,13 +65,13 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
   const html =
     '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1A1A1A">' +
     '<h2 style="font-size:20px">' + esc(emoji) + " " + esc(title) + "</h2>" +
-    '<p style="color:#555">Here are your How2 guide links — keep this email safe.</p>' +
+    '<p style="color:#555">Here are your GotIt Guides guide links — keep this email safe.</p>' +
     '<p style="margin:18px 0 4px;font-weight:600">View / share link</p>' +
     '<p style="margin:0"><a href="' + esc(viewUrl) + '">' + esc(viewUrl) + "</a></p>" +
     '<p style="margin:18px 0 4px;font-weight:600">Private edit link <span style="color:#888;font-weight:400">(don\'t share)</span></p>' +
     '<p style="margin:0"><a href="' + esc(editUrl) + '">' + esc(editUrl) + "</a></p>" +
     passHtml +
-    '<p style="color:#999;font-size:13px;margin-top:28px">— How2 · The guide you always meant to write</p>' +
+    '<p style="color:#999;font-size:13px;margin-top:28px">— GotIt Guides · guides people get</p>' +
     "</div>";
 
   await ses.send(
@@ -79,7 +79,7 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
       Source: from,
       Destination: { ToAddresses: [email] },
       Message: {
-        Subject: { Data: "Your How2 guide links — " + title, Charset: "UTF-8" },
+        Subject: { Data: "Your GotIt Guides guide links — " + title, Charset: "UTF-8" },
         Body: {
           Text: { Data: text, Charset: "UTF-8" },
           Html: { Data: html, Charset: "UTF-8" },

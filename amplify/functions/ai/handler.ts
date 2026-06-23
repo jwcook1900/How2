@@ -32,7 +32,7 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   if (mode === "import") {
     maxTokens = 2048;
     system =
-      "You turn a person's existing notes (and any attached file) into a structured How2 guide. " +
+      "You turn a person's existing notes (and any attached file) into a structured GotIt Guides guide. " +
       "Return ONLY a JSON object of this exact shape: " +
       '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}]}. ' +
       "Give each section a short title and a fitting emoji. Group related details together. " +
@@ -55,7 +55,7 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
     userContent = blocks;
   } else {
     system =
-      "You are an editor for How2, a tool for friendly, shareable how-to guides. " +
+      "You are an editor for GotIt Guides, a tool for friendly, shareable how-to guides. " +
       (question ? 'The text is the answer to: "' + question + '". ' : "") +
       'It belongs to a guide about "' + category + '". ' +
       "Rewrite the text so it reads clearly, warmly and professionally, keeping every specific " +

@@ -1,5 +1,5 @@
 /* ============================================================
-   How2 — Published guide view (read-only)
+   GotIt Guides — Published guide view (read-only)
    Loads a guide from localStorage by ?g=slug and renders it
    in the same style as the builder preview.
    ============================================================ */
@@ -36,11 +36,11 @@
       '<div class="cover-title">Guide not found</div>' +
       '<div class="cover-sub">This guide may have been created on another device or browser.</div></div>' +
       '<p style="text-align:center;margin-top:24px"><a class="btn btn-primary" href="builder.html">Create a guide →</a></p>';
-    document.title = "Guide not found — How2";
+    document.title = "Guide not found — GotIt Guides";
     return;
   }
 
-  document.title = guide.title + " — How2";
+  document.title = guide.title + " — GotIt Guides";
 
   var html = "";
 
@@ -143,9 +143,9 @@
     });
   });
 
-  // Footer (How2 branding for free tier)
+  // Footer (GotIt Guides branding for free tier)
   if (guide.branding !== false) {
-    footer.innerHTML = 'Made with <a href="index.html">How2</a> · The guide you always meant to write';
+    footer.innerHTML = 'Made with <a href="index.html">GotIt Guides</a> · guides people get';
   } else {
     footer.innerHTML = "";
   }
@@ -154,7 +154,7 @@
   // Password-protected guides arrive as an encrypted envelope — show an unlock
   // screen and decrypt in the browser once the right password is entered.
   function showLock(env) {
-    document.title = "Protected guide — How2";
+    document.title = "Protected guide — GotIt Guides";
     doc.innerHTML =
       '<div class="guide-cover"><span class="cover-emoji">🔒</span>' +
         '<div class="cover-title">This guide is protected</div>' +
@@ -172,7 +172,7 @@
       if (!p) return;
       err.hidden = true;
       btn.disabled = true; btn.textContent = "Unlocking…";
-      How2Store.decrypt(env, p).then(function (real) {
+      GotItStore.decrypt(env, p).then(function (real) {
         render(real);
       }, function () {
         err.hidden = false;
@@ -191,8 +191,8 @@
   } else {
     doc.innerHTML = '<div class="guide-cover"><span class="cover-emoji">⏳</span>' +
       '<div class="cover-title">Loading…</div></div>';
-    How2Store.get(slug).then(function (obj) {
-      if (How2Store.isEncrypted(obj)) showLock(obj);
+    GotItStore.get(slug).then(function (obj) {
+      if (GotItStore.isEncrypted(obj)) showLock(obj);
       else render(obj);
     }).catch(function () { render(null); });
   }

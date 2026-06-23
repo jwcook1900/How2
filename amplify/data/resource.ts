@@ -3,7 +3,7 @@ import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
 
 /**
- * How2 data model.
+ * GotIt Guides data model.
  *
  * A Guide is stored by its friendly slug (used as the record id). `payload`
  * holds the whole guide object as JSON; `editToken` is a secret known only to

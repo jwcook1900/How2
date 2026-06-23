@@ -5,7 +5,7 @@ import { aiFn } from "./functions/ai/resource";
 import { emailFn } from "./functions/email/resource";
 
 /**
- * How2 backend: guide storage (Data), a server-side AI helper (aiFn), and an
+ * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), and an
  * SES-backed email sender (emailFn) for the "email me my links" option.
  * Auth and image storage (S3) come in later phases.
  */

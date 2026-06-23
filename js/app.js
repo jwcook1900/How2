@@ -1,5 +1,5 @@
 /* ============================================================
-   How2 — Landing page interactions
+   GotIt Guides — Landing page interactions
    ============================================================ */
 
 (function () {

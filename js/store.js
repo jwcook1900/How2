@@ -1,10 +1,10 @@
 /* ============================================================
-   How2 — storage layer
+   GotIt Guides — storage layer
    Saves/loads guides from the cloud (AWS Amplify Data) when configured,
    and transparently falls back to localStorage otherwise so the app
    always works (offline, file://, or before the backend is deployed).
    ============================================================ */
-window.How2Store = (function () {
+window.GotItStore = (function () {
   "use strict";
 
   var GUIDES_KEY = "how2_guides";

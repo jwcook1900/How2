@@ -1,8 +1,8 @@
 {
-  "name": "how2",
+  "name": "gotit-guides",
   "version": "1.0.0",
   "type": "module",
-  "description": "How2 — the guide you always meant to write",
+  "description": "GotIt Guides — guides people get",
   "scripts": {
     "ampx": "ampx"
   },

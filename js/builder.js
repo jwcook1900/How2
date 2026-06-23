@@ -1,5 +1,5 @@
 /* ============================================================
-   How2 — Guide builder
+   GotIt Guides — Guide builder
    Wizard: category → questions → preview/edit → share
    Persists guides to localStorage (no backend for MVP).
    ============================================================ */
@@ -147,7 +147,7 @@
     },
     {
       id: "other", emoji: "✏️", name: "Other", desc: "Custom guide",
-      coverSub: "A How2 guide",
+      coverSub: "A GotIt Guides guide",
       questions: [
         { id: "name", q: "What's your guide about?", hint: "This becomes the title.", ph: "e.g. How to use the espresso machine", type: "text", target: "title" },
         { id: "intro", q: "Give a short intro.", hint: "What is this and who's it for?", ph: "A quick guide to…", type: "textarea", target: "section", icon: "📖", sectionTitle: "Overview" },
@@ -344,7 +344,7 @@
       var mergedText = rawText || "";
       if (fp && fp.text) mergedText = (mergedText ? mergedText + "\n\n" : "") + fp.text;
 
-      return How2Store.ai("import", {
+      return GotItStore.ai("import", {
         text: mergedText,
         category: state.category.name,
         fileData: fp && fp.data,
@@ -557,7 +557,7 @@
     }
   }
 
-  /* ---------- AI Polish (keyless — runs through the How2 backend) ---------- */
+  /* ---------- AI Polish (keyless — runs through the GotIt Guides backend) ---------- */
 
   // Built-in cleanup — no AI, no cost, works offline. Used as a fallback.
   function localPolish(text) {
@@ -582,7 +582,7 @@
   function polish(text, ctx) {
     ctx = ctx || {};
     function fallback() { showToast("Tidied up ✨"); return localPolish(text); }
-    return How2Store.ai("polish", {
+    return GotItStore.ai("polish", {
       text: text, category: ctx.category, question: ctx.question
     }).then(function (res) {
       if (res && typeof res.text === "string" && res.text.trim()) {
@@ -846,7 +846,7 @@
   // until the final payload — encrypted or not — fits the backend's hard limit.
   function buildStorable(g, locked, pass, hardLimit) {
     function attempt(n) {
-      var prep = (locked && pass) ? How2Store.encrypt(g, pass) : Promise.resolve(g);
+      var prep = (locked && pass) ? GotItStore.encrypt(g, pass) : Promise.resolve(g);
       return prep.then(function (payloadObj) {
         if (JSON.stringify(payloadObj).length <= hardLimit) return payloadObj;
         if (n >= 5) throw new Error("__TOOBIG__");
@@ -1214,7 +1214,7 @@
     var locked = $("lockOn").checked;
     var pass = locked ? ($("lockPass").value || "").trim() : "";
     if (locked && !pass) { showToast("Enter a password, or untick the lock."); return; }
-    if (locked && !How2Store.canEncrypt()) {
+    if (locked && !GotItStore.canEncrypt()) {
       showToast("Password protection needs the live (https) site.");
       return;
     }
@@ -1227,8 +1227,8 @@
     buildStorable(g, locked, pass, 380000).then(function (payloadObj) {
       state.password = pass; // remember for re-publish in this session
       var op = state.created
-        ? How2Store.update(payloadObj)
-        : How2Store.create(payloadObj, state.editToken);
+        ? GotItStore.update(payloadObj)
+        : GotItStore.create(payloadObj, state.editToken);
       return op;
     }).then(function (res) {
       state.created = true;
@@ -1264,7 +1264,7 @@
     btn.disabled = true; btn.textContent = "Sending…";
     note.hidden = true;
 
-    How2Store.sendLinks({
+    GotItStore.sendLinks({
       email: email,
       slug: g.slug,
       editToken: state.editToken,
@@ -1310,17 +1310,17 @@
     $("openGuide").href = url;
 
     // Share-to channels
-    var msg = "Check out my How2 guide — " + g.title + ": " + url;
+    var msg = "Check out my guide on GotIt Guides — " + g.title + ": " + url;
     $("shareWhatsapp").href = "https://wa.me/?text=" + encodeURIComponent(msg);
     $("shareSms").href = "sms:?&body=" + encodeURIComponent(msg);
-    $("shareEmail").href = "mailto:?subject=" + encodeURIComponent(g.title + " — a How2 guide") +
+    $("shareEmail").href = "mailto:?subject=" + encodeURIComponent(g.title + " — a guide made with GotIt Guides") +
       "&body=" + encodeURIComponent(msg);
 
     var nativeBtn = $("shareNative");
     if (navigator.share) {
       nativeBtn.hidden = false;
       nativeBtn.onclick = function () {
-        navigator.share({ title: g.title, text: "Check out my How2 guide:", url: url })
+        navigator.share({ title: g.title, text: "Check out my guide on GotIt Guides:", url: url })
           .catch(function () {});
       };
     } else {
@@ -1366,7 +1366,7 @@
     if (!dataUrl) { showToast("QR not ready yet."); return; }
     var a = document.createElement("a");
     a.href = dataUrl;
-    a.download = "how2-" + state.guide.slug + "-qr.png";
+    a.download = "gotit-" + state.guide.slug + "-qr.png";
     a.click();
   }
 
@@ -1398,7 +1398,7 @@
   function enterEditMode(slug, token) {
     steps.building.querySelector(".building-title").textContent = "Loading your guide…";
     showStep("building");
-    How2Store.getForEdit(slug).then(function (rec) {
+    GotItStore.getForEdit(slug).then(function (rec) {
       if (!rec || !rec.guide) {
         showToast("Guide not found.");
         showStep(1);
@@ -1409,10 +1409,10 @@
         window.location.href = pageUrl("guide.html", "g=" + encodeURIComponent(slug));
         return;
       }
-      if (How2Store.isEncrypted(rec.guide)) {
+      if (GotItStore.isEncrypted(rec.guide)) {
         var pass = window.prompt("This guide is password-protected. Enter its password to edit:");
         if (pass == null) { window.location.href = "index.html"; return; }
-        How2Store.decrypt(rec.guide, pass).then(function (real) {
+        GotItStore.decrypt(rec.guide, pass).then(function (real) {
           state.password = pass;
           $("lockOn").checked = true;
           toggleLockUI();

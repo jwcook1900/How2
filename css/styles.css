@@ -1218,11 +1218,14 @@ ul { margin: 0; padding: 0; list-style: none; }
   gap: 52px;
   align-items: center;
 }
+.about-photo { text-align: center; }
 .about-photo img {
+  display: inline-block;
   width: 100%;
-  display: block;
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  max-width: 360px;
+  height: auto;
+  border-radius: 50%;
+  box-shadow: 0 0 0 10px var(--coral-soft), var(--shadow-lg);
 }
 .about-title { margin: 10px 0 18px; }
 .about-text p {

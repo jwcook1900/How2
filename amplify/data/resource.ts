@@ -22,6 +22,16 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
+  // In-app feedback from the creation journey. Create-only for the public so
+  // submissions can't be listed/read back by other visitors.
+  Feedback: a
+    .model({
+      message: a.string().required(),
+      email: a.string(),
+      context: a.string(), // which step / category / page the feedback came from
+    })
+    .authorization((allow) => [allow.publicApiKey().to(["create"])]),
+
   aiAssist: a
     .query()
     .arguments({

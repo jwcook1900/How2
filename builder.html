@@ -167,6 +167,28 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Feedback (persistent across every step of the build) -->
+  <button class="feedback-fab" id="feedbackFab" type="button" aria-label="Send feedback">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 21 11.5z"/></svg>
+    <span>Feedback</span>
+  </button>
+
+  <div class="feedback-modal" id="feedbackModal" hidden>
+    <div class="feedback-backdrop" data-fb-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+      <button class="feedback-x" id="feedbackClose" type="button" aria-label="Close" data-fb-close>×</button>
+      <h3 class="feedback-title" id="fbTitle">Share feedback</h3>
+      <p class="feedback-lead">What's working, what's confusing, what's missing? It goes straight to the team.</p>
+      <textarea class="q-textarea" id="feedbackText" placeholder="Your feedback…" rows="4"></textarea>
+      <input class="q-input" id="feedbackEmail" type="email" placeholder="Email (optional — if you'd like a reply)" autocomplete="email" />
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-fb-close>Cancel</button>
+        <button class="btn btn-primary btn-sm" id="feedbackSend" type="button">Send feedback</button>
+      </div>
+      <p class="feedback-note" id="feedbackNote" hidden></p>
+    </div>
+  </div>
+
   <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/store.js"></script>

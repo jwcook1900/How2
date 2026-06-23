@@ -176,8 +176,10 @@
     3: $("step3"), 4: $("step4")
   };
   var toast = $("toast");
+  var currentStepKey = 1;
 
   function showStep(key) {
+    currentStepKey = key;
     Object.keys(steps).forEach(function (k) { steps[k].classList.remove("active"); });
     steps[key].classList.add("active");
     // progress dots
@@ -195,6 +197,45 @@
     toast.classList.add("show");
     clearTimeout(toast._t);
     toast._t = setTimeout(function () { toast.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- Feedback (floating, available on every step) ---------- */
+  var STEP_LABELS = { 1: "category", 2: "questions", building: "building", 3: "editor", 4: "share" };
+  function openFeedback() {
+    $("feedbackNote").hidden = true;
+    $("feedbackModal").hidden = false;
+    setTimeout(function () { $("feedbackText").focus(); }, 50);
+  }
+  function closeFeedback() { $("feedbackModal").hidden = true; }
+  function sendFeedback() {
+    var text = ($("feedbackText").value || "").trim();
+    var note = $("feedbackNote");
+    if (text.length < 3) {
+      note.textContent = "Please add a little detail first.";
+      note.className = "feedback-note error";
+      note.hidden = false;
+      return;
+    }
+    var btn = $("feedbackSend");
+    btn.disabled = true; btn.textContent = "Sending…";
+    var context = "step:" + (STEP_LABELS[currentStepKey] || currentStepKey) +
+      " · category:" + ((state.category && state.category.id) || (state.guide && state.guide.category) || "-") +
+      " · " + location.href;
+    GotItStore.feedback({ message: text, email: ($("feedbackEmail").value || "").trim(), context: context })
+      .then(function () {
+        note.textContent = "Thanks — got it! 🙌";
+        note.className = "feedback-note ok";
+        note.hidden = false;
+        $("feedbackText").value = "";
+        $("feedbackEmail").value = "";
+        setTimeout(closeFeedback, 1100);
+      })
+      .catch(function () {
+        note.textContent = "Couldn't send just now — please try again.";
+        note.className = "feedback-note error";
+        note.hidden = false;
+      })
+      .then(function () { btn.disabled = false; btn.textContent = "Send feedback"; });
   }
 
   /* ---------- Step 1: render category cards ---------- */
@@ -1387,6 +1428,16 @@
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
   $("lockOn").addEventListener("change", toggleLockUI);
+
+  // Feedback widget
+  $("feedbackFab").addEventListener("click", openFeedback);
+  $("feedbackSend").addEventListener("click", sendFeedback);
+  document.querySelectorAll("[data-fb-close]").forEach(function (el) {
+    el.addEventListener("click", closeFeedback);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("feedbackModal").hidden) closeFeedback();
+  });
   $("emailLinksBtn").addEventListener("click", emailMyLinks);
   $("emailLinksInput").addEventListener("keydown", function (e) { if (e.key === "Enter") emailMyLinks(); });
 

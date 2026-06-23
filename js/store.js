@@ -202,6 +202,29 @@ window.GotItStore = (function () {
       });
     },
 
+    // Submit in-app feedback. `opts`: message, email, context. Stores to the
+    // cloud when available, otherwise queues it in localStorage. Resolves with
+    // { cloud: bool } so it never rejects on the caller for a missing backend.
+    feedback: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg) {
+          try {
+            var list = JSON.parse(localStorage.getItem("how2_feedback") || "[]");
+            list.push({ message: opts.message, email: opts.email, context: opts.context, at: Date.now() });
+            localStorage.setItem("how2_feedback", JSON.stringify(list));
+          } catch (e) {}
+          return { cloud: false };
+        }
+        var q = "mutation Cr($input: CreateFeedbackInput!){ createFeedback(input: $input){ id } }";
+        return gql(cfg, q, { input: {
+          message: opts.message || "",
+          email: opts.email || null,
+          context: opts.context || null
+        } }).then(function () { return { cloud: true }; });
+      });
+    },
+
     // Read a guide plus its edit token (for the edit-link flow).
     getForEdit: function (slug) {
       return loadConfig().then(function (cfg) {

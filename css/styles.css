@@ -1096,6 +1096,78 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* The hidden attribute must always win, even over component display rules. */
+[hidden] { display: none !important; }
+
+/* Feedback — floating button + modal (persistent across builder steps) */
+.feedback-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--white);
+  background: var(--ink);
+  border: none;
+  border-radius: 999px;
+  padding: 11px 17px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.15s var(--ease), background 0.18s var(--ease);
+}
+.feedback-fab:hover { transform: translateY(-2px); background: #000; }
+.feedback-fab svg { width: 18px; height: 18px; flex: none; }
+@media (max-width: 640px) {
+  .feedback-fab span { display: none; }
+  .feedback-fab { padding: 13px; }
+}
+
+.feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.feedback-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.5);
+}
+.feedback-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 26px 24px 22px;
+  animation: fbpop 0.18s var(--ease);
+}
+@keyframes fbpop { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+.feedback-x {
+  position: absolute;
+  top: 12px; right: 14px;
+  background: none; border: none;
+  font-size: 1.6rem; line-height: 1;
+  color: var(--ink-muted); cursor: pointer;
+}
+.feedback-title { font-size: 1.2rem; font-weight: 800; margin: 0 0 6px; }
+.feedback-lead { color: var(--ink-muted); font-size: 0.9rem; margin: 0 0 16px; line-height: 1.5; }
+.feedback-card .q-textarea { width: 100%; margin-bottom: 12px; }
+.feedback-card .q-input { width: 100%; margin-bottom: 16px; }
+.feedback-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.feedback-note { margin: 12px 0 0; font-size: 0.88rem; font-weight: 600; }
+.feedback-note.error { color: var(--coral-dark); }
+.feedback-note.ok { color: #1a9e57; }
+
 /* Header actions + AI button */
 .header-actions { display: flex; align-items: center; gap: 10px; }
 

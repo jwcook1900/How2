@@ -1210,6 +1210,36 @@ ul { margin: 0; padding: 0; list-style: none; }
   margin-right: auto;
 }
 .plan-badge--soon { background: var(--ink-muted); }
+
+/* About / founder story */
+.about-inner {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 52px;
+  align-items: center;
+}
+.about-photo img {
+  width: 100%;
+  display: block;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.about-title { margin: 10px 0 18px; }
+.about-text p {
+  color: var(--ink-muted);
+  font-size: 1.06rem;
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
+.about-kicker {
+  color: var(--ink) !important;
+  font-weight: 700;
+}
+@media (max-width: 780px) {
+  .about-inner { grid-template-columns: 1fr; gap: 28px; }
+  .about-photo { max-width: 360px; margin: 0 auto; }
+}
+
 @media (max-width: 640px) {
   .compare-list { grid-template-columns: 1fr; }
   .pricing-2 { grid-template-columns: 1fr; max-width: 420px; }

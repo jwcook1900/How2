@@ -66,6 +66,12 @@
         cards: [["👋", "Welcome"], ["📅", "Your First Day", true], ["🛠️", "Tools & Systems"]] },
       { emoji: "🎉", title: "Sam & Alex's Wedding", sub: "Everything you need for the day",
         cards: [["📍", "When & Where"], ["🗓️", "Run Sheet", true], ["📋", "Good to Know"]] },
+      { emoji: "🧹", title: "12 Rose St", sub: "Everything my cleaner needs",
+        cards: [["🔑", "Getting In & Parking"], ["✅", "What to Clean", true], ["🧴", "Products & Equipment"]] },
+      { emoji: "🌳", title: "The Garden", sub: "Everything my gardener needs",
+        cards: [["✂️", "What Needs Doing"], ["🌿", "Plants to Know", true], ["🗑️", "Watering & Bins"]] },
+      { emoji: "🧑‍⚕️", title: "Knee Rehab Plan", sub: "Your home exercise plan",
+        cards: [["📋", "Condition & Goals"], ["🏃", "Your Exercises", true], ["⚠️", "Precautions"]] },
       { emoji: "✏️", title: "Espresso Machine 101", sub: "How to pull the perfect shot",
         cards: [["📖", "Overview"], ["✅", "Steps", true], ["💡", "Tips"]] }
     ];

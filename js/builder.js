@@ -70,7 +70,7 @@
         { id: "welcome", q: "A short welcome & what the role is about?", hint: "Set the tone.", ph: "Welcome to the team! Your role is…", type: "textarea", target: "section", icon: "👋", sectionTitle: "Welcome" },
         { id: "firstday", q: "What happens on day one?", hint: "Arrival, who to find, logins.", ph: "Arrive 9am, ask for Sam…", type: "textarea", target: "section", icon: "📅", sectionTitle: "Your First Day" },
         { id: "tools", q: "Tools & systems they'll use?", hint: "Apps, logins, where things live.", ph: "Slack, the POS, the roster app…", type: "textarea", target: "section", icon: "🛠️", sectionTitle: "Tools & Systems" },
-        { id: "who", q: "Key people & contacts?", hint: "Who to ask for what.", ph: "Manager: …\nHR: …\nIT: …", type: "emergency" },
+        { id: "who", q: "Key people & contacts?", hint: "Who to ask for what.", ph: "Manager: …\nHR: …\nIT: …", type: "textarea", target: "emergency" },
         { id: "extra", q: "Anything else for week one?", hint: "Norms, dress code, lunch spots.", ph: "We dress casual, lunch is at 1…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Good to Know" }
       ]
     },
@@ -82,7 +82,67 @@
         { id: "when", q: "When & where?", hint: "Date, time, address.", ph: "Sat 12 July, 3pm — The Garden, 12 Rose St", type: "textarea", target: "section", icon: "📍", sectionTitle: "When & Where" },
         { id: "schedule", q: "What's the run sheet?", hint: "Order of the day.", ph: "3pm ceremony, 4pm photos, 6pm dinner…", type: "textarea", target: "section", icon: "🗓️", sectionTitle: "Run Sheet" },
         { id: "details", q: "Anything guests should know?", hint: "Dress code, parking, gifts.", ph: "Dress: cocktail. Parking on Rose St…", type: "textarea", target: "section", icon: "📋", sectionTitle: "Good to Know" },
-        { id: "emergency", q: "Who to contact on the day?", hint: "Organiser or coordinator.", ph: "Coordinator: …\nVenue: …", type: "emergency" }
+        { id: "emergency", q: "Who to contact on the day?", hint: "Organiser or coordinator.", ph: "Coordinator: …\nVenue: …", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
+      id: "cleaner", emoji: "🧹", name: "Cleaner", desc: "For your cleaner",
+      coverSub: "Everything my cleaner needs to know",
+      questions: [
+        { id: "name", q: "What should we call this guide?", hint: "Usually the home or client name.", ph: "e.g. 12 Rose St", type: "text", target: "title" },
+        { id: "access", q: "How does the cleaner get in?", hint: "Keys, lockbox, alarm code, parking.", ph: "Lockbox 1234 by the door. Alarm off: 5678…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Getting In & Parking" },
+        { id: "tasks", q: "What needs cleaning each visit?", hint: "Room by room, and the priorities.", ph: "Kitchen: benches, floors…\nBathrooms: …\nFloors throughout…", type: "textarea", target: "section", icon: "✅", sectionTitle: "What to Clean" },
+        { id: "products", q: "Where are the products & equipment?", hint: "What to use where — and what to avoid.", ph: "Vacuum in the hall closet. Use only the spray under the sink…", type: "textarea", target: "section", icon: "🧴", sectionTitle: "Products & Equipment" },
+        { id: "prefs", q: "Any preferences or areas to skip?", hint: "Pets, fragile items, rooms to leave.", ph: "Please don't enter the study. Cat stays inside…", type: "textarea", target: "section", icon: "📋", sectionTitle: "Preferences & No-Go Areas" },
+        { id: "emergency", q: "Who do they contact with questions?", hint: "You, plus a backup.", ph: "Me: 0400 000 000\nBackup: …", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
+      id: "gardener", emoji: "🌳", name: "Gardener", desc: "For your gardener",
+      coverSub: "Everything my gardener needs to know",
+      questions: [
+        { id: "name", q: "What should we call this guide?", hint: "The property or client name.", ph: "e.g. 12 Rose St", type: "text", target: "title" },
+        { id: "access", q: "How does the gardener get in?", hint: "Gate codes, side access, where to park.", ph: "Side gate code 1234. Park in the driveway…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Access & Parking" },
+        { id: "tasks", q: "What should be done each visit?", hint: "Mowing, edging, weeding, pruning.", ph: "Mow front & back, edge the paths, weed the beds…", type: "textarea", target: "section", icon: "✂️", sectionTitle: "What Needs Doing" },
+        { id: "plants", q: "Any special plants or areas?", hint: "What to protect, prune or leave alone.", ph: "Don't prune the roses yet. The veggie patch is…", type: "textarea", target: "section", icon: "🌿", sectionTitle: "Plants & Areas to Know" },
+        { id: "waste", q: "Watering, green waste & tools?", hint: "Watering schedule, which bin, where tools live.", ph: "Green bin out Wed. Hose on the side. Water the pots daily…", type: "textarea", target: "section", icon: "🗑️", sectionTitle: "Watering, Bins & Tools" },
+        { id: "emergency", q: "Who do they contact with questions?", hint: "You, plus a backup.", ph: "Me: 0400 000 000", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
+      id: "physio", emoji: "🧑‍⚕️", name: "Physio / Rehab", desc: "Exercise plan",
+      coverSub: "Your home exercise plan",
+      questions: [
+        { id: "name", q: "What's this plan called?", hint: "Becomes the title.", ph: "e.g. Knee Rehab Plan", type: "text", target: "title" },
+        { id: "overview", q: "What's it for, and the goals?", hint: "Brief background and what we're working towards.", ph: "Post-op left knee. Goal: full range of motion by 6 weeks…", type: "textarea", target: "section", icon: "📋", sectionTitle: "Condition & Goals" },
+        { id: "exercises", q: "What are the exercises?", hint: "Sets, reps and how often — one per line.", ph: "Heel slides — 3×10, twice daily\nQuad sets — 3×10…", type: "textarea", target: "section", icon: "🏃", sectionTitle: "Your Exercises" },
+        { id: "precautions", q: "Anything to avoid or watch for?", hint: "Pain limits, movements to skip.", ph: "Stop if you feel sharp pain. Avoid deep squats for now…", type: "textarea", target: "section", icon: "⚠️", sectionTitle: "Precautions & What to Avoid" },
+        { id: "progress", q: "How should they track progress?", hint: "What to note each day.", ph: "Note pain level (0–10) and reps completed each session…", type: "textarea", target: "section", icon: "📈", sectionTitle: "Tracking Progress" },
+        { id: "emergency", q: "Clinic contact & next appointment?", hint: "Where to call with questions.", ph: "Clinic: 0400 000 000\nNext appt: …", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
+      id: "housesit", emoji: "🏡", name: "House Sitter", desc: "While you're away",
+      coverSub: "Everything you need while I'm away",
+      questions: [
+        { id: "name", q: "What should we call this guide?", hint: "Usually the home name.", ph: "e.g. Our House", type: "text", target: "title" },
+        { id: "access", q: "Getting in and the alarm?", hint: "Keys, alarm codes, locking up.", ph: "Key under the pot. Alarm code 1234…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Getting In & Security" },
+        { id: "tasks", q: "What needs doing while you're away?", hint: "Bins, mail, plants, watering.", ph: "Bins: green out Wed.\nWater the pot plants every 2 days.\nBring in the mail…", type: "textarea", target: "section", icon: "✅", sectionTitle: "Daily & Weekly Tasks" },
+        { id: "appliances", q: "Any appliances or quirks to know?", hint: "Heating, that tricky lock, hot water.", ph: "Heating timer is in the hall. The back door sticks…", type: "textarea", target: "section", icon: "🛠️", sectionTitle: "Appliances & Quirks" },
+        { id: "problems", q: "What to do if something breaks?", hint: "Water main, fuse box, who to call.", ph: "Water shutoff is under the sink. Fuse box in the garage…", type: "textarea", target: "section", icon: "🚧", sectionTitle: "If Something Goes Wrong" },
+        { id: "emergency", q: "Emergency contacts?", hint: "You, a neighbour, a tradie.", ph: "Me: …\nNeighbour: …\nPlumber: …", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
+      id: "care", emoji: "👵", name: "Aged / Home Care", desc: "Carer-ready",
+      coverSub: "Everything the carer needs to know",
+      questions: [
+        { id: "name", q: "Whose care guide is this?", hint: "Their name.", ph: "e.g. Mum (Joan)", type: "text", target: "title", titleSuffix: "'s Care Guide" },
+        { id: "routine", q: "What's the daily routine?", hint: "Waking, meals, rest, mobility needs.", ph: "Up at 7. Needs a hand on the stairs. Rests after lunch…", type: "textarea", target: "section", icon: "🕐", sectionTitle: "Daily Routine & Mobility" },
+        { id: "meds", q: "Medications & health needs?", hint: "What, when, where it's kept, conditions.", ph: "Morning tablets with breakfast. Inhaler in the drawer…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Medications & Health" },
+        { id: "meals", q: "Meals & dietary needs?", hint: "What they eat, help needed, what to avoid.", ph: "Soft foods. Tea at 3. Allergic to shellfish…", type: "textarea", target: "section", icon: "🍽️", sectionTitle: "Meals & Dietary" },
+        { id: "emergency", q: "Important contacts?", hint: "GP, family, after-hours.", ph: "GP: …\nDaughter: …\nAfter-hours nurse: …", type: "textarea", target: "emergency" },
+        { id: "extra", q: "Anything else that helps?", hint: "Routines that comfort, things to avoid.", ph: "Enjoys the radio in the morning. Doesn't like surprises…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Good to Know" }
       ]
     },
     {
@@ -93,7 +153,7 @@
         { id: "intro", q: "Give a short intro.", hint: "What is this and who's it for?", ph: "A quick guide to…", type: "textarea", target: "section", icon: "📖", sectionTitle: "Overview" },
         { id: "steps", q: "What are the main steps or sections?", hint: "One per line is fine.", ph: "Step 1…\nStep 2…", type: "textarea", target: "section", icon: "✅", sectionTitle: "Steps" },
         { id: "tips", q: "Any tips or things to watch out for?", hint: "", ph: "Don't forget to…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Tips" },
-        { id: "contact", q: "Who can help if stuck?", hint: "Optional.", ph: "Name — phone / email", type: "emergency" }
+        { id: "contact", q: "Who can help if stuck?", hint: "Optional.", ph: "Name — phone / email", type: "textarea", target: "emergency" }
       ]
     }
   ];

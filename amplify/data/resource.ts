@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
+import { feedbackFn } from "../functions/feedback/resource";
 
 /**
  * GotIt Guides data model.
@@ -61,6 +62,19 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(emailFn)),
+
+  // Emails a piece of in-app feedback to the team (feedback is also stored in
+  // the Feedback model above for durability).
+  sendFeedback: a
+    .query()
+    .arguments({
+      message: a.string().required(),
+      email: a.string(),
+      context: a.string(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(feedbackFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

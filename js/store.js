@@ -216,12 +216,27 @@ window.GotItStore = (function () {
           } catch (e) {}
           return { cloud: false };
         }
-        var q = "mutation Cr($input: CreateFeedbackInput!){ createFeedback(input: $input){ id } }";
-        return gql(cfg, q, { input: {
+        // Store durably (DynamoDB) and email the team. Both best-effort: as long
+        // as one succeeds the feedback isn't lost. Email needs SES configured.
+        var storeQ = "mutation Cr($input: CreateFeedbackInput!){ createFeedback(input: $input){ id } }";
+        var stored = gql(cfg, storeQ, { input: {
           message: opts.message || "",
           email: opts.email || null,
           context: opts.context || null
-        } }).then(function () { return { cloud: true }; });
+        } }).then(function () { return true; }, function () { return false; });
+
+        var mailQ = "query Fb($message: String!, $email: String, $context: String){ " +
+          "sendFeedback(message: $message, email: $email, context: $context) }";
+        var mailed = gql(cfg, mailQ, {
+          message: opts.message || "",
+          email: opts.email || null,
+          context: opts.context || null
+        }).then(function () { return true; }, function () { return false; });
+
+        return Promise.all([stored, mailed]).then(function (r) {
+          if (!r[0] && !r[1]) throw new Error("Couldn't submit feedback");
+          return { cloud: true };
+        });
       });
     },
 

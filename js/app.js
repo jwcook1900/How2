@@ -55,25 +55,16 @@
     var dotsWrap = document.getElementById("mockDots");
     if (!track || !dotsWrap) return;
 
+    // Leads with pet care (the strongest wedge), then the other core handovers.
     var EXAMPLES = [
-      { emoji: "🐶", title: "Whiskey 101", sub: "Everything my dog sitter needs",
-        cards: [["🦴", "Daily Routine"], ["💊", "Medications", true], ["🚨", "Emergency Contacts"]] },
-      { emoji: "🏠", title: "The Beach House", sub: "Your guide to a great stay",
+      { emoji: "🐶", title: "Whiskey's Care Guide", sub: "Everything my dog sitter needs",
+        cards: [["🦴", "Feeding & Routine"], ["💊", "Medication", true], ["🚨", "Vet & Emergency"]] },
+      { emoji: "🏠", title: "The Beach House", sub: "Everything my house guest needs",
         cards: [["🔑", "Getting In & Parking"], ["📶", "Wi-Fi & Essentials", true], ["📍", "Local Favourites"]] },
-      { emoji: "👶", title: "Mia & Leo's Guide", sub: "Everything the carer needs",
+      { emoji: "👶", title: "Mia & Leo's Guide", sub: "Everything the babysitter needs",
         cards: [["🕐", "Routine & Bedtime"], ["🍎", "Food & Allergies", true], ["🚨", "Emergency Contacts"]] },
-      { emoji: "🧑‍💼", title: "Barista Onboarding", sub: "Your first week, made simple",
-        cards: [["👋", "Welcome"], ["📅", "Your First Day", true], ["🛠️", "Tools & Systems"]] },
-      { emoji: "🎉", title: "Sam & Alex's Wedding", sub: "Everything you need for the day",
-        cards: [["📍", "When & Where"], ["🗓️", "Run Sheet", true], ["📋", "Good to Know"]] },
-      { emoji: "🧹", title: "12 Rose St", sub: "Everything my cleaner needs",
-        cards: [["🔑", "Getting In & Parking"], ["✅", "What to Clean", true], ["🧴", "Products & Equipment"]] },
-      { emoji: "🌳", title: "The Garden", sub: "Everything my gardener needs",
-        cards: [["✂️", "What Needs Doing"], ["🌿", "Plants to Know", true], ["🗑️", "Watering & Bins"]] },
-      { emoji: "🧑‍⚕️", title: "Knee Rehab Plan", sub: "Your home exercise plan",
-        cards: [["📋", "Condition & Goals"], ["🏃", "Your Exercises", true], ["⚠️", "Precautions"]] },
-      { emoji: "✏️", title: "Espresso Machine 101", sub: "How to pull the perfect shot",
-        cards: [["📖", "Overview"], ["✅", "Steps", true], ["💡", "Tips"]] }
+      { emoji: "🧑‍💼", title: "Team Onboarding", sub: "Everything a new starter needs",
+        cards: [["👋", "Welcome"], ["📅", "First Week", true], ["🛠️", "Tools & Systems"]] }
     ];
 
     function slideHtml(ex) {

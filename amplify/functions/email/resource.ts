@@ -7,8 +7,8 @@ import { defineFunction } from "@aws-amplify/backend";
  * backend.ts.
  *
  * Configure these as branch environment variables in the Amplify console:
- *   SES_FROM       a verified SES sender, e.g. "GotIt Guides <links@gotitguides.com.au>"
- *   APP_BASE_URL   (optional) your custom domain origin, e.g. "https://gotitguides.com.au"
+ *   SES_FROM       a verified SES sender, e.g. "GotIt Guides <hello@gotitguides.com>"
+ *   APP_BASE_URL   (optional) your custom domain origin, e.g. "https://gotitguides.com"
  *
  * Note: SES starts in sandbox mode (can only email verified addresses). Request
  * SES production access before real users can receive these.

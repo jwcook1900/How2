@@ -46,8 +46,8 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
     origin + "/builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(token);
 
   const passText = password
-    ? "\n\nPassword (needed to view this guide): " + password +
-      "\n⚠️ Anyone with this email can open your guide — it contains both the link and the password. " +
+    ? "\n\nGuide code (needed to open this guide): " + password +
+      "\n⚠️ Anyone with this email can open your guide — it contains both the link and the guide code. " +
       "Keep it private, and delete this email if you forward the link to someone else."
     : "";
 
@@ -59,10 +59,10 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
     passText + "\n\n— GotIt Guides";
 
   const passHtml = password
-    ? '<p style="margin:18px 0 4px;font-weight:600">Password (needed to view this guide)</p>' +
+    ? '<p style="margin:18px 0 4px;font-weight:600">Guide code (needed to open this guide)</p>' +
       '<p style="font-size:18px;font-family:monospace;background:#FFF3EC;padding:10px 14px;border-radius:8px;display:inline-block;margin:0">' +
       esc(password) + "</p>" +
-      '<p style="color:#B23A12;font-size:13px;line-height:1.5;margin:12px 0 0">⚠️ Anyone with this email can open your guide — it has both the link and the password. ' +
+      '<p style="color:#B23A12;font-size:13px;line-height:1.5;margin:12px 0 0">⚠️ Anyone with this email can open your guide — it has both the link and the guide code. ' +
       "Keep it private, and delete it if you forward the link to someone else.</p>"
     : "";
 

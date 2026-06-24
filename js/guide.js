@@ -158,18 +158,18 @@
   }
   }
 
-  // Password-protected guides arrive as an encrypted envelope — show an unlock
-  // screen and decrypt in the browser once the right password is entered.
+  // Locked guides arrive as an encrypted envelope — show an unlock screen and
+  // decrypt in the browser once the right guide code is entered.
   function showLock(env) {
-    document.title = "Protected guide — GotIt Guides";
+    document.title = "Locked guide — GotIt Guides";
     doc.innerHTML =
       '<div class="guide-cover"><span class="cover-emoji">🔒</span>' +
-        '<div class="cover-title">This guide is protected</div>' +
-        '<div class="cover-sub">Enter the password to view it.</div></div>' +
+        '<div class="cover-title">This guide is locked</div>' +
+        '<div class="cover-sub">Enter the guide code to open it.</div></div>' +
       '<div class="lock-screen">' +
-        '<input type="password" id="unlockPass" class="q-input" placeholder="Password" autocomplete="off" />' +
+        '<input type="password" id="unlockPass" class="q-input" placeholder="Guide code" autocomplete="off" />' +
         '<button class="btn btn-primary" id="unlockBtn" type="button">Unlock</button>' +
-        '<p class="lock-error" id="unlockErr" hidden>Wrong password — try again.</p>' +
+        '<p class="lock-error" id="unlockErr" hidden>That code\'s not right — try again.</p>' +
       "</div>";
     var input = document.getElementById("unlockPass");
     var btn = document.getElementById("unlockBtn");

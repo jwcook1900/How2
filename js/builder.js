@@ -1321,7 +1321,7 @@
     return null;
   }
 
-  /* ---------- Password lock controls (step 3) ---------- */
+  /* ---------- Guide code (lock) controls (step 3) ---------- */
   function toggleLockUI() {
     var on = $("lockOn").checked;
     $("lockPass").hidden = !on;
@@ -1377,9 +1377,9 @@
 
     var locked = $("lockOn").checked;
     var pass = locked ? ($("lockPass").value || "").trim() : "";
-    if (locked && !pass) { showToast("Enter a password, or untick the lock."); return; }
+    if (locked && !pass) { showToast("Enter a guide code, or untick the lock."); return; }
     if (locked && !GotItStore.canEncrypt()) {
-      showToast("Password protection needs the live (https) site.");
+      showToast("Guide codes need the live (https) site.");
       return;
     }
 
@@ -1464,14 +1464,14 @@
     var sub = document.querySelector("#step4 .share-sub");
     if (sub) {
       sub.textContent = locked
-        ? "🔒 Password-protected — only people with the password can read it."
+        ? "🔒 Locked — only people with the guide code can open it."
         : "Anyone with this link can view it.";
     }
     // Reset the "email me my links" field; note whether the password is included.
     $("emailLinksInput").value = "";
     $("emailLinksNote").hidden = true;
     $("emailLinksHint").textContent = locked
-      ? "Includes your view link, edit link and password. ⚠️ Anyone who sees that email can open the guide."
+      ? "Includes your view link, edit link and guide code. ⚠️ Anyone who sees that email can open the guide."
       : "So you don't lose them — includes your view and edit links.";
 
     $("shareUrl").value = url;
@@ -1608,7 +1608,7 @@
         return;
       }
       if (GotItStore.isEncrypted(rec.guide)) {
-        var pass = window.prompt("This guide is password-protected. Enter its password to edit:");
+        var pass = window.prompt("This guide is locked. Enter its guide code to edit (you can change or remove it after):");
         if (pass == null) { window.location.href = "index.html"; return; }
         GotItStore.decrypt(rec.guide, pass).then(function (real) {
           state.password = pass;
@@ -1617,7 +1617,7 @@
           $("lockPass").value = pass;
           finishEnterEdit(real, rec.editToken || token);
         }, function () {
-          showToast("Wrong password.");
+          showToast("That code's not right.");
           showStep(1);
         });
         return;

@@ -1397,7 +1397,9 @@
         : GotItStore.create(payloadObj, state.editToken);
       return op;
     }).then(function (res) {
+      var firstPublish = !state.created;
       state.created = true;
+      if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
     }).catch(function (err) {
@@ -1555,9 +1557,14 @@
   $("addLog").addEventListener("click", addLog);
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
-  $("copyBtn").addEventListener("click", function () { copyFrom("shareUrl", "Link copied!"); });
+  $("copyBtn").addEventListener("click", function () { logShare(); copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
+  // Count a "share" when the link is copied or a share channel is used (best-effort).
+  function logShare() { if (state.guide) GotItStore.event("share", state.guide.slug); }
+  ["shareNative", "shareWhatsapp", "shareSms", "shareEmail"].forEach(function (id) {
+    if ($(id)) $(id).addEventListener("click", logShare);
+  });
   $("lockOn").addEventListener("change", toggleLockUI);
   if ($("slugInput")) {
     $("slugInput").addEventListener("input", function () {

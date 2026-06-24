@@ -240,6 +240,30 @@ window.GotItStore = (function () {
       });
     },
 
+    // Log a lightweight analytics event (kind: publish/view/share, + slug).
+    // Best-effort and never rejects, so callers can fire-and-forget.
+    event: function (kind, slug) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return false;
+        var q = "mutation Cr($input: CreateEventInput!){ createEvent(input: $input){ id } }";
+        return gql(cfg, q, { input: { kind: kind, slug: slug || null } })
+          .then(function () { return true; }, function () { return false; });
+      }, function () { return false; });
+    },
+
+    // Read aggregate analytics (passphrase-protected). Rejects on wrong key.
+    stats: function (key) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query S($key: String!){ getStats(key: $key) }";
+        return gql(cfg, q, { key: key }).then(function (d) {
+          var r = d.getStats;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+          return r;
+        });
+      });
+    },
+
     // Read a guide plus its edit token (for the edit-link flow).
     getForEdit: function (slug) {
       return loadConfig().then(function (cfg) {

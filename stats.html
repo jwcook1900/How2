@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#FF6B35" />
+  <meta name="robots" content="noindex" />
+  <title>Stats — GotIt Guides</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+</head>
+<body>
+  <main class="builder-main">
+    <div class="container" style="max-width:600px">
+      <h1 class="step-heading">GotIt Guides — Stats</h1>
+
+      <div class="lock-row" id="statsGate">
+        <label class="slug-label" for="statsKey">Enter your stats passphrase</label>
+        <input type="password" id="statsKey" class="q-input" placeholder="Passphrase" autocomplete="off" />
+        <div class="builder-toolbar" style="margin-top:14px">
+          <button class="btn btn-primary" id="statsGo" type="button">View stats</button>
+        </div>
+        <p class="lock-error" id="statsErr" hidden></p>
+      </div>
+
+      <div id="statsOut" hidden></div>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/stats.js"></script>
+</body>
+</html>

@@ -46,6 +46,9 @@
 
   document.title = guide.title + " — GotIt Guides";
 
+  // Count a view (best-effort, no personal data — just the slug).
+  if (slug && GotItStore.event) GotItStore.event("view", slug);
+
   var html = "";
 
   // Cover

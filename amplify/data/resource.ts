@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
 import { feedbackFn } from "../functions/feedback/resource";
+import { statsFn } from "../functions/stats/resource";
 
 /**
  * GotIt Guides data model.
@@ -30,6 +31,16 @@ const schema = a.schema({
       message: a.string().required(),
       email: a.string(),
       context: a.string(), // which step / category / page the feedback came from
+    })
+    .authorization((allow) => [allow.publicApiKey().to(["create"])]),
+
+  // First-party analytics events (no personal data): kind = publish/view/share,
+  // slug = the guide it relates to. Create-only for the public; read is via the
+  // passphrase-protected getStats function below.
+  Event: a
+    .model({
+      kind: a.string().required(),
+      slug: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey().to(["create"])]),
 
@@ -75,6 +86,14 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(feedbackFn)),
+
+  // Passphrase-protected analytics read (aggregates from the Event table).
+  getStats: a
+    .query()
+    .arguments({ key: a.string().required() })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(statsFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

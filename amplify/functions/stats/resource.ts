@@ -12,6 +12,9 @@ import { defineFunction } from "@aws-amplify/backend";
 export const statsFn = defineFunction({
   name: "stats",
   entry: "./handler.ts",
+  // Lives in the data stack because it reads the Event table — keeps the
+  // data <-> function stack dependency one-directional (no circular dependency).
+  resourceGroupName: "data",
   timeoutSeconds: 28,
   environment: {
     STATS_KEY: process.env.STATS_KEY || "",

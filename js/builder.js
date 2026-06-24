@@ -211,7 +211,9 @@
 
   /* ---------- Feedback (floating, available on every step) ---------- */
   var STEP_LABELS = { 1: "category", 2: "questions", building: "building", 3: "editor", 4: "share" };
-  function openFeedback() {
+  var FEEDBACK_LEAD_DEFAULT = "What's working, what's confusing, what's missing? It goes straight to the team.";
+  function openFeedback(lead) {
+    $("feedbackLead").textContent = (typeof lead === "string" && lead) ? lead : FEEDBACK_LEAD_DEFAULT;
     $("feedbackNote").hidden = true;
     $("feedbackModal").hidden = false;
     setTimeout(function () { $("feedbackText").focus(); }, 50);
@@ -1720,7 +1722,12 @@
   });
 
   // Feedback widget
-  $("feedbackFab").addEventListener("click", openFeedback);
+  $("feedbackFab").addEventListener("click", function () { openFeedback(); });
+  if ($("shareFeedbackBtn")) {
+    $("shareFeedbackBtn").addEventListener("click", function () {
+      openFeedback("You just published a guide 🎉 What would make GotIt Guides better? Any idea, big or small, helps.");
+    });
+  }
   $("feedbackSend").addEventListener("click", sendFeedback);
   document.querySelectorAll("[data-fb-close]").forEach(function (el) {
     el.addEventListener("click", closeFeedback);

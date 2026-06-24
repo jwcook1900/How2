@@ -1306,6 +1306,27 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Polish action under question fields */
 .field-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
+/* "Help shape GotIt" prompt on the share page */
+.share-feedback {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 560px;
+  margin: 22px auto 0;
+  padding: 16px 18px;
+  background: var(--coral-soft);
+  border: 1px solid var(--coral);
+  border-radius: var(--radius);
+}
+.share-feedback-emoji { font-size: 1.6rem; flex: none; }
+.share-feedback-body { flex: 1; }
+.share-feedback-title { font-weight: 700; }
+.share-feedback-text { color: var(--ink-muted); font-size: 0.88rem; margin-top: 2px; line-height: 1.45; }
+.share-feedback .btn { flex: none; }
+@media (max-width: 520px) {
+  .share-feedback { flex-direction: column; text-align: center; }
+}
+
 /* Compact "Add" dropdown (file / photo / video) */
 .add-menu { position: relative; display: inline-block; }
 .add-menu-list {

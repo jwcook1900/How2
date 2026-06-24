@@ -167,6 +167,15 @@
           </div>
         </div>
 
+        <div class="share-feedback">
+          <span class="share-feedback-emoji">💡</span>
+          <div class="share-feedback-body">
+            <div class="share-feedback-title">Help shape GotIt Guides</div>
+            <p class="share-feedback-text">What would make this better? Any idea, or anything that tripped you up — we'd genuinely love to hear it.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="shareFeedbackBtn" type="button">Share an idea</button>
+        </div>
+
         <div class="builder-toolbar">
           <button class="btn btn-ghost" id="editAgain" type="button">← Keep editing</button>
           <a class="btn btn-primary" href="builder.html">Create another</a>
@@ -189,7 +198,7 @@
     <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
       <button class="feedback-x" id="feedbackClose" type="button" aria-label="Close" data-fb-close>×</button>
       <h3 class="feedback-title" id="fbTitle">Share feedback</h3>
-      <p class="feedback-lead">What's working, what's confusing, what's missing? It goes straight to the team.</p>
+      <p class="feedback-lead" id="feedbackLead">What's working, what's confusing, what's missing? It goes straight to the team.</p>
       <textarea class="q-textarea" id="feedbackText" placeholder="Your feedback…" rows="4"></textarea>
       <input class="q-input" id="feedbackEmail" type="email" placeholder="Email (optional — if you'd like a reply)" autocomplete="email" />
       <div class="feedback-actions">

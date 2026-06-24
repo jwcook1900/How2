@@ -1328,7 +1328,7 @@
   }
 
   function showShare(g, isCloud, locked) {
-    var url = pageUrl("guide.html", "g=" + encodeURIComponent(g.slug));
+    var url = viewUrl(g.slug);
     var editLink = pageUrl("builder.html", "g=" + encodeURIComponent(g.slug) + "&t=" + encodeURIComponent(state.editToken));
 
     $("shareEmoji").textContent = g.emoji;
@@ -1386,6 +1386,11 @@
   function pageUrl(page, qs) {
     var base = location.href.replace(/[^/]*(\?.*)?(#.*)?$/, "");
     return base + page + (qs ? "?" + qs : "");
+  }
+  // Pretty, shareable view URL: <origin>/g/<slug> (served via a hosting rewrite).
+  function viewUrl(slug) {
+    var base = location.href.replace(/[^/]*(\?.*)?(#.*)?$/, "");
+    return base + "g/" + encodeURIComponent(slug);
   }
 
   function copyFrom(id, msg) {
@@ -1457,7 +1462,7 @@
       }
       if (rec.editToken && token !== rec.editToken) {
         // Not the owner — send to the read-only view instead.
-        window.location.href = pageUrl("guide.html", "g=" + encodeURIComponent(slug));
+        window.location.href = viewUrl(slug);
         return;
       }
       if (GotItStore.isEncrypted(rec.guide)) {

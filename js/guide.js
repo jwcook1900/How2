@@ -11,6 +11,10 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
   function getSlug() {
+    // Pretty path: /g/<slug>
+    var p = location.pathname.match(/\/g\/([^/?#]+)/);
+    if (p) return decodeURIComponent(p[1]);
+    // Legacy query string: ?g=<slug> (older shared links still work)
     var m = location.search.match(/[?&]g=([^&]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   }

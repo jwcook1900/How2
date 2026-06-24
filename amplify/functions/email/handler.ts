@@ -41,7 +41,7 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
     (!!base && stripWww(origin) === stripWww(base));
   if (!allowed) throw new Error("Invalid origin");
 
-  const viewUrl = origin + "/guide.html?g=" + encodeURIComponent(slug);
+  const viewUrl = origin + "/g/" + encodeURIComponent(slug);
   const editUrl =
     origin + "/builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(token);
 

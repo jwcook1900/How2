@@ -8,9 +8,11 @@ type Block =
   | { type: "document"; source: { type: "base64"; media_type: string; data: string } };
 
 /**
- * Two modes:
+ * Modes:
  *  - "polish": rewrite one field's text clearly/warmly, using the guide
  *              category + the question being answered as context. Returns { text }.
+ *  - "field":  read an attached photo/PDF and write the content for one field
+ *              (the question being answered). Returns { text }.
  *  - "import": turn a blob of notes and/or an uploaded file (image or PDF)
  *              into a structured guide. Returns
  *              { title, sections:[{emoji,title,body}], contacts:[{label,value}] }.
@@ -52,6 +54,32 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       ? (text ? "My notes:\n" + text + "\n\n" : "") + "Build the guide from the attached file (and any notes above)."
       : text;
     blocks.push({ type: "text", text: instruction || "Build a starter guide." });
+    userContent = blocks;
+  } else if (mode === "field") {
+    // Pull the content for ONE field out of an attached photo / PDF (+ optional notes).
+    maxTokens = 1500;
+    system =
+      "You read an attached file (a photo, scan, or document) and write the content for ONE field of a " +
+      "GotIt Guides guide. " +
+      (question ? 'This field answers: "' + question + '". ' : "") +
+      'The guide is about "' + category + '". ' +
+      "Extract only the information relevant to this field. Transcribe real details exactly (names, numbers, " +
+      "times, doses, addresses) and keep any list structure. Write it clearly and concisely. Do not invent " +
+      "anything. If there is no relevant content, return an empty string. " +
+      "Return only the field text — no preamble, headings, or quotes.";
+    const blocks: Block[] = [];
+    if (fileData && fileType) {
+      if (fileType === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: fileData } });
+      } else if (fileType.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: fileType, data: fileData } });
+      }
+    }
+    blocks.push({
+      type: "text",
+      text: (text ? "Existing notes for this field:\n" + text + "\n\n" : "") +
+        "Write this field's content from the attached file" + (text ? ", merged with the notes above." : "."),
+    });
     userContent = blocks;
   } else {
     system =

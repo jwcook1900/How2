@@ -1304,7 +1304,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .header-actions { display: flex; align-items: center; gap: 10px; }
 
 /* Polish action under question fields */
-.field-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+.field-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .tool-btn:disabled { opacity: 0.6; cursor: default; }
 .tool-btn:disabled:hover { border-color: var(--line); color: var(--ink-soft); }
 

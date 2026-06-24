@@ -307,9 +307,18 @@
     attachMic(container, field, q.type === "textarea");
     wrap.appendChild(container);
 
-    // Polish action for this answer
+    // Per-field actions: add a file (AI reads it in) + polish
     var actions = document.createElement("div");
     actions.className = "field-actions";
+
+    var fileBtn = document.createElement("button");
+    fileBtn.type = "button";
+    fileBtn.className = "tool-btn";
+    fileBtn.textContent = "📎 Add a file";
+    fileBtn.title = "Add a photo, PDF or note — we'll pull the details into this answer";
+    fileBtn.addEventListener("click", function () { fileIntoField(field, fileBtn, fillName(q.q)); });
+    actions.appendChild(fileBtn);
+
     var polishBtn = document.createElement("button");
     polishBtn.type = "button";
     polishBtn.className = "tool-btn";
@@ -657,6 +666,50 @@
       btn.disabled = false;
       btn.textContent = orig;
     });
+  }
+
+  // Append text into a field, keeping any existing content.
+  function fillFieldText(field, text) {
+    var cur = (field.value || "").trim();
+    field.value = cur ? cur + "\n" + text : text;
+  }
+
+  // Upload a photo / PDF / text file for a question; the AI reads it into the
+  // field (text files drop straight in), ready to edit or Polish.
+  function fileIntoField(field, btn, question) {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*,application/pdf,.txt,.md,.csv,text/plain";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = "📎 Reading…";
+      function done() { btn.disabled = false; btn.textContent = orig; }
+      getFilePayload(file).then(function (payload) {
+        if (!payload) { done(); return; }
+        if (payload.error) { showToast(payload.error); done(); return; }
+        if (payload.text != null) { // plain text — drop straight in
+          fillFieldText(field, payload.text.trim());
+          showToast("Added — tidy it with ✨ Polish.");
+          done(); return;
+        }
+        // image / PDF — let the AI read it for this field
+        var ctx = aiCtx(question);
+        GotItStore.ai("field", {
+          category: ctx.category, question: ctx.question,
+          fileData: payload.data, fileType: payload.type
+        }).then(function (res) {
+          if (!res) { showToast("AI isn't available right now — try typing it in."); done(); return; }
+          var t = (res.text || "").trim();
+          if (!t) { showToast("Couldn't find anything to add from that file."); done(); return; }
+          fillFieldText(field, t);
+          showToast("Added from your file — tweak or ✨ Polish.");
+          done();
+        }, function () { showToast("Couldn't read that file with AI — try typing it in."); done(); });
+      }, function () { showToast("Couldn't read that file."); done(); });
+    });
+    input.click();
   }
 
   // Builds AI context for a field. `state.category` is set during the wizard;

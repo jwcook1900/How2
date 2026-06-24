@@ -32,9 +32,13 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
   if (!/^[a-z0-9-]{1,80}$/.test(slug) || !token || token.length > 200) {
     throw new Error("Invalid guide reference");
   }
+  // Accept the amplifyapp.com host or the configured custom domain, matching
+  // with or without a leading "www." so either form of the link works.
+  const stripWww = (u: string) => u.replace(/^https?:\/\/(www\.)?/, "");
+  const base = (process.env.APP_BASE_URL || "").replace(/\/+$/, "");
   const allowed =
     /^https:\/\/[a-z0-9.-]+\.amplifyapp\.com$/.test(origin) ||
-    (!!process.env.APP_BASE_URL && origin === process.env.APP_BASE_URL.replace(/\/+$/, ""));
+    (!!base && stripWww(origin) === stripWww(base));
   if (!allowed) throw new Error("Invalid origin");
 
   const viewUrl = origin + "/guide.html?g=" + encodeURIComponent(slug);

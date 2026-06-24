@@ -84,6 +84,15 @@
           <button class="add-block" id="addLog" type="button">＋ Add a log</button>
         </div>
 
+        <div class="slug-row" id="slugRow">
+          <label class="slug-label" for="slugInput">Your link <span class="slug-optional">(optional)</span></label>
+          <div class="slug-input-wrap">
+            <span class="slug-prefix" id="slugPrefix">gotitguides.com/g/</span>
+            <input type="text" id="slugInput" class="q-input" placeholder="e.g. whiskey" autocomplete="off" spellcheck="false" />
+          </div>
+          <p class="slug-hint" id="slugHint">Leave blank for an automatic link. Letters, numbers and hyphens only.</p>
+        </div>
+
         <div class="lock-row">
           <label class="lock-toggle">
             <input type="checkbox" id="lockOn" /> 🔒 Require a password to view

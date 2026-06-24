@@ -16,6 +16,15 @@
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
   }
   function uid() { return Math.random().toString(36).slice(2, 9); }
+  // Normalise a user-chosen link name into a safe slug.
+  function normalizeSlug(s) {
+    return (s || "").toLowerCase().trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+  }
 
   /* ---------- Category flows ----------
      Each question maps into the generated guide via `target`:
@@ -728,6 +737,7 @@
   /* ---------- Step 3: render editable guide ---------- */
   function renderGuideEditor() {
     var g = state.guide;
+    updateSlugUI();
     var doc = $("guideDoc");
     doc.innerHTML = "";
 
@@ -1247,6 +1257,47 @@
     if (on) setTimeout(function () { $("lockPass").focus(); }, 50);
   }
 
+  // Custom link control. The link is the guide's record id, so it can only be
+  // chosen before the first publish; afterwards it's shown locked.
+  function updateSlugUI() {
+    var row = $("slugRow");
+    if (!row) return;
+    var input = $("slugInput");
+    var prefix = $("slugPrefix");
+    if (prefix) prefix.textContent = location.host + "/g/";
+    if (state.created) {
+      input.value = state.guide.slug;
+      input.disabled = true;
+      row.classList.add("locked");
+      $("slugHint").textContent = "This is your guide's link — set when it was first published.";
+    } else {
+      input.disabled = false;
+      row.classList.remove("locked");
+      $("slugHint").textContent = "Leave blank for an automatic link. Letters, numbers and hyphens only.";
+    }
+  }
+
+  // Apply the optional custom link name (new guides only). Resolves once
+  // state.guide.slug is final; rejects with "__HANDLED__" after showing a toast.
+  function resolveSlug() {
+    if (state.created) return Promise.resolve();
+    var input = $("slugInput");
+    var custom = normalizeSlug(input ? input.value : "");
+    if (!custom) return Promise.resolve(); // keep the auto-generated slug
+    if (custom.length < 2) {
+      showToast("Link name needs at least 2 characters.");
+      return Promise.reject(new Error("__HANDLED__"));
+    }
+    if (custom === state.guide.slug) return Promise.resolve();
+    return GotItStore.get(custom).then(function (existing) {
+      if (existing) {
+        showToast("“" + custom + "” is taken — try another link name.");
+        throw new Error("__HANDLED__");
+      }
+      state.guide.slug = custom;
+    });
+  }
+
   /* ---------- Step 4: publish & share ---------- */
   function publish() {
     var g = state.guide;
@@ -1264,8 +1315,10 @@
     btn.disabled = true;
     btn.textContent = "Publishing…";
 
-    // Auto-resize images (and encrypt when locked) so the payload fits the store.
-    buildStorable(g, locked, pass, 380000).then(function (payloadObj) {
+    // Resolve the optional custom link name, then resize/encrypt and store.
+    resolveSlug().then(function () {
+      return buildStorable(g, locked, pass, 380000);
+    }).then(function (payloadObj) {
       state.password = pass; // remember for re-publish in this session
       var op = state.created
         ? GotItStore.update(payloadObj)
@@ -1276,7 +1329,8 @@
       renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
     }).catch(function (err) {
-      if (err && err.message === "__TOOBIG__") {
+      if (err && err.message === "__HANDLED__") { /* toast already shown */ }
+      else if (err && err.message === "__TOOBIG__") {
         showToast("Even after resizing, there's too much image data — try removing a photo.");
       } else {
         showToast("Couldn't publish: " + (err.message || "try again"));
@@ -1433,6 +1487,15 @@
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
   $("lockOn").addEventListener("change", toggleLockUI);
+  if ($("slugInput")) {
+    $("slugInput").addEventListener("input", function () {
+      if (state.created) return;
+      var c = normalizeSlug(this.value);
+      $("slugHint").textContent = c
+        ? "Your link will be: " + location.host + "/g/" + c
+        : "Leave blank for an automatic link. Letters, numbers and hyphens only.";
+    });
+  }
 
   // Feedback widget
   $("feedbackFab").addEventListener("click", openFeedback);

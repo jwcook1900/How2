@@ -369,6 +369,9 @@ ul { margin: 0; padding: 0; list-style: none; }
   gap: 22px;
 }
 .card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
   background: var(--white);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -1122,26 +1125,6 @@ ul { margin: 0; padding: 0; list-style: none; }
   color: var(--ink-muted);
   font-size: 1.06rem;
   line-height: 1.6;
-}
-
-/* Emphasised "start here" use-case card (pet care) */
-.card-featured {
-  border-color: var(--coral);
-  box-shadow: var(--shadow-lg);
-  position: relative;
-}
-.card-featured::after {
-  content: "Start here";
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: var(--coral);
-  color: var(--white);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  padding: 3px 9px;
-  border-radius: 999px;
 }
 
 /* Differentiation comparison list */

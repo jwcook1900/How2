@@ -1557,8 +1557,15 @@
     showStep(3);
   }
 
+  function catById(id) {
+    for (var i = 0; i < CATEGORIES.length; i++) if (CATEGORIES[i].id === id) return CATEGORIES[i];
+    return null;
+  }
+
   var editSlug = getParam("g");
   var editToken = getParam("t");
+  var catParam = getParam("cat");
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
+  else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
   else showStep(1);
 })();

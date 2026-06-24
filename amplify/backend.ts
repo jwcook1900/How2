@@ -1,5 +1,6 @@
 import { defineBackend } from "@aws-amplify/backend";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Function as LambdaFunction, FunctionUrlAuthType, HttpMethod } from "aws-cdk-lib/aws-lambda";
 import { data } from "./data/resource";
 import { aiFn } from "./functions/ai/resource";
 import { emailFn } from "./functions/email/resource";
@@ -30,7 +31,19 @@ for (const fn of [backend.emailFn, backend.feedbackFn]) {
   );
 }
 
-// Let the stats function read the Event table (name passed in via env).
+// Stats reader: read the Event table and expose a passphrase-protected URL.
+// It's a standalone Lambda URL (not a GraphQL resolver) so the data <-> function
+// dependency stays one-directional (no CloudFormation circular dependency).
 const eventTable = backend.data.resources.tables["Event"];
-backend.statsFn.addEnvironment("EVENT_TABLE", eventTable.tableName);
-eventTable.grantReadData(backend.statsFn.resources.lambda);
+const statsLambda = backend.statsFn.resources.lambda as LambdaFunction;
+statsLambda.addEnvironment("EVENT_TABLE", eventTable.tableName);
+eventTable.grantReadData(statsLambda);
+const statsUrl = statsLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE, // protected by the passphrase in the handler
+  cors: {
+    allowedOrigins: ["*"],
+    allowedMethods: [HttpMethod.POST],
+    allowedHeaders: ["content-type"],
+  },
+});
+backend.addOutput({ custom: { statsFunctionUrl: statsUrl.url } });

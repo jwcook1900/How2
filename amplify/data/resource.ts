@@ -2,7 +2,6 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
 import { feedbackFn } from "../functions/feedback/resource";
-import { statsFn } from "../functions/stats/resource";
 
 /**
  * GotIt Guides data model.
@@ -86,14 +85,6 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(feedbackFn)),
-
-  // Passphrase-protected analytics read (aggregates from the Event table).
-  getStats: a
-    .query()
-    .arguments({ key: a.string().required() })
-    .returns(a.json())
-    .authorization((allow) => [allow.publicApiKey()])
-    .handler(a.handler.function(statsFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

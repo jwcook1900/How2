@@ -18,7 +18,11 @@ window.GotItStore = (function () {
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (j && j.data && j.data.url && j.data.api_key) {
-          return { url: j.data.url, key: j.data.api_key };
+          return {
+            url: j.data.url,
+            key: j.data.api_key,
+            statsUrl: j.custom && j.custom.statsFunctionUrl
+          };
         }
         return null;
       })
@@ -251,15 +255,20 @@ window.GotItStore = (function () {
       }, function () { return false; });
     },
 
-    // Read aggregate analytics (passphrase-protected). Rejects on wrong key.
+    // Read aggregate analytics (passphrase-protected Lambda URL). Resolves with
+    // the stats object, null if unavailable, or rejects on a wrong passphrase.
     stats: function (key) {
       return loadConfig().then(function (cfg) {
-        if (!cfg) return null;
-        var q = "query S($key: String!){ getStats(key: $key) }";
-        return gql(cfg, q, { key: key }).then(function (d) {
-          var r = d.getStats;
-          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
-          return r;
+        if (!cfg || !cfg.statsUrl) return null;
+        return fetch(cfg.statsUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ key: key })
+        }).then(function (r) {
+          if (r.status === 200) return r.json();
+          if (r.status === 401) throw new Error("wrong passphrase");
+          if (r.status === 503) return null; // not configured yet
+          throw new Error("stats unavailable");
         });
       });
     },

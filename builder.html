@@ -200,6 +200,26 @@
     </div>
   </div>
 
+  <!-- Add-a-video instructions modal -->
+  <div class="feedback-modal" id="videoModal" hidden>
+    <div class="feedback-backdrop" data-vid-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-vid-close>×</button>
+      <h3 class="feedback-title" id="vidTitle">Add a video</h3>
+      <p class="feedback-lead">Paste a link to your video. Two easy ways to get one:</p>
+      <ul class="video-help">
+        <li><strong>Google Drive (easiest)</strong> — upload the video, right-click it → <em>Share</em> → set to <em>“Anyone with the link”</em>, then <em>Copy link</em>.</li>
+        <li><strong>YouTube</strong> — upload your clip (you can set it to <em>“Unlisted”</em>), then <em>Share</em> → <em>Copy link</em>.</li>
+      </ul>
+      <input class="q-input" id="videoUrl" type="url" placeholder="Paste video link" autocomplete="off" />
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-vid-close>Cancel</button>
+        <button class="btn btn-primary btn-sm" id="videoAdd" type="button">Add video</button>
+      </div>
+      <p class="feedback-note error" id="videoErr" hidden></p>
+    </div>
+  </div>
+
   <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/store.js"></script>

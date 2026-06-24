@@ -64,9 +64,10 @@
   function sectionHtml(sec) {
     var media = "";
     if (sec.photo) media += '<div class="sec-media"><img class="sec-photo" src="' + sec.photo + '" alt="" /></div>';
-    if (sec.videoId) {
-      media += '<div class="sec-media"><div class="sec-video"><iframe src="https://www.youtube.com/embed/' +
-        sec.videoId + '" allowfullscreen loading="lazy"></iframe></div></div>';
+    var vsrc = sec.videoEmbed || (sec.videoId ? "https://www.youtube.com/embed/" + sec.videoId : null);
+    if (vsrc) {
+      media += '<div class="sec-media"><div class="sec-video"><iframe src="' + vsrc +
+        '" allowfullscreen loading="lazy"></iframe></div></div>';
     }
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;

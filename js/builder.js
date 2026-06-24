@@ -172,6 +172,7 @@
     category: null,
     qIndex: 0,
     answers: {},
+    media: {},      // per-question photo / videoEmbed, keyed by question id
     guide: null,
     editToken: null,
     created: false
@@ -268,6 +269,7 @@
     state.category = cat;
     state.qIndex = 0;
     state.answers = {};
+    state.media = {};
     renderQuestion();
     showStep(2);
   }
@@ -325,6 +327,26 @@
     });
     actions.appendChild(fileBtn);
 
+    // Photo / video for this step — attaches to the section it becomes.
+    if (q.target === "section") {
+      var photoBtn = document.createElement("button");
+      photoBtn.type = "button"; photoBtn.className = "tool-btn";
+      photoBtn.textContent = "📷 Photo";
+      photoBtn.addEventListener("click", function () { pickStepPhoto(q.id); });
+      actions.appendChild(photoBtn);
+
+      var videoBtn = document.createElement("button");
+      videoBtn.type = "button"; videoBtn.className = "tool-btn";
+      videoBtn.textContent = "🎬 Video";
+      videoBtn.addEventListener("click", function () {
+        openVideoModal(function (embed) {
+          (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
+          renderStepMedia(q.id);
+        });
+      });
+      actions.appendChild(videoBtn);
+    }
+
     var polishBtn = document.createElement("button");
     polishBtn.type = "button";
     polishBtn.className = "tool-btn";
@@ -335,6 +357,15 @@
     });
     actions.appendChild(polishBtn);
     wrap.appendChild(actions);
+
+    // Media preview for this step
+    if (q.target === "section") {
+      var mediaWrap = document.createElement("div");
+      mediaWrap.className = "q-media";
+      mediaWrap.id = "qMedia";
+      wrap.appendChild(mediaWrap);
+      renderStepMedia(q.id);
+    }
 
     setTimeout(function () { field.focus(); }, 50);
 
@@ -748,12 +779,14 @@
       } else if (q.target === "emergency") {
         parseContacts(val).forEach(function (c) { contacts.push(c); });
       } else if (q.target === "section") {
+        var m = state.media[q.id] || {};
         sections.push({
           id: uid(),
           icon: q.icon || "📄",
           title: fillName(q.sectionTitle || q.q),
           body: val || "Tap to add details…",
-          photo: null,
+          photo: m.photo || null,
+          videoEmbed: m.videoEmbed || null,
           videoId: null
         });
       }
@@ -1048,10 +1081,6 @@
       '<div class="acc-body"><div class="acc-body-inner">' +
         '<div class="acc-content" contenteditable="true">' + esc(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
-        '<div class="video-input-row" style="display:none">' +
-          '<input type="text" placeholder="Paste a YouTube link…" />' +
-          '<button class="btn btn-primary btn-sm" type="button">Embed</button>' +
-        "</div>" +
         '<div class="sec-tools">' +
           '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
           '<button class="tool-btn" data-act="file" type="button">📎 File</button>' +
@@ -1105,20 +1134,12 @@
       });
     });
 
-    var videoRow = el.querySelector(".video-input-row");
     tools.querySelector('[data-act="video"]').addEventListener("click", function () {
-      videoRow.style.display = videoRow.style.display === "none" ? "flex" : "none";
-      if (videoRow.style.display === "flex") videoRow.querySelector("input").focus();
-    });
-    videoRow.querySelector("button").addEventListener("click", function () {
-      var url = videoRow.querySelector("input").value.trim();
-      var id = parseYouTube(url);
-      if (!id) { showToast("Hmm, that doesn't look like a YouTube link."); return; }
-      sec.videoId = id;
-      videoRow.querySelector("input").value = "";
-      videoRow.style.display = "none";
-      renderSectionMedia(el, sec);
-      if (!el.classList.contains("open")) el.classList.add("open");
+      openVideoModal(function (embed) {
+        sec.videoEmbed = embed;
+        renderSectionMedia(el, sec);
+        if (!el.classList.contains("open")) el.classList.add("open");
+      });
     });
 
     return el;
@@ -1138,11 +1159,19 @@
       fig.appendChild(rm);
       media.appendChild(fig);
     }
-    if (sec.videoId) {
+    var vsrc = videoSrc(sec);
+    if (vsrc) {
       var v = document.createElement("div");
       v.className = "sec-video";
-      v.innerHTML = '<iframe src="https://www.youtube.com/embed/' + sec.videoId +
-        '" allowfullscreen loading="lazy"></iframe>';
+      v.innerHTML = '<iframe src="' + vsrc + '" allowfullscreen loading="lazy"></iframe>';
+      var rmv = document.createElement("button");
+      rmv.className = "tool-btn danger";
+      rmv.type = "button";
+      rmv.textContent = "Remove video";
+      rmv.addEventListener("click", function () {
+        sec.videoEmbed = null; sec.videoId = null; renderSectionMedia(el, sec);
+      });
+      v.appendChild(rmv);
       media.appendChild(v);
     }
   }
@@ -1161,6 +1190,73 @@
       });
     });
     input.click();
+  }
+
+  /* ---------- Add-a-video modal (link + instructions) ---------- */
+  var videoOnAdd = null;
+  function openVideoModal(onAdd) {
+    videoOnAdd = onAdd;
+    $("videoErr").hidden = true;
+    $("videoUrl").value = "";
+    $("videoModal").hidden = false;
+    setTimeout(function () { $("videoUrl").focus(); }, 50);
+  }
+  function closeVideoModal() { $("videoModal").hidden = true; videoOnAdd = null; }
+  function submitVideo() {
+    var embed = parseVideo($("videoUrl").value);
+    if (!embed) {
+      var e = $("videoErr");
+      e.textContent = "That doesn't look like a YouTube, Vimeo or Google Drive link.";
+      e.hidden = false;
+      return;
+    }
+    var cb = videoOnAdd;
+    closeVideoModal();
+    if (cb) cb(embed);
+  }
+
+  /* ---------- Per-step media (photo / video) in the question flow ---------- */
+  function pickStepPhoto(qid) {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      compressImage(file, 1200, 0.72, 220000).then(function (dataUrl) {
+        (state.media[qid] = state.media[qid] || {}).photo = dataUrl;
+        renderStepMedia(qid);
+      });
+    });
+    input.click();
+  }
+  function renderStepMedia(qid) {
+    var box = $("qMedia");
+    if (!box) return;
+    var m = state.media[qid] || {};
+    box.innerHTML = "";
+    if (m.photo) {
+      var fig = document.createElement("div");
+      fig.className = "q-media-item";
+      fig.innerHTML = '<img src="' + m.photo + '" alt="" />';
+      var rm = document.createElement("button");
+      rm.type = "button"; rm.className = "q-media-x"; rm.textContent = "×";
+      rm.setAttribute("aria-label", "Remove photo");
+      rm.addEventListener("click", function () { delete state.media[qid].photo; renderStepMedia(qid); });
+      fig.appendChild(rm);
+      box.appendChild(fig);
+    }
+    if (m.videoEmbed) {
+      var vid = document.createElement("div");
+      vid.className = "q-media-item q-media-vid";
+      vid.innerHTML = "<span>🎬 Video added</span>";
+      var rmv = document.createElement("button");
+      rmv.type = "button"; rmv.className = "q-media-x"; rmv.textContent = "×";
+      rmv.setAttribute("aria-label", "Remove video");
+      rmv.addEventListener("click", function () { delete state.media[qid].videoEmbed; renderStepMedia(qid); });
+      vid.appendChild(rmv);
+      box.appendChild(vid);
+    }
   }
 
   function buildEmergencyEl() {
@@ -1318,6 +1414,24 @@
     var m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
     if (m) return m[1];
     if (/^[\w-]{11}$/.test(url)) return url;
+    return null;
+  }
+  // Turn a YouTube / Vimeo / public Google Drive link into an embeddable URL.
+  function parseVideo(url) {
+    if (!url) return null;
+    url = url.trim();
+    var yt = parseYouTube(url);
+    if (yt) return "https://www.youtube.com/embed/" + yt;
+    var vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vimeo) return "https://player.vimeo.com/video/" + vimeo[1];
+    var drive = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]+)/);
+    if (drive) return "https://drive.google.com/file/d/" + drive[1] + "/preview";
+    return null;
+  }
+  // The embeddable video URL for a section (supports legacy youtube videoId).
+  function videoSrc(sec) {
+    if (sec.videoEmbed) return sec.videoEmbed;
+    if (sec.videoId) return "https://www.youtube.com/embed/" + sec.videoId;
     return null;
   }
 
@@ -1575,6 +1689,16 @@
         : "Leave blank for an automatic link. Letters, numbers and hyphens only.";
     });
   }
+
+  // Add-a-video modal
+  $("videoAdd").addEventListener("click", submitVideo);
+  $("videoUrl").addEventListener("keydown", function (e) { if (e.key === "Enter") submitVideo(); });
+  document.querySelectorAll("[data-vid-close]").forEach(function (el) {
+    el.addEventListener("click", closeVideoModal);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
+  });
 
   // Feedback widget
   $("feedbackFab").addEventListener("click", openFeedback);

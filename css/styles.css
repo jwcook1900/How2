@@ -1306,6 +1306,37 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Polish action under question fields */
 .field-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
+/* Compact "Add" dropdown (file / photo / video) */
+.add-menu { position: relative; display: inline-block; }
+.add-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 150px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.add-menu-item {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.add-menu-item:hover { background: var(--bg-tint); }
+
 /* Per-step media preview (photo / video) in the question flow */
 .q-media { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .q-media-item {

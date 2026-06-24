@@ -313,38 +313,33 @@
     var actions = document.createElement("div");
     actions.className = "field-actions";
 
-    var fileBtn = document.createElement("button");
-    fileBtn.type = "button";
-    fileBtn.className = "tool-btn";
-    fileBtn.textContent = "📎 Add a file";
-    fileBtn.title = "Add a photo, PDF or note — we'll pull the details into this answer";
-    fileBtn.addEventListener("click", function () {
+    // File reads its content into this answer (AI). On section steps this is
+    // grouped with Photo/Video in one "Add" menu; elsewhere it's a lone button.
+    var fileItem = { label: "📎 File", onClick: function (trigger) {
       readFileIntoField({
-        btn: fileBtn, question: fillName(q.q),
+        btn: trigger, question: fillName(q.q),
         get: function () { return field.value; },
         set: function (v) { field.value = v; }
       });
-    });
-    actions.appendChild(fileBtn);
-
-    // Photo / video for this step — attaches to the section it becomes.
+    } };
     if (q.target === "section") {
-      var photoBtn = document.createElement("button");
-      photoBtn.type = "button"; photoBtn.className = "tool-btn";
-      photoBtn.textContent = "📷 Photo";
-      photoBtn.addEventListener("click", function () { pickStepPhoto(q.id); });
-      actions.appendChild(photoBtn);
-
-      var videoBtn = document.createElement("button");
-      videoBtn.type = "button"; videoBtn.className = "tool-btn";
-      videoBtn.textContent = "🎬 Video";
-      videoBtn.addEventListener("click", function () {
-        openVideoModal(function (embed) {
-          (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
-          renderStepMedia(q.id);
-        });
-      });
-      actions.appendChild(videoBtn);
+      actions.appendChild(makeAddMenu([
+        fileItem,
+        { label: "📷 Photo", onClick: function () { pickStepPhoto(q.id); } },
+        { label: "🎬 Video", onClick: function () {
+          openVideoModal(function (embed) {
+            (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
+            renderStepMedia(q.id);
+          });
+        } }
+      ]));
+    } else {
+      var fileBtn = document.createElement("button");
+      fileBtn.type = "button";
+      fileBtn.className = "tool-btn";
+      fileBtn.textContent = "📎 Add a file";
+      fileBtn.addEventListener("click", function () { fileItem.onClick(fileBtn); });
+      actions.appendChild(fileBtn);
     }
 
     var polishBtn = document.createElement("button");
@@ -1066,6 +1061,37 @@
     });
   }
 
+  // A compact "➕ Add ▾" dropdown. items: [{label, onClick(triggerBtn)}].
+  function makeAddMenu(items) {
+    var wrap = document.createElement("div");
+    wrap.className = "add-menu";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tool-btn add-menu-btn";
+    btn.textContent = "➕ Add ▾";
+    var menu = document.createElement("div");
+    menu.className = "add-menu-list";
+    menu.hidden = true;
+    function close() { menu.hidden = true; document.removeEventListener("click", onDoc); }
+    function onDoc(e) { if (!wrap.contains(e.target)) close(); }
+    items.forEach(function (it) {
+      var mi = document.createElement("button");
+      mi.type = "button";
+      mi.className = "add-menu-item";
+      mi.textContent = it.label;
+      mi.addEventListener("click", function (e) { e.stopPropagation(); close(); it.onClick(btn); });
+      menu.appendChild(mi);
+    });
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (menu.hidden) { menu.hidden = false; document.addEventListener("click", onDoc); }
+      else close();
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    return wrap;
+  }
+
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
     el.className = "guide-section" + (openFirst ? " open" : "");
@@ -1083,9 +1109,6 @@
         '<div class="sec-media"></div>' +
         '<div class="sec-tools">' +
           '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
-          '<button class="tool-btn" data-act="file" type="button">📎 File</button>' +
-          '<button class="tool-btn" data-act="photo" type="button">📸 Photo</button>' +
-          '<button class="tool-btn" data-act="video" type="button">🎬 Video</button>' +
           '<button class="tool-btn danger" data-act="remove" type="button">🗑 Remove</button>' +
         "</div>" +
       "</div></div>";
@@ -1111,9 +1134,6 @@
       el.remove();
       syncBlockOrder();
     });
-    var photoBtn = tools.querySelector('[data-act="photo"]');
-    photoBtn.addEventListener("click", function () { pickPhoto(sec, el); });
-
     var polishBtn = tools.querySelector('[data-act="polish"]');
     polishBtn.addEventListener("click", function () {
       var contentEl = el.querySelector(".acc-content");
@@ -1122,25 +1142,24 @@
         function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn, aiCtx(sec.title));
     });
 
-    var fileBtn = tools.querySelector('[data-act="file"]');
-    fileBtn.title = "Add a photo, PDF or note — we'll read the details into this section";
-    fileBtn.addEventListener("click", function () {
-      var contentEl = el.querySelector(".acc-content");
-      if (!el.classList.contains("open")) el.classList.add("open");
-      readFileIntoField({
-        btn: fileBtn, question: sec.title,
-        get: function () { return contentEl.innerText; },
-        set: function (v) { contentEl.innerText = v; sec.body = v; }
-      });
-    });
-
-    tools.querySelector('[data-act="video"]').addEventListener("click", function () {
-      openVideoModal(function (embed) {
-        sec.videoEmbed = embed;
-        renderSectionMedia(el, sec);
+    // File / photo / video grouped into one "Add" menu, placed before Remove.
+    tools.insertBefore(makeAddMenu([
+      { label: "📎 File", onClick: function (trigger) {
+        var contentEl = el.querySelector(".acc-content");
         if (!el.classList.contains("open")) el.classList.add("open");
-      });
-    });
+        readFileIntoField({ btn: trigger, question: sec.title,
+          get: function () { return contentEl.innerText; },
+          set: function (v) { contentEl.innerText = v; sec.body = v; } });
+      } },
+      { label: "📷 Photo", onClick: function () { pickPhoto(sec, el); } },
+      { label: "🎬 Video", onClick: function () {
+        openVideoModal(function (embed) {
+          sec.videoEmbed = embed;
+          renderSectionMedia(el, sec);
+          if (!el.classList.contains("open")) el.classList.add("open");
+        });
+      } }
+    ]), tools.querySelector('[data-act="remove"]'));
 
     return el;
   }

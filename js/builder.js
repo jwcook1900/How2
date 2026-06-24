@@ -316,7 +316,13 @@
     fileBtn.className = "tool-btn";
     fileBtn.textContent = "📎 Add a file";
     fileBtn.title = "Add a photo, PDF or note — we'll pull the details into this answer";
-    fileBtn.addEventListener("click", function () { fileIntoField(field, fileBtn, fillName(q.q)); });
+    fileBtn.addEventListener("click", function () {
+      readFileIntoField({
+        btn: fileBtn, question: fillName(q.q),
+        get: function () { return field.value; },
+        set: function (v) { field.value = v; }
+      });
+    });
     actions.appendChild(fileBtn);
 
     var polishBtn = document.createElement("button");
@@ -668,34 +674,34 @@
     });
   }
 
-  // Append text into a field, keeping any existing content.
-  function fillFieldText(field, text) {
-    var cur = (field.value || "").trim();
-    field.value = cur ? cur + "\n" + text : text;
-  }
-
-  // Upload a photo / PDF / text file for a question; the AI reads it into the
-  // field (text files drop straight in), ready to edit or Polish.
-  function fileIntoField(field, btn, question) {
+  // Upload a photo / PDF / text file and read its content into a field.
+  // opts: { btn, question, get:()=>string, set:(text)=>void }. Text files drop
+  // straight in; images/PDFs go through the AI. Result is appended, ready to edit.
+  function readFileIntoField(opts) {
     var input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,application/pdf,.txt,.md,.csv,text/plain";
     input.addEventListener("change", function () {
       var file = input.files[0];
       if (!file) return;
-      var orig = btn.textContent;
-      btn.disabled = true; btn.textContent = "📎 Reading…";
-      function done() { btn.disabled = false; btn.textContent = orig; }
+      var orig = opts.btn.textContent;
+      opts.btn.disabled = true; opts.btn.textContent = "📎 Reading…";
+      function done() { opts.btn.disabled = false; opts.btn.textContent = orig; }
+      function apply(t) {
+        var cur = (opts.get() || "").trim();
+        if (cur === "Tap to add details…") cur = "";
+        opts.set(cur ? cur + "\n" + t : t);
+      }
       getFilePayload(file).then(function (payload) {
         if (!payload) { done(); return; }
         if (payload.error) { showToast(payload.error); done(); return; }
         if (payload.text != null) { // plain text — drop straight in
-          fillFieldText(field, payload.text.trim());
+          apply(payload.text.trim());
           showToast("Added — tidy it with ✨ Polish.");
           done(); return;
         }
         // image / PDF — let the AI read it for this field
-        var ctx = aiCtx(question);
+        var ctx = aiCtx(opts.question);
         GotItStore.ai("field", {
           category: ctx.category, question: ctx.question,
           fileData: payload.data, fileType: payload.type
@@ -703,7 +709,7 @@
           if (!res) { showToast("AI isn't available right now — try typing it in."); done(); return; }
           var t = (res.text || "").trim();
           if (!t) { showToast("Couldn't find anything to add from that file."); done(); return; }
-          fillFieldText(field, t);
+          apply(t);
           showToast("Added from your file — tweak or ✨ Polish.");
           done();
         }, function () { showToast("Couldn't read that file with AI — try typing it in."); done(); });
@@ -1048,6 +1054,7 @@
         "</div>" +
         '<div class="sec-tools">' +
           '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
+          '<button class="tool-btn" data-act="file" type="button">📎 File</button>' +
           '<button class="tool-btn" data-act="photo" type="button">📸 Photo</button>' +
           '<button class="tool-btn" data-act="video" type="button">🎬 Video</button>' +
           '<button class="tool-btn danger" data-act="remove" type="button">🗑 Remove</button>' +
@@ -1084,6 +1091,18 @@
       if (!el.classList.contains("open")) el.classList.add("open");
       polishInto(function () { return contentEl.innerText; },
         function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn, aiCtx(sec.title));
+    });
+
+    var fileBtn = tools.querySelector('[data-act="file"]');
+    fileBtn.title = "Add a photo, PDF or note — we'll read the details into this section";
+    fileBtn.addEventListener("click", function () {
+      var contentEl = el.querySelector(".acc-content");
+      if (!el.classList.contains("open")) el.classList.add("open");
+      readFileIntoField({
+        btn: fileBtn, question: sec.title,
+        get: function () { return contentEl.innerText; },
+        set: function (v) { contentEl.innerText = v; sec.body = v; }
+      });
     });
 
     var videoRow = el.querySelector(".video-input-row");

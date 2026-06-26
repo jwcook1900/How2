@@ -178,6 +178,7 @@
     created: false
   };
   var importFile = null; // file chosen in the "build from notes/file" panel
+  var autoPasteIntent = false; // set when arriving via ?start=paste — auto-opens the import panel
 
   /* ---------- DOM refs ---------- */
   var $ = function (id) { return document.getElementById(id); };
@@ -382,7 +383,20 @@
     if (oldPanel) oldPanel.remove();
     if (i === 0) {
       var card = document.querySelector("#step2 .q-card");
-      card.parentNode.insertBefore(buildImportPanel(), card);
+      var panel = buildImportPanel();
+      card.parentNode.insertBefore(panel, card);
+      // Arrived from the homepage "Paste your notes" CTA: open the panel and
+      // drop the cursor straight into it. Only the first time we land here.
+      if (autoPasteIntent) {
+        autoPasteIntent = false;
+        var toggle = panel.querySelector(".import-toggle");
+        if (toggle) toggle.click();
+        var ta = panel.querySelector(".import-text");
+        if (ta) setTimeout(function () {
+          ta.focus();
+          ta.scrollIntoView({ block: "center", behavior: "smooth" });
+        }, 80);
+      }
     }
   }
 
@@ -395,7 +409,7 @@
     panel.innerHTML =
       '<button class="import-toggle" type="button">⚡ Already written it down? Build instantly from notes or a file</button>' +
       '<div class="import-body" hidden>' +
-        '<p class="import-lead">Paste your notes, or add a PDF, photo, or text file — our AI turns it into a guide you can edit.</p>' +
+        '<p class="import-lead">Paste a rough note, checklist, email, text message or document. We\'ll organise it into a clear, shareable guide. You can also add a PDF or photo and we\'ll read it in.</p>' +
         '<textarea class="q-textarea import-text" placeholder="Paste everything you already have here…"></textarea>' +
         '<div class="import-file-row">' +
           '<label class="tool-btn import-file-btn">📎 Add a file' +
@@ -1794,6 +1808,7 @@
   var editSlug = getParam("g");
   var editToken = getParam("t");
   var catParam = getParam("cat");
+  autoPasteIntent = getParam("start") === "paste"; // homepage "Paste your notes" CTA
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
   else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
   else showStep(1);

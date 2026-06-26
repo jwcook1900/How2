@@ -610,8 +610,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .wizard-progress .dot.active { background: var(--coral); }
 .wizard-progress .dot.done { background: var(--amber); }
 
-.step { display: none; animation: stepIn 0.45s var(--ease); }
-.step.active { display: block; }
+/* Scoped to the builder wizard so it doesn't hide the homepage `.step` cards
+   (the landing page reuses the `.step` class for its "how it works" tiles). */
+.builder-main .step { display: none; animation: stepIn 0.45s var(--ease); }
+.builder-main .step.active { display: block; }
 @keyframes stepIn {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: none; }
@@ -1125,6 +1127,73 @@ ul { margin: 0; padding: 0; list-style: none; }
   color: var(--ink-muted);
   font-size: 1.06rem;
   line-height: 1.6;
+}
+
+/* A section-head used on its own (no grid/cards below it) */
+.section-head--solo { margin-bottom: 0; }
+.section-cta { margin-top: 28px; }
+
+/* Hero reassurance ticks under the CTAs */
+.hero-reassure {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+}
+.hero-reassure li {
+  position: relative;
+  padding-left: 26px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.hero-reassure li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--white);
+  background: var(--coral);
+  border-radius: 50%;
+}
+@media (max-width: 940px) {
+  .hero-reassure { justify-content: center; }
+}
+
+/* Bulleted highlights inside the use-case cards */
+.card-points {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.card-points li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.card-points li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--coral);
 }
 
 /* Differentiation comparison list */

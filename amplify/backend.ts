@@ -1,6 +1,7 @@
 import { defineBackend } from "@aws-amplify/backend";
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Function as LambdaFunction, FunctionUrlAuthType, HttpMethod } from "aws-cdk-lib/aws-lambda";
+import { auth } from "./auth/resource";
 import { data } from "./data/resource";
 import { aiFn } from "./functions/ai/resource";
 import { emailFn } from "./functions/email/resource";
@@ -15,12 +16,20 @@ import { videoFn } from "./functions/video/resource";
  * Auth and image storage (S3) come in later phases.
  */
 const backend = defineBackend({
+  auth,
   data,
   aiFn,
   emailFn,
   feedbackFn,
   statsFn,
   videoFn,
+});
+
+// Hosted UI (Managed Login) domain for sign-in and the Google redirect.
+// Gives a stable URL: https://gotitguides-auth.auth.<region>.amazoncognito.com
+// (if this prefix is ever taken, change it and redeploy).
+backend.auth.resources.userPool.addDomain("HostedUiDomain", {
+  cognitoDomain: { domainPrefix: "gotitguides-auth" },
 });
 
 // Let the email + feedback functions send through SES.

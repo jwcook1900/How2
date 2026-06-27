@@ -24,6 +24,19 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.publicApiKey()]),
 
+  // A signed-in user's saved guides (the "My Guides" dashboard). Owner-scoped:
+  // only the owner can read/write their own rows. Stores the slug + edit token
+  // so the dashboard can link straight to viewing/editing. The Guide model
+  // itself is unchanged and still fully account-less.
+  SavedGuide: a
+    .model({
+      slug: a.string().required(),
+      editToken: a.string().required(),
+      title: a.string(),
+      emoji: a.string(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
   // In-app feedback from the creation journey. Create-only for the public so
   // submissions can't be listed/read back by other visitors.
   Feedback: a

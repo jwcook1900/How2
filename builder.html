@@ -67,13 +67,13 @@
           <p class="paste-help">Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.</p>
           <textarea class="q-textarea paste-text" id="pasteText" placeholder="Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…"></textarea>
           <div class="import-file-row">
-            <label class="tool-btn import-file-btn">📷 Take or upload a photo
-              <input type="file" id="pastePhoto" accept="image/*" hidden /></label>
+            <label class="tool-btn import-file-btn">📷 Take or add photos
+              <input type="file" id="pastePhoto" accept="image/*" multiple hidden /></label>
             <label class="tool-btn import-file-btn">📎 Add a file
               <input type="file" id="pasteFile" accept=".pdf,.txt,.md,.csv,text/plain" hidden /></label>
-            <span class="import-file-name" id="pasteFileName"></span>
           </div>
-          <p class="paste-photo-hint">Got handwritten notes? Take a photo or upload one and we'll read it in for you.</p>
+          <p class="paste-photo-hint">Got handwritten notes across a few pages? Add a photo of each one and we'll read them all in for you.</p>
+          <div class="paste-attach" id="pasteAttach"></div>
           <button class="btn btn-primary btn-block" id="pasteGo" type="button">Create my guide</button>
         </div>
 

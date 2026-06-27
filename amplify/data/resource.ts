@@ -53,6 +53,10 @@ const schema = a.schema({
       question: a.string(),
       fileData: a.string(),
       fileType: a.string(),
+      // Multiple attachments (e.g. several photos of handwritten notes) for the
+      // import flow. Single fileData/fileType above is still used for per-field reads.
+      fileDatas: a.string().array(),
+      fileTypes: a.string().array(),
     })
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])

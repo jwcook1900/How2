@@ -161,16 +161,20 @@ window.GotItStore = (function () {
       return loadConfig().then(function (cfg) {
         if (!cfg) return null;
         var q = "query Ai($mode: String!, $text: String, $category: String, " +
-          "$question: String, $fileData: String, $fileType: String){ " +
+          "$question: String, $fileData: String, $fileType: String, " +
+          "$fileDatas: [String], $fileTypes: [String]){ " +
           "aiAssist(mode: $mode, text: $text, category: $category, " +
-          "question: $question, fileData: $fileData, fileType: $fileType) }";
+          "question: $question, fileData: $fileData, fileType: $fileType, " +
+          "fileDatas: $fileDatas, fileTypes: $fileTypes) }";
         return gql(cfg, q, {
           mode: mode,
           text: opts.text || null,
           category: opts.category || null,
           question: opts.question || null,
           fileData: opts.fileData || null,
-          fileType: opts.fileType || null
+          fileType: opts.fileType || null,
+          fileDatas: opts.fileDatas && opts.fileDatas.length ? opts.fileDatas : null,
+          fileTypes: opts.fileTypes && opts.fileTypes.length ? opts.fileTypes : null
         }).then(function (d) {
           var r = d.aiAssist;
           if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }

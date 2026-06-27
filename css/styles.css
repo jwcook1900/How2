@@ -1628,7 +1628,45 @@ ul { margin: 0; padding: 0; list-style: none; }
 .paste-help { color: var(--ink-soft); font-size: 0.96rem; line-height: 1.55; margin-bottom: 14px; }
 .paste-text { width: 100%; min-height: 150px; margin-bottom: 12px; }
 .paste-panel .import-file-row { margin-bottom: 8px; }
-.paste-photo-hint { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.45; margin: 0 0 16px; }
+.paste-photo-hint { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.45; margin: 0 0 12px; }
+
+/* Chosen import attachments (photos / files) */
+.paste-attach { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.paste-attach:empty { margin: 0; }
+.paste-attach-item {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg);
+}
+.paste-attach-item img { display: block; width: 64px; height: 64px; object-fit: cover; }
+.paste-attach-doc {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 30px 0 12px;
+  max-width: 220px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.paste-attach-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.paste-attach-x {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(26, 26, 26, 0.6);
+  color: #fff;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.paste-attach-doc .paste-attach-x { top: 50%; transform: translateY(-50%); background: var(--ink-muted); }
 
 @media (max-width: 560px) {
   .start-grid { grid-template-columns: 1fr; }

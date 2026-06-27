@@ -62,6 +62,16 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   const question = event.arguments.question || "";
   const fileData = event.arguments.fileData || "";
   const fileType = event.arguments.fileType || "";
+  // Import can carry several attachments (e.g. multiple photos of notes).
+  const fileDatas = (event.arguments.fileDatas || []) as (string | null)[];
+  const fileTypes = (event.arguments.fileTypes || []) as (string | null)[];
+  const files: { data: string; type: string }[] = [];
+  if (fileData && fileType) files.push({ data: fileData, type: fileType });
+  for (let i = 0; i < fileDatas.length; i++) {
+    const d = fileDatas[i];
+    const t = fileTypes[i];
+    if (d && t) files.push({ data: d, type: t });
+  }
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("AI is not configured");
 
@@ -84,15 +94,16 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       'This guide is about: "' + category + '".';
 
     const blocks: Block[] = [];
-    if (fileData && fileType) {
-      if (fileType === "application/pdf") {
-        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: fileData } });
-      } else if (fileType.indexOf("image/") === 0) {
-        blocks.push({ type: "image", source: { type: "base64", media_type: fileType, data: fileData } });
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
       }
     }
+    const attachWord = blocks.length > 1 ? "attached files (they may be several photos of the same notes)" : "attached file";
     const instruction = blocks.length
-      ? (text ? "My notes:\n" + text + "\n\n" : "") + "Build the guide from the attached file (and any notes above)."
+      ? (text ? "My notes:\n" + text + "\n\n" : "") + "Build one guide from the " + attachWord + " (and any notes above)."
       : text;
     blocks.push({ type: "text", text: instruction || "Build a starter guide." });
     userContent = blocks;

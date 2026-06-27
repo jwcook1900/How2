@@ -177,7 +177,7 @@
     editToken: null,
     created: false
   };
-  var importFile = null; // file chosen in the "build from notes/file" panel
+  var importFiles = []; // photos / files chosen in the "paste existing notes" panel
   var autoPasteIntent = false; // set when arriving via ?start=paste — auto-opens the import panel
 
   /* ---------- DOM refs ---------- */
@@ -279,13 +279,13 @@
   /* ---------- Step 1b: paste existing notes vs start from scratch ---------- */
   function showStart() {
     // Reset the paste panel each time we land here.
-    importFile = null;
+    importFiles = [];
+    renderPasteAttach();
     var panel = $("pastePanel");
     if (panel) panel.setAttribute("hidden", "");
     $("startPaste").classList.remove("active");
     $("startScratch").classList.remove("active");
     $("pasteText").value = "";
-    $("pasteFileName").textContent = "";
     if ($("pasteFile")) $("pasteFile").value = "";
     if ($("pastePhoto")) $("pastePhoto").value = "";
     $("startHeading").textContent = "How would you like to start your " + state.category.name + " guide?";
@@ -415,35 +415,87 @@
 
   }
 
-  /* ---------- Build instantly from pasted notes / a file ---------- */
-  function runImport(rawText, file) {
-    if (!rawText && !file) { showToast("Paste some notes or add a file first."); return; }
+  /* ---------- Build instantly from pasted notes / photos / files ---------- */
+  function runImport(rawText, files) {
+    files = files || [];
+    if (!rawText && !files.length) { showToast("Paste some notes or add a photo or file first."); return; }
     steps.building.querySelector(".building-title").textContent = "Reading your notes…";
-    steps.building.querySelector(".building-sub").textContent = "Turning what you have into a guide.";
+    steps.building.querySelector(".building-sub").textContent = files.length > 1
+      ? "Reading your photos and turning them into a guide."
+      : "Turning what you have into a guide.";
     showStep("building");
 
-    getFilePayload(file).then(function (fp) {
-      if (fp && fp.error) { showToast(fp.error); showStep(2); return; }
+    getFilePayloads(files).then(function (agg) {
+      if (agg.error) { showToast(agg.error); showStep("start"); return; }
       var mergedText = rawText || "";
-      if (fp && fp.text) mergedText = (mergedText ? mergedText + "\n\n" : "") + fp.text;
+      if (agg.text) mergedText = (mergedText ? mergedText + "\n\n" : "") + agg.text;
 
       return GotItStore.ai("import", {
         text: mergedText,
         category: state.category.name,
-        fileData: fp && fp.data,
-        fileType: fp && fp.type
+        fileDatas: agg.fileDatas,
+        fileTypes: agg.fileTypes
       }).then(function (res) {
         if (res && res.sections && res.sections.length) {
           buildGuideFromAI(res, state.category, mergedText);
           renderGuideEditor();
           showStep(3);
-          showToast("Built from your notes ✨");
+          showToast(files.length > 1 ? "Built from your notes and photos ✨" : "Built from your notes ✨");
         } else {
           importFallback(mergedText, !res); // null = no cloud backend
         }
       });
     }).catch(function () {
       importFallback(rawText || "", false);
+    });
+  }
+
+  // Reads every chosen file: images/PDFs become base64 (data + type) for the
+  // AI to read directly; text files are inlined into the notes text.
+  function getFilePayloads(files) {
+    var fileDatas = [], fileTypes = [], texts = [];
+    return Promise.all((files || []).map(function (f) {
+      return getFilePayload(f).then(function (fp) {
+        if (!fp) return;
+        if (fp.error) throw new Error(fp.error);
+        if (fp.text) texts.push(fp.text);
+        else if (fp.data) { fileDatas.push(fp.data); fileTypes.push(fp.type); }
+      });
+    })).then(function () {
+      return { fileDatas: fileDatas, fileTypes: fileTypes, text: texts.join("\n\n") };
+    }, function (e) {
+      return { error: (e && e.message) || "Couldn't read one of those files." };
+    });
+  }
+
+  // Renders the chosen import attachments as removable thumbnails / chips.
+  function renderPasteAttach() {
+    var box = $("pasteAttach");
+    if (!box) return;
+    box.innerHTML = "";
+    importFiles.forEach(function (file, idx) {
+      var item = document.createElement("div");
+      item.className = "paste-attach-item";
+      if ((file.type || "").indexOf("image/") === 0) {
+        var img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        img.alt = "";
+        item.appendChild(img);
+      } else {
+        item.classList.add("paste-attach-doc");
+        var name = document.createElement("span");
+        name.className = "paste-attach-name";
+        name.textContent = "📄 " + file.name;
+        item.appendChild(name);
+      }
+      var x = document.createElement("button");
+      x.type = "button";
+      x.className = "paste-attach-x";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Remove");
+      x.addEventListener("click", function () { importFiles.splice(idx, 1); renderPasteAttach(); });
+      item.appendChild(x);
+      box.appendChild(item);
     });
   }
 
@@ -1747,15 +1799,23 @@
   $("startScratch").addEventListener("click", startFromScratch);
   $("startPaste").addEventListener("click", revealPaste);
   $("startBack").addEventListener("click", function () { showStep(1); });
-  // Either picker (photo or file) feeds the same single attachment.
+  // Either picker (photos or a file) appends to the import attachment list.
+  var MAX_IMPORT_FILES = 10;
   function onPasteAttach(input) {
-    importFile = input.files[0] || null;
-    $("pasteFileName").textContent = importFile ? importFile.name : "";
+    var chosen = Array.prototype.slice.call(input.files || []);
+    var room = MAX_IMPORT_FILES - importFiles.length;
+    if (chosen.length > room) {
+      chosen = chosen.slice(0, Math.max(0, room));
+      showToast("You can add up to " + MAX_IMPORT_FILES + " photos or files.");
+    }
+    chosen.forEach(function (f) { importFiles.push(f); });
+    input.value = ""; // let the same file be re-picked and re-fire change
+    renderPasteAttach();
   }
   $("pasteFile").addEventListener("change", function () { onPasteAttach($("pasteFile")); });
   $("pastePhoto").addEventListener("change", function () { onPasteAttach($("pastePhoto")); });
   $("pasteGo").addEventListener("click", function () {
-    runImport($("pasteText").value.trim(), importFile);
+    runImport($("pasteText").value.trim(), importFiles);
   });
   $("previewBack").addEventListener("click", function () {
     state.qIndex = state.category.questions.length - 1;

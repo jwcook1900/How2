@@ -10,6 +10,46 @@
     return String(s == null ? "" : s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  // A friendly "now" stamp for new log entries, e.g. "Sat 28 Jun, 3:11 pm".
+  function nowStamp() {
+    try {
+      return new Date().toLocaleString(undefined, {
+        weekday: "short", day: "numeric", month: "short",
+        hour: "numeric", minute: "2-digit"
+      });
+    } catch (e) { return new Date().toLocaleString(); }
+  }
+  // The guide code for a locked guide, kept so viewers can save log entries
+  // back into the encrypted payload.
+  var currentPassword = null;
+  function findById(list, id) {
+    list = list || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  // Re-fetch the latest guide, append one log entry, and save it back so every
+  // viewer (and the owner) sees it. Re-encrypts locked guides with the code the
+  // viewer entered. Calls done(true|false).
+  function persistLogEntry(logId, entry, done) {
+    if (!slug) { done(true); return; } // no backend — keep in memory only
+    GotItStore.get(slug).then(function (obj) {
+      if (!obj) throw new Error("missing");
+      var encrypted = GotItStore.isEncrypted(obj);
+      var getPlain = encrypted
+        ? (currentPassword ? GotItStore.decrypt(obj, currentPassword) : Promise.reject(new Error("locked")))
+        : Promise.resolve(obj);
+      return getPlain.then(function (latest) {
+        var log = findById(latest.logs, logId);
+        if (!log) throw new Error("nolog");
+        log.rows = log.rows || [];
+        log.rows.push(entry);
+        var toStore = encrypted ? GotItStore.encrypt(latest, currentPassword) : Promise.resolve(latest);
+        return toStore.then(function (payload) { return GotItStore.update(payload); });
+      });
+    }).then(function () { done(true); }, function () { done(false); });
+  }
   function getSlug() {
     // Pretty path: /g/<slug>
     var p = location.pathname.match(/\/g\/([^/?#]+)/);
@@ -94,14 +134,27 @@
     });
     return s + "</div>";
   }
+  function logRowsHtml(log) {
+    var rows = (log.rows || []).filter(function (r) { return r.when || r.note; });
+    if (!rows.length) {
+      return '<tr class="log-empty"><td colspan="2">No entries yet. Add the first one below.</td></tr>';
+    }
+    return rows.map(function (r) {
+      return "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
+    }).join("");
+  }
   function logHtml(log) {
-    var s = '<div class="guide-log"><div class="log-head">📓 ' + esc(log.title) + "</div>";
-    s += '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead><tbody>';
-    (log.rows || []).forEach(function (r) {
-      if (!r.when && !r.note) return;
-      s += "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
-    });
-    return s + "</tbody></table></div>";
+    return '<div class="guide-log" data-log="' + esc(log.id) + '">' +
+        '<div class="log-head">📓 ' + esc(log.title) + "</div>" +
+        '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead>' +
+          '<tbody class="log-rows">' + logRowsHtml(log) + "</tbody></table>" +
+        '<div class="log-add">' +
+          '<input type="text" class="q-input log-when" aria-label="When" placeholder="When" />' +
+          '<input type="text" class="q-input log-note" aria-label="Note" placeholder="Add a note, e.g. seizure, fed, walked…" />' +
+          '<button class="btn btn-primary btn-sm log-add-btn" type="button">Add entry</button>' +
+        "</div>" +
+        '<p class="log-add-msg" role="status" aria-live="polite" hidden></p>' +
+      "</div>";
   }
   function byId(list, id) {
     list = list || [];
@@ -151,6 +204,47 @@
     });
   });
 
+  // Interactive logs: let a viewer (sitter, carer, guest) record entries that
+  // save back into the guide so everyone sees the latest.
+  doc.querySelectorAll(".guide-log").forEach(function (logEl) {
+    var log = byId(guide.logs, logEl.getAttribute("data-log"));
+    if (!log) return;
+    var whenInp = logEl.querySelector(".log-when");
+    var noteInp = logEl.querySelector(".log-note");
+    var btn = logEl.querySelector(".log-add-btn");
+    var msg = logEl.querySelector(".log-add-msg");
+    var rowsBody = logEl.querySelector(".log-rows");
+    whenInp.value = nowStamp();
+
+    function addEntry() {
+      var note = noteInp.value.trim();
+      if (!note) { noteInp.focus(); return; }
+      var entry = { id: uid(), when: whenInp.value.trim() || nowStamp(), note: note };
+      btn.disabled = true;
+      var label = btn.textContent; btn.textContent = "Saving…";
+      msg.hidden = true;
+      // Optimistically show it, then persist.
+      log.rows = log.rows || [];
+      log.rows.push(entry);
+      rowsBody.innerHTML = logRowsHtml(log);
+      persistLogEntry(log.id, entry, function (ok) {
+        btn.disabled = false; btn.textContent = label;
+        if (ok) {
+          noteInp.value = ""; whenInp.value = nowStamp(); noteInp.focus();
+          msg.textContent = "Saved ✓"; msg.className = "log-add-msg ok"; msg.hidden = false;
+          setTimeout(function () { msg.hidden = true; }, 2500);
+        } else {
+          log.rows = log.rows.filter(function (x) { return x.id !== entry.id; });
+          rowsBody.innerHTML = logRowsHtml(log);
+          msg.textContent = "Couldn't save — check your connection and try again.";
+          msg.className = "log-add-msg err"; msg.hidden = false;
+        }
+      });
+    }
+    btn.addEventListener("click", addEntry);
+    noteInp.addEventListener("keydown", function (e) { if (e.key === "Enter") addEntry(); });
+  });
+
   // Footer (GotIt Guides branding for free tier)
   if (guide.branding !== false) {
     footer.innerHTML = 'Made with <a href="index.html">GotIt Guides</a> · guides people get';
@@ -181,6 +275,7 @@
       err.hidden = true;
       btn.disabled = true; btn.textContent = "Unlocking…";
       GotItStore.decrypt(env, p).then(function (real) {
+        currentPassword = p;
         render(real);
       }, function () {
         err.hidden = false;

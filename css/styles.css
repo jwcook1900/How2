@@ -972,6 +972,21 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .log-table th { color: var(--ink-muted); font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
 .log-table td[contenteditable]:focus { outline: 2px dashed var(--coral); border-radius: 4px; }
+.log-empty td { color: var(--ink-muted); font-style: italic; }
+
+/* Viewer "add a log entry" row on the published guide */
+.log-add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: stretch; }
+.log-add .q-input { font-size: 0.95rem; padding: 11px 14px; }
+.log-add .log-when { flex: 0 1 150px; min-width: 120px; }
+.log-add .log-note { flex: 1 1 180px; min-width: 0; }
+.log-add .log-add-btn { flex: 0 0 auto; }
+.log-add-msg { margin: 10px 0 0; font-size: 0.85rem; font-weight: 600; }
+.log-add-msg.ok { color: #1a9e57; }
+.log-add-msg.err { color: var(--coral-dark); }
+@media (max-width: 460px) {
+  .log-add .log-when, .log-add .log-note { flex: 1 1 100%; }
+  .log-add .log-add-btn { width: 100%; }
+}
 
 /* Builder action bar */
 .builder-toolbar {

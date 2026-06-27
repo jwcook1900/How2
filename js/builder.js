@@ -1279,14 +1279,28 @@
     var contentEl = el.querySelector(".acc-content");
     bindEditable(contentEl, function (v) { sec.body = v; }, true);
 
-    // Formatting toolbar (bullets / numbered list / bold).
+    // Formatting: a small "Format" button reveals bold / italic / lists.
     var fmtBar = el.querySelector(".fmt-bar");
-    [["• List", "insertUnorderedList"], ["1. List", "insertOrderedList"], ["B", "bold"]].forEach(function (f) {
+    var fmtToggle = document.createElement("button");
+    fmtToggle.type = "button";
+    fmtToggle.className = "fmt-btn fmt-toggle";
+    fmtToggle.textContent = "✏️ Format";
+    fmtToggle.title = "Formatting options";
+    var fmtTools = document.createElement("div");
+    fmtTools.className = "fmt-tools";
+    fmtTools.hidden = true;
+    fmtToggle.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep selection
+    fmtToggle.addEventListener("click", function () {
+      fmtTools.hidden = !fmtTools.hidden;
+      fmtToggle.classList.toggle("open", !fmtTools.hidden);
+    });
+    [["B", "bold", "Bold"], ["I", "italic", "Italic"],
+     ["• List", "insertUnorderedList", "Bullet list"], ["1. List", "insertOrderedList", "Numbered list"]].forEach(function (f) {
       var b = document.createElement("button");
       b.type = "button";
-      b.className = "fmt-btn" + (f[1] === "bold" ? " fmt-btn--b" : "");
+      b.className = "fmt-btn fmt-btn--" + f[1];
       b.textContent = f[0];
-      b.title = f[1] === "bold" ? "Bold" : (f[1] === "insertOrderedList" ? "Numbered list" : "Bullet list");
+      b.title = f[2];
       b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep the text selection
       b.addEventListener("click", function () {
         if (!el.classList.contains("open")) el.classList.add("open");
@@ -1295,8 +1309,10 @@
         sec.body = GotItStore.sanitizeHtml(contentEl.innerHTML);
         recordHistory();
       });
-      fmtBar.appendChild(b);
+      fmtTools.appendChild(b);
     });
+    fmtBar.appendChild(fmtToggle);
+    fmtBar.appendChild(fmtTools);
 
     renderSectionMedia(el, sec);
 

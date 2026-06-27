@@ -286,6 +286,8 @@
     $("startScratch").classList.remove("active");
     $("pasteText").value = "";
     $("pasteFileName").textContent = "";
+    if ($("pasteFile")) $("pasteFile").value = "";
+    if ($("pastePhoto")) $("pastePhoto").value = "";
     $("startHeading").textContent = "How would you like to start your " + state.category.name + " guide?";
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
@@ -1676,10 +1678,13 @@
   $("startScratch").addEventListener("click", startFromScratch);
   $("startPaste").addEventListener("click", revealPaste);
   $("startBack").addEventListener("click", function () { showStep(1); });
-  $("pasteFile").addEventListener("change", function () {
-    importFile = $("pasteFile").files[0] || null;
+  // Either picker (photo or file) feeds the same single attachment.
+  function onPasteAttach(input) {
+    importFile = input.files[0] || null;
     $("pasteFileName").textContent = importFile ? importFile.name : "";
-  });
+  }
+  $("pasteFile").addEventListener("change", function () { onPasteAttach($("pasteFile")); });
+  $("pastePhoto").addEventListener("change", function () { onPasteAttach($("pastePhoto")); });
   $("pasteGo").addEventListener("click", function () {
     runImport($("pasteText").value.trim(), importFile);
   });

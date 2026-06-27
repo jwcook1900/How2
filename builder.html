@@ -253,15 +253,26 @@
     <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle">
       <button class="feedback-x" type="button" aria-label="Close" data-vid-close>×</button>
       <h3 class="feedback-title" id="vidTitle">Add a video</h3>
-      <p class="feedback-lead">Paste a link to your video. Two easy ways to get one:</p>
+      <p class="feedback-lead">Upload or record a video straight from your phone, and we'll optimise it to play on any device.</p>
+
+      <button class="btn btn-primary btn-block" id="videoUploadBtn" type="button">📹 Upload or record a video</button>
+      <input type="file" id="videoFileInput" accept="video/*" hidden />
+      <p class="video-upload-hint">Best under about 2 minutes. No YouTube or Drive account needed.</p>
+
+      <div class="video-progress" id="videoProgress" hidden>
+        <div class="video-progress-track"><div class="video-progress-fill" id="videoProgressFill"></div></div>
+        <p class="video-progress-label" id="videoProgressLabel">Uploading…</p>
+      </div>
+
+      <div class="video-or"><span>or paste a link</span></div>
       <ul class="video-help">
-        <li><strong>Google Drive (easiest)</strong> — upload the video, right-click it → <em>Share</em> → set to <em>“Anyone with the link”</em>, then <em>Copy link</em>.</li>
+        <li><strong>Google Drive</strong> — upload the video, right-click it → <em>Share</em> → set to <em>“Anyone with the link”</em>, then <em>Copy link</em>.</li>
         <li><strong>YouTube</strong> — upload your clip (you can set it to <em>“Unlisted”</em>), then <em>Share</em> → <em>Copy link</em>.</li>
       </ul>
       <input class="q-input" id="videoUrl" type="url" placeholder="Paste video link" autocomplete="off" />
       <div class="feedback-actions">
         <button class="btn btn-ghost btn-sm" type="button" data-vid-close>Cancel</button>
-        <button class="btn btn-primary btn-sm" id="videoAdd" type="button">Add video</button>
+        <button class="btn btn-primary btn-sm" id="videoAdd" type="button">Add link</button>
       </div>
       <p class="feedback-note error" id="videoErr" hidden></p>
     </div>

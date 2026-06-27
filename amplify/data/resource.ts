@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
 import { feedbackFn } from "../functions/feedback/resource";
+import { videoFn } from "../functions/video/resource";
 
 /**
  * GotIt Guides data model.
@@ -85,6 +86,17 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(feedbackFn)),
+
+  // Issues a one-time Cloudflare Stream upload URL so creators can upload a
+  // video from their phone (Cloudflare transcodes it to play on any device).
+  videoUpload: a
+    .query()
+    .arguments({
+      maxDurationSeconds: a.integer(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(videoFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

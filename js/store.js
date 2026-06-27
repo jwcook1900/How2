@@ -179,6 +179,20 @@ window.GotItStore = (function () {
       });
     },
 
+    // Request a one-time Cloudflare Stream direct-upload URL. Resolves with
+    // { uploadURL, uid } (or { error }), or null when there's no cloud backend.
+    videoUploadUrl: function (maxDurationSeconds) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Vid($maxDurationSeconds: Int){ videoUpload(maxDurationSeconds: $maxDurationSeconds) }";
+        return gql(cfg, q, { maxDurationSeconds: maxDurationSeconds || 150 }).then(function (d) {
+          var r = d.videoUpload;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return null; } }
+          return r;
+        });
+      });
+    },
+
     // Email a creator their links (server-side via SES). `opts`: email, slug,
     // editToken, origin, and optional title/emoji/password. Resolves with the
     // handler result, or null when there's no cloud backend to send through.

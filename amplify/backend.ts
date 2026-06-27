@@ -6,6 +6,7 @@ import { aiFn } from "./functions/ai/resource";
 import { emailFn } from "./functions/email/resource";
 import { feedbackFn } from "./functions/feedback/resource";
 import { statsFn } from "./functions/stats/resource";
+import { videoFn } from "./functions/video/resource";
 
 /**
  * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), an
@@ -19,6 +20,7 @@ const backend = defineBackend({
   emailFn,
   feedbackFn,
   statsFn,
+  videoFn,
 });
 
 // Let the email + feedback functions send through SES.

@@ -1203,16 +1203,24 @@
     input.click();
   }
 
-  /* ---------- Add-a-video modal (link + instructions) ---------- */
+  /* ---------- Add-a-video modal (upload + link) ---------- */
   var videoOnAdd = null;
+  var videoUploading = false;
   function openVideoModal(onAdd) {
     videoOnAdd = onAdd;
+    videoUploading = false;
     $("videoErr").hidden = true;
     $("videoUrl").value = "";
+    $("videoFileInput").value = "";
+    setVideoProgress(null);
+    $("videoUploadBtn").disabled = false;
     $("videoModal").hidden = false;
-    setTimeout(function () { $("videoUrl").focus(); }, 50);
   }
-  function closeVideoModal() { $("videoModal").hidden = true; videoOnAdd = null; }
+  function closeVideoModal() {
+    if (videoUploading) return; // don't drop a callback mid-upload
+    $("videoModal").hidden = true;
+    videoOnAdd = null;
+  }
   function submitVideo() {
     var embed = parseVideo($("videoUrl").value);
     if (!embed) {
@@ -1224,6 +1232,67 @@
     var cb = videoOnAdd;
     closeVideoModal();
     if (cb) cb(embed);
+  }
+
+  // Progress UI: pass a 0..1 fraction, a string label, or null to hide.
+  function setVideoProgress(value, label) {
+    var box = $("videoProgress");
+    if (value == null) { box.hidden = true; return; }
+    box.hidden = false;
+    var pct = Math.max(0, Math.min(100, Math.round(value * 100)));
+    $("videoProgressFill").style.width = pct + "%";
+    $("videoProgressLabel").textContent = label || (pct + "%");
+  }
+
+  // Upload a chosen video to Cloudflare Stream and add it as a section video.
+  function startVideoUpload(file) {
+    if (!file) return;
+    $("videoErr").hidden = true;
+    if (file.size > 200 * 1024 * 1024) {
+      var e = $("videoErr");
+      e.textContent = "That video is too big (max about 200MB). Try a shorter clip.";
+      e.hidden = false;
+      return;
+    }
+    var cb = videoOnAdd;
+    videoUploading = true;
+    $("videoUploadBtn").disabled = true;
+    setVideoProgress(0, "Preparing…");
+
+    GotItStore.videoUploadUrl(150).then(function (res) {
+      if (!res || !res.uploadURL) {
+        throw new Error((res && res.error) || "Video upload isn't available right now. You can paste a link instead.");
+      }
+      return new Promise(function (resolve, reject) {
+        var form = new FormData();
+        form.append("file", file);
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", res.uploadURL, true);
+        xhr.upload.onprogress = function (ev) {
+          if (ev.lengthComputable) setVideoProgress(ev.loaded / ev.total, "Uploading… " + Math.round(ev.loaded / ev.total * 100) + "%");
+        };
+        xhr.onload = function () {
+          if (xhr.status >= 200 && xhr.status < 300) resolve("https://iframe.videodelivery.net/" + res.uid);
+          else reject(new Error("Upload failed. Please try again."));
+        };
+        xhr.onerror = function () { reject(new Error("Upload failed. Check your connection and try again.")); };
+        xhr.send(form);
+      });
+    }).then(function (embedUrl) {
+      setVideoProgress(1, "Done ✓");
+      videoUploading = false;
+      $("videoModal").hidden = true;
+      videoOnAdd = null;
+      if (cb) cb(embedUrl);
+      showToast("Video added — it'll be ready to play in a few seconds.");
+    }).catch(function (err) {
+      videoUploading = false;
+      $("videoUploadBtn").disabled = false;
+      setVideoProgress(null);
+      var e = $("videoErr");
+      e.textContent = (err && err.message) || "Something went wrong. Please try again.";
+      e.hidden = false;
+    });
   }
 
   /* ---------- Per-step media (photo / video) in the question flow ---------- */
@@ -1719,6 +1788,8 @@
   // Add-a-video modal
   $("videoAdd").addEventListener("click", submitVideo);
   $("videoUrl").addEventListener("keydown", function (e) { if (e.key === "Enter") submitVideo(); });
+  $("videoUploadBtn").addEventListener("click", function () { $("videoFileInput").click(); });
+  $("videoFileInput").addEventListener("change", function () { startVideoUpload(this.files[0]); });
   document.querySelectorAll("[data-vid-close]").forEach(function (el) {
     el.addEventListener("click", closeVideoModal);
   });

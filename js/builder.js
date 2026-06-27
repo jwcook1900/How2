@@ -1116,7 +1116,14 @@
     var menu = document.createElement("div");
     menu.className = "add-menu-list";
     menu.hidden = true;
-    function close() { menu.hidden = true; document.removeEventListener("click", onDoc); }
+    // The dropdown opens past the bottom of the section card, which is
+    // overflow:hidden — so while it's open, let that card show overflow.
+    function host() { return wrap.closest(".guide-section"); }
+    function close() {
+      menu.hidden = true;
+      var h = host(); if (h) h.classList.remove("add-open");
+      document.removeEventListener("click", onDoc);
+    }
     function onDoc(e) { if (!wrap.contains(e.target)) close(); }
     items.forEach(function (it) {
       var mi = document.createElement("button");
@@ -1128,8 +1135,11 @@
     });
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (menu.hidden) { menu.hidden = false; document.addEventListener("click", onDoc); }
-      else close();
+      if (menu.hidden) {
+        menu.hidden = false;
+        var h = host(); if (h) h.classList.add("add-open");
+        document.addEventListener("click", onDoc);
+      } else close();
     });
     wrap.appendChild(btn);
     wrap.appendChild(menu);

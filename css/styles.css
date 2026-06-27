@@ -1431,6 +1431,9 @@ ul { margin: 0; padding: 0; list-style: none; }
   white-space: nowrap;
 }
 .add-menu-item:hover { background: var(--bg-tint); }
+/* While the dropdown is open, let it escape the card (which is overflow:hidden
+   for its rounded corners) and sit above the following section. */
+.guide-section.add-open { overflow: visible; position: relative; z-index: 5; }
 
 /* Per-step media preview (photo / video) in the question flow */
 .q-media { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }

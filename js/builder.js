@@ -193,7 +193,8 @@
      Snapshots the whole guide on each change (debounced for typing). */
   var history = [], hIndex = -1, histTimer = null, histBusy = false;
   var MAX_HISTORY = 40;
-  var activeContent = null, activeSection = null; // section text being edited (for the floating Format button)
+  // Currently selected block, for the floating dock's widget actions.
+  var selectedEl = null, selectedType = null, selectedRef = null;
   function snapshot() { return JSON.stringify(state.guide); }
   function recordHistory() {
     if (histBusy || !state.guide) return;
@@ -231,10 +232,13 @@
     currentStepKey = key;
     Object.keys(steps).forEach(function (k) { steps[k].classList.remove("active"); });
     steps[key].classList.add("active");
-    // Floating undo/redo/format controls only make sense on the editor step.
-    var fabs = $("editFabs");
-    if (fabs) fabs.hidden = (key !== 3);
-    if (key !== 3) closeFmtPop();
+    // The editor dock (and its feedback button) only show on the edit step;
+    // the standalone feedback FAB covers the other steps.
+    var dock = $("editDock");
+    if (dock) dock.hidden = (key !== 3);
+    var fb = $("feedbackFab");
+    if (fb) fb.hidden = (key === 3);
+    if (key !== 3) closeDockPop();
     // progress dots
     var stepNum = steps[key].getAttribute("data-step");
     document.querySelectorAll(".wizard-progress .dot").forEach(function (d) {
@@ -923,23 +927,10 @@
     cover.innerHTML =
       '<span class="cover-emoji">' + g.emoji + "</span>" +
       '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
-      '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
-      '<div class="cover-tools">' +
-        '<button class="cover-btn" data-act="cover-photo" type="button">📸 Cover photo</button>' +
-        '<button class="cover-btn" data-act="cover-remove" type="button" hidden>Remove photo</button>' +
-      "</div>";
+      '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
     bindEditable(cover.querySelector('[data-bind="subtitle"]'), function (v) { g.subtitle = v; });
-    cover.querySelector(".cover-tools").appendChild(makeColorMenu(
-      function () { return g.coverColor; },
-      function (k) { g.coverColor = k === "default" ? null : k; applyCover(cover, g); },
-      "cover-btn"
-    ));
     applyCover(cover, g);
-    cover.querySelector('[data-act="cover-photo"]').addEventListener("click", function () { pickCover(cover); });
-    cover.querySelector('[data-act="cover-remove"]').addEventListener("click", function () {
-      g.cover = null; applyCover(cover, g);
-    });
     doc.appendChild(cover);
 
     // Render blocks (sections / emergency / logs) in the saved order
@@ -972,6 +963,7 @@
       if (!rendered["l:" + log.id]) doc.appendChild(buildLogEl(log));
     });
     syncBlockOrder();
+    reselectAfterRender();
   }
 
   function findSection(id) {
@@ -983,16 +975,13 @@
 
   // Paints the cover photo (with a dark overlay for legible text) or clears it.
   function applyCover(coverEl, g) {
-    var removeBtn = coverEl.querySelector('[data-act="cover-remove"]');
     if (g.cover) {
       coverEl.classList.add("has-cover");
       coverEl.style.backgroundImage =
         "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + g.cover + ")";
-      if (removeBtn) removeBtn.hidden = false;
     } else {
       coverEl.classList.remove("has-cover");
       coverEl.style.backgroundImage = "";
-      if (removeBtn) removeBtn.hidden = true;
       GotItStore.applyCoverAccent(coverEl, g.coverColor); // colour gradient, or revert
     }
   }
@@ -1264,10 +1253,6 @@
       '<div class="acc-body"><div class="acc-body-inner">' +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
-        '<div class="sec-tools">' +
-          '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
-          '<button class="tool-btn danger" data-act="remove" type="button">🗑 Remove</button>' +
-        "</div>" +
       "</div></div>";
 
     // Accordion toggle (ignore clicks on the editable title)
@@ -1280,54 +1265,9 @@
     enableDrag(el.querySelector(".drag-handle"), el);
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
-    var contentEl = el.querySelector(".acc-content");
-    bindEditable(contentEl, function (v) { sec.body = v; }, true);
-    // Remember which section's text is being edited, for the floating Format button.
-    contentEl.addEventListener("focus", function () { activeContent = contentEl; activeSection = sec; });
+    bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; }, true);
 
     renderSectionMedia(el, sec);
-
-    // Tools
-    var tools = el.querySelector(".sec-tools");
-    tools.querySelector('[data-act="remove"]').addEventListener("click", function () {
-      state.guide.sections = state.guide.sections.filter(function (s) { return s.id !== sec.id; });
-      el.remove();
-      syncBlockOrder();
-    });
-    var polishBtn = tools.querySelector('[data-act="polish"]');
-    polishBtn.addEventListener("click", function () {
-      var contentEl = el.querySelector(".acc-content");
-      if (!el.classList.contains("open")) el.classList.add("open");
-      polishInto(function () { return contentEl.innerText; },
-        function (v) { contentEl.innerText = v; sec.body = v; recordHistory(); }, polishBtn, aiCtx(sec.title));
-    });
-
-    // File / photo / video grouped into one "Add" menu, placed before Remove.
-    tools.insertBefore(makeAddMenu([
-      { label: "📎 File", onClick: function (trigger) {
-        var contentEl = el.querySelector(".acc-content");
-        if (!el.classList.contains("open")) el.classList.add("open");
-        readFileIntoField({ btn: trigger, question: sec.title,
-          get: function () { return contentEl.innerText; },
-          set: function (v) { contentEl.innerText = v; sec.body = v; recordHistory(); } });
-      } },
-      { label: "📷 Photo", onClick: function () { pickPhoto(sec, el); } },
-      { label: "🎬 Video", onClick: function () {
-        openVideoModal(function (embed) {
-          sec.videoEmbed = embed;
-          renderSectionMedia(el, sec);
-          if (!el.classList.contains("open")) el.classList.add("open");
-          recordHistory();
-        });
-      } }
-    ]), tools.querySelector('[data-act="remove"]'));
-
-    // Colour picker, before Remove.
-    tools.insertBefore(makeColorMenu(
-      function () { return sec.color; },
-      function (k) { sec.color = k === "default" ? null : k; GotItStore.applyAccent(el, sec.color); }
-    ), tools.querySelector('[data-act="remove"]'));
-
     GotItStore.applyAccent(el, sec.color);
     return el;
   }
@@ -1530,12 +1470,6 @@
         "<span>🚨 Emergency Contacts</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
-    var emColor = makeColorMenu(
-      function () { return g.emergencyColor; },
-      function (k) { g.emergencyColor = k === "default" ? null : k; GotItStore.applyAccent(el, g.emergencyColor); }
-    );
-    emColor.style.marginLeft = "auto";
-    el.querySelector(".em-head").appendChild(emColor);
     GotItStore.applyAccent(el, g.emergencyColor);
     var list = document.createElement("div");
     list.className = "em-list";
@@ -1588,23 +1522,10 @@
     el.innerHTML =
       '<div class="log-head">' +
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
-        '📓 <span contenteditable="true" class="log-title">' + esc(log.title) + "</span>" +
-        '<button class="contact-del" type="button" style="margin-left:auto" title="Remove log">✕</button>' +
+        '<span class="log-icon">📓</span> <span contenteditable="true" class="log-title">' + esc(log.title) + "</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
     bindEditable(el.querySelector(".log-title"), function (v) { log.title = v; });
-    var logDel = el.querySelector(".log-head .contact-del");
-    logDel.style.marginLeft = "0";
-    el.querySelector(".log-head").insertBefore(makeColorMenu(
-      function () { return log.color; },
-      function (k) { log.color = k === "default" ? null : k; GotItStore.applyAccent(el, log.color); }
-    ), logDel);
-    el.querySelector(".log-head .color-menu").style.marginLeft = "auto";
-    logDel.addEventListener("click", function () {
-      state.guide.logs = state.guide.logs.filter(function (l) { return l.id !== log.id; });
-      el.remove();
-      syncBlockOrder();
-    });
     GotItStore.applyAccent(el, log.color);
 
     var table = document.createElement("table");
@@ -1936,6 +1857,162 @@
     a.click();
   }
 
+  /* ---------- Block selection + the floating dock ---------- */
+  function selectBlock(el) {
+    if (!el) return;
+    if (selectedEl && selectedEl !== el) selectedEl.classList.remove("selected");
+    selectedEl = el;
+    el.classList.add("selected");
+    if (el.classList.contains("guide-section")) { selectedType = "section"; selectedRef = findSection(el.dataset.id); }
+    else if (el.classList.contains("guide-log")) { selectedType = "log"; selectedRef = findLog(el.dataset.id); }
+    else if (el.classList.contains("guide-emergency")) { selectedType = "emergency"; selectedRef = state.guide; }
+    else if (el.classList.contains("guide-cover")) { selectedType = "cover"; selectedRef = state.guide; }
+    else { selectedType = null; selectedRef = null; }
+    closeDockPop();
+    updateDock();
+  }
+  function deselect() {
+    if (selectedEl) selectedEl.classList.remove("selected");
+    selectedEl = null; selectedType = null; selectedRef = null;
+    closeDockPop();
+    updateDock();
+  }
+  // Re-bind the selection to the same block after a full re-render (undo/redo),
+  // or fall back to the first block so the dock is immediately usable.
+  function reselectAfterRender() {
+    var want = selectedType, ref = selectedRef, doc = $("guideDoc"), target = null;
+    selectedEl = null;
+    if (want === "section" && ref) target = doc.querySelector('.guide-section[data-id="' + ref.id + '"]');
+    else if (want === "log" && ref) target = doc.querySelector('.guide-log[data-id="' + ref.id + '"]');
+    else if (want === "emergency") target = doc.querySelector(".guide-emergency");
+    else if (want === "cover") target = doc.querySelector(".guide-cover");
+    if (!target) target = doc.querySelector(".guide-section") || doc.querySelector(".guide-cover");
+    if (target) selectBlock(target);
+    else { selectedType = null; selectedRef = null; updateDock(); }
+  }
+
+  var DOCK_CAPS = {
+    section: { colour: 1, format: 1, media: 1, polish: 1, delete: 1 },
+    log: { colour: 1, delete: 1 },
+    emergency: { colour: 1 },
+    cover: { colour: 1, media: 1 }
+  };
+  function updateDock() {
+    var cap = (selectedType && DOCK_CAPS[selectedType]) || {};
+    [["dockColour", cap.colour], ["dockFormat", cap.format], ["dockMedia", cap.media],
+     ["dockPolish", cap.polish], ["dockDelete", cap.delete]].forEach(function (p) {
+      var b = $(p[0]); if (b) b.disabled = !p[1];
+    });
+    var w = $("dockWidget"); if (w) w.classList.toggle("dim", !selectedType);
+  }
+
+  function closeDockPop() {
+    var pop = $("dockPop");
+    if (pop) { pop.hidden = true; pop.innerHTML = ""; }
+    Array.prototype.forEach.call(document.querySelectorAll("#editDock .dock-btn.on"), function (b) { b.classList.remove("on"); });
+  }
+  function openDockPop(btn, build) {
+    if (btn.disabled) return;
+    var pop = $("dockPop");
+    var wasOpen = btn.classList.contains("on");
+    closeDockPop();
+    if (wasOpen) return; // second click closes
+    build(pop);
+    pop.hidden = false;
+    btn.classList.add("on");
+    pop.style.top = btn.offsetTop + "px"; // align with the button (desktop)
+  }
+
+  function buildColourPop(pop) {
+    pop.className = "dock-pop dock-pop-swatches";
+    var current = selectedType === "section" || selectedType === "log" ? (selectedRef && selectedRef.color)
+      : selectedType === "emergency" ? state.guide.emergencyColor
+      : selectedType === "cover" ? state.guide.coverColor : null;
+    [{ key: "default" }].concat(GotItStore.palette).forEach(function (o) {
+      var sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "swatch" + (o.key === "default" ? " swatch-default" : "") + ((o.key === (current || "default")) ? " active" : "");
+      if (o.accent) sw.style.background = o.accent;
+      sw.title = o.key === "default" ? "No colour" : o.key;
+      sw.addEventListener("click", function (e) { e.stopPropagation(); applySelectedColour(o.key); closeDockPop(); });
+      pop.appendChild(sw);
+    });
+  }
+  function applySelectedColour(key) {
+    var k = key === "default" ? null : key;
+    if (selectedType === "section" || selectedType === "log") { selectedRef.color = k; GotItStore.applyAccent(selectedEl, k); }
+    else if (selectedType === "emergency") { state.guide.emergencyColor = k; GotItStore.applyAccent(selectedEl, k); }
+    else if (selectedType === "cover") { state.guide.coverColor = k; applyCover(selectedEl, state.guide); }
+    recordHistory();
+  }
+
+  function buildFormatPop(pop) {
+    pop.className = "dock-pop dock-pop-row";
+    [["B", "bold"], ["I", "italic"], ["•", "insertUnorderedList"], ["1.", "insertOrderedList"]].forEach(function (f) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "dock-pop-btn"; b.textContent = f[0];
+      if (f[1] === "bold") b.style.fontWeight = "800";
+      if (f[1] === "italic") b.style.fontStyle = "italic";
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep the text selection
+      b.addEventListener("click", function (e) { e.stopPropagation(); applyFormat(f[1]); });
+      pop.appendChild(b);
+    });
+  }
+  function applyFormat(cmd) {
+    if (selectedType !== "section") return;
+    var content = selectedEl.querySelector(".acc-content");
+    if (!selectedEl.classList.contains("open")) selectedEl.classList.add("open");
+    content.focus();
+    try { document.execCommand(cmd, false, null); } catch (e) {}
+    selectedRef.body = GotItStore.sanitizeHtml(content.innerHTML);
+    recordHistory();
+  }
+
+  function buildMediaPop(pop) {
+    pop.className = "dock-pop dock-pop-list";
+    function item(label, fn) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "dock-pop-btn dock-pop-wide"; b.textContent = label;
+      b.addEventListener("click", function (e) { e.stopPropagation(); closeDockPop(); fn(); });
+      pop.appendChild(b);
+    }
+    if (selectedType === "cover") {
+      item("📸 " + (state.guide.cover ? "Change photo" : "Add a photo"), function () { pickCover(selectedEl); });
+      if (state.guide.cover) item("🗑 Remove photo", function () { state.guide.cover = null; applyCover(selectedEl, state.guide); recordHistory(); });
+      return;
+    }
+    var sec = selectedRef, el = selectedEl;
+    if (!el.classList.contains("open")) el.classList.add("open");
+    item("📷 Photo", function () { pickPhoto(sec, el); });
+    item("🎬 Video", function () {
+      openVideoModal(function (embed) { sec.videoEmbed = embed; renderSectionMedia(el, sec); el.classList.add("open"); recordHistory(); });
+    });
+    item("📎 File", function () {
+      var content = el.querySelector(".acc-content");
+      readFileIntoField({ btn: $("dockMedia"), question: sec.title,
+        get: function () { return content.innerText; },
+        set: function (v) { content.innerText = v; sec.body = v; recordHistory(); } });
+    });
+  }
+
+  function dockPolish() {
+    if (selectedType !== "section") return;
+    var content = selectedEl.querySelector(".acc-content"), sec = selectedRef;
+    if (!selectedEl.classList.contains("open")) selectedEl.classList.add("open");
+    polishInto(function () { return content.innerText; },
+      function (v) { content.innerText = v; sec.body = v; recordHistory(); }, $("dockPolish"), aiCtx(sec.title));
+  }
+  function dockDelete() {
+    if (selectedType === "section") state.guide.sections = state.guide.sections.filter(function (s) { return s.id !== selectedRef.id; });
+    else if (selectedType === "log") state.guide.logs = state.guide.logs.filter(function (l) { return l.id !== selectedRef.id; });
+    else return;
+    var el = selectedEl;
+    deselect();
+    if (el) el.remove();
+    syncBlockOrder();
+    reselectAfterRender();
+  }
+
   /* ---------- Wire up ---------- */
   renderCategories();
   $("qNext").addEventListener("click", nextQuestion);
@@ -1973,49 +2050,39 @@
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
 
-  // Undo / redo: snapshot on edits (typing debounced; structural clicks too).
-  $("undoFab").addEventListener("click", undo);
-  $("redoFab").addEventListener("click", redo);
+  // History: snapshot on edits (typing debounced; structural clicks too).
   $("guideDoc").addEventListener("input", scheduleHistory);
   $("step3").addEventListener("click", function (e) {
     if (e.target.closest("#publishBtn,#previewBack")) return;
     scheduleHistory();
   });
+  // Tap a block to select it (so the dock's widget actions target it).
+  $("guideDoc").addEventListener("click", function (e) {
+    var block = e.target.closest(".guide-section, .guide-log, .guide-emergency, .guide-cover");
+    if (block) selectBlock(block); else deselect();
+  });
 
-  /* ---------- Floating Format button ---------- */
-  function closeFmtPop() {
-    var pop = $("fmtPop"), fab = $("fmtFab");
-    if (pop) pop.hidden = true;
-    if (fab) fab.classList.remove("on");
-  }
-  $("fmtFab").addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep text selection
-  $("fmtFab").addEventListener("click", function (e) {
-    e.stopPropagation();
-    var pop = $("fmtPop");
-    pop.hidden = !pop.hidden;
-    $("fmtFab").classList.toggle("on", !pop.hidden);
-  });
-  Array.prototype.forEach.call(document.querySelectorAll(".fmt-fab-btn"), function (b) {
-    b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep selection
-    b.addEventListener("click", function (e) {
-      e.stopPropagation();
-      if (!activeContent || !activeSection) { showToast("Tap a section's text first, then format."); return; }
-      var secEl = activeContent.closest(".guide-section");
-      if (secEl && !secEl.classList.contains("open")) secEl.classList.add("open");
-      activeContent.focus();
-      try { document.execCommand(b.getAttribute("data-cmd"), false, null); } catch (err) {}
-      activeSection.body = GotItStore.sanitizeHtml(activeContent.innerHTML);
-      recordHistory();
-    });
-  });
-  document.addEventListener("click", function (e) {
-    if (!$("fmtPop").hidden && !e.target.closest("#editFabs")) closeFmtPop();
-  });
+  // Global controls
+  $("undoFab").addEventListener("click", undo);
+  $("redoFab").addEventListener("click", redo);
+  $("dockFeedback").addEventListener("click", function () { openFeedback(); });
   document.addEventListener("keydown", function (e) {
     if (currentStepKey !== 3 || !(e.metaKey || e.ctrlKey)) return;
     var k = (e.key || "").toLowerCase();
     if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
     else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
+  });
+
+  // Widget actions
+  $("dockColour").addEventListener("click", function (e) { e.stopPropagation(); openDockPop(this, buildColourPop); });
+  $("dockFormat").addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep selection
+  $("dockFormat").addEventListener("click", function (e) { e.stopPropagation(); openDockPop(this, buildFormatPop); });
+  $("dockMedia").addEventListener("click", function (e) { e.stopPropagation(); openDockPop(this, buildMediaPop); });
+  $("dockPolish").addEventListener("click", function (e) { e.stopPropagation(); dockPolish(); });
+  $("dockDelete").addEventListener("click", function (e) { e.stopPropagation(); dockDelete(); });
+  // Close the popover when clicking away from the dock.
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#editDock")) closeDockPop();
   });
   $("copyBtn").addEventListener("click", function () { logShare(); copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });

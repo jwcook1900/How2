@@ -225,19 +225,22 @@
 
   <div class="toast" id="toast"></div>
 
-  <!-- Floating editor controls (step 3 only): undo, redo, format -->
-  <div class="edit-fabs" id="editFabs" hidden>
-    <button class="edit-fab" id="undoFab" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled>↶</button>
-    <button class="edit-fab" id="redoFab" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>↷</button>
-    <div class="fmt-wrap">
-      <div class="fmt-pop" id="fmtPop" hidden>
-        <button class="fmt-fab-btn" type="button" data-cmd="bold" title="Bold" style="font-weight:800">B</button>
-        <button class="fmt-fab-btn" type="button" data-cmd="italic" title="Italic" style="font-style:italic">I</button>
-        <button class="fmt-fab-btn" type="button" data-cmd="insertUnorderedList" title="Bullet list">•</button>
-        <button class="fmt-fab-btn" type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
-      </div>
-      <button class="edit-fab" id="fmtFab" type="button" title="Format the section you're editing" aria-label="Format">✏️</button>
+  <!-- Floating glass editor dock (step 3 only): widget actions + global actions -->
+  <div class="edit-dock glass" id="editDock" hidden>
+    <div class="dock-zone dock-widget" id="dockWidget">
+      <button class="dock-btn" id="dockColour" type="button" title="Colour" aria-label="Colour">🎨</button>
+      <button class="dock-btn" id="dockFormat" type="button" title="Format text" aria-label="Format">✏️</button>
+      <button class="dock-btn" id="dockMedia" type="button" title="Add photo or video" aria-label="Add media">📷</button>
+      <button class="dock-btn" id="dockPolish" type="button" title="Polish with AI" aria-label="Polish">✨</button>
+      <button class="dock-btn dock-danger" id="dockDelete" type="button" title="Delete this block" aria-label="Delete">🗑</button>
     </div>
+    <div class="dock-sep"></div>
+    <div class="dock-zone">
+      <button class="dock-btn" id="undoFab" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled>↶</button>
+      <button class="dock-btn" id="redoFab" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>↷</button>
+      <button class="dock-btn" id="dockFeedback" type="button" title="Send feedback" aria-label="Feedback">💬</button>
+    </div>
+    <div class="dock-pop" id="dockPop" hidden></div>
   </div>
 
   <!-- Feedback (persistent across every step of the build) -->

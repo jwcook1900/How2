@@ -1196,6 +1196,11 @@ ul { margin: 0; padding: 0; list-style: none; }
   background: var(--coral);
 }
 
+/* Three-up card grid (e.g. the six real-world examples) */
+.cards-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 940px) { .cards-3 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .cards-3 { grid-template-columns: 1fr; } }
+
 /* Differentiation comparison list */
 .compare-list {
   list-style: none;

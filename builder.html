@@ -44,6 +44,41 @@
         <div class="cat-grid" id="catGrid"><!-- categories injected --></div>
       </section>
 
+      <!-- STEP 1b — How to start (paste vs scratch) -->
+      <section class="step" id="stepStart" data-step="2">
+        <span class="step-eyebrow">Step 2 of 4</span>
+        <h1 class="step-heading" id="startHeading">How would you like to start?</h1>
+        <p class="step-lead">An imperfect note is enough to begin. You can edit everything afterwards.</p>
+
+        <div class="start-grid">
+          <button class="start-card" id="startPaste" type="button">
+            <span class="start-emoji">📋</span>
+            <span class="start-name">Paste existing notes</span>
+            <span class="start-desc">Already written it down somewhere? Drop it in and we'll organise it for you.</span>
+          </button>
+          <button class="start-card" id="startScratch" type="button">
+            <span class="start-emoji">✍️</span>
+            <span class="start-name">Start from scratch</span>
+            <span class="start-desc">Answer a few quick questions and we'll build the guide as you go.</span>
+          </button>
+        </div>
+
+        <div class="paste-panel" id="pastePanel" hidden>
+          <p class="paste-help">Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.</p>
+          <textarea class="q-textarea paste-text" id="pasteText" placeholder="Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…"></textarea>
+          <div class="import-file-row">
+            <label class="tool-btn import-file-btn">📎 Add a file
+              <input type="file" id="pasteFile" accept=".pdf,.txt,.md,.csv,text/plain,image/*" hidden /></label>
+            <span class="import-file-name" id="pasteFileName"></span>
+          </div>
+          <button class="btn btn-primary btn-block" id="pasteGo" type="button">Create my guide</button>
+        </div>
+
+        <div class="q-nav">
+          <button class="btn-link" id="startBack" type="button">← Back</button>
+        </div>
+      </section>
+
       <!-- STEP 2 — Questions -->
       <section class="step" id="step2" data-step="2">
         <span class="step-eyebrow" id="qEyebrow">Step 2 of 4</span>

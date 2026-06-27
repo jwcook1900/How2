@@ -17,6 +17,44 @@ type Block =
  *              into a structured guide. Returns
  *              { title, sections:[{emoji,title,body}], contacts:[{label,value}] }.
  */
+/**
+ * Per-guide-type section ordering for the "import" flow. When the pasted notes
+ * cover these topics, the AI groups and orders sections to match — so a pet or
+ * babysitter guide comes out structured the way a carer expects to read it.
+ * Returns "" for types without a preferred order.
+ */
+function importPriorities(category: string): string {
+  const c = (category || "").toLowerCase();
+  let order: string[] | null = null;
+  if (c.includes("pet")) {
+    order = [
+      "Feeding",
+      "Medication",
+      "Walks and exercise",
+      "Vet and emergency contacts",
+      "Behaviour and quirks",
+      "House rules",
+    ];
+  } else if (c.includes("baby") || c.includes("kid")) {
+    order = [
+      "Meals and snacks",
+      "Nap and bedtime routine",
+      "Allergies and medication",
+      "Screen time rules",
+      "Emergency contacts",
+      "Comfort items",
+      "House rules",
+    ];
+  }
+  if (!order) return "";
+  return (
+    "When the notes cover them, prefer these sections, in this order: " +
+    order.join("; ") +
+    ". Only include the ones the notes actually support, and add any other " +
+    "useful sections the notes contain. "
+  );
+}
+
 export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   const mode = event.arguments.mode;
   const text = (event.arguments.text || "").slice(0, 8000);
@@ -40,6 +78,9 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       "Give each section a short title and a fitting emoji. Group related details together. " +
       "Put vets, doctors, phone numbers and emergency people into contacts (label + value). " +
       "Keep the person's own wording, lightly tidied for clarity. Be concise. Do not invent details. " +
+      "The notes may be rough or incomplete — that is fine. Only create sections the notes actually " +
+      "support; never pad with empty or invented sections. " +
+      importPriorities(category) +
       'This guide is about: "' + category + '".';
 
     const blocks: Block[] = [];

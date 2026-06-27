@@ -183,7 +183,7 @@
   /* ---------- DOM refs ---------- */
   var $ = function (id) { return document.getElementById(id); };
   var steps = {
-    1: $("step1"), 2: $("step2"), building: $("stepBuilding"),
+    1: $("step1"), start: $("stepStart"), 2: $("step2"), building: $("stepBuilding"),
     3: $("step3"), 4: $("step4")
   };
   var toast = $("toast");
@@ -273,6 +273,41 @@
     state.qIndex = 0;
     state.answers = {};
     state.media = {};
+    showStart();
+  }
+
+  /* ---------- Step 1b: paste existing notes vs start from scratch ---------- */
+  function showStart() {
+    // Reset the paste panel each time we land here.
+    importFile = null;
+    var panel = $("pastePanel");
+    if (panel) panel.setAttribute("hidden", "");
+    $("startPaste").classList.remove("active");
+    $("startScratch").classList.remove("active");
+    $("pasteText").value = "";
+    $("pasteFileName").textContent = "";
+    $("startHeading").textContent = "How would you like to start your " + state.category.name + " guide?";
+    showStep("start");
+    // Arrived from a homepage "Paste your notes" CTA — open the paste path.
+    if (autoPasteIntent) {
+      autoPasteIntent = false;
+      revealPaste();
+    }
+  }
+
+  function revealPaste() {
+    $("startPaste").classList.add("active");
+    $("startScratch").classList.remove("active");
+    $("pastePanel").removeAttribute("hidden");
+    setTimeout(function () {
+      var ta = $("pasteText");
+      ta.focus();
+      ta.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 60);
+  }
+
+  function startFromScratch() {
+    state.qIndex = 0;
     renderQuestion();
     showStep(2);
   }
@@ -372,74 +407,13 @@
       if (e.key === "Enter" && q.type !== "textarea") { e.preventDefault(); nextQuestion(); }
     });
 
-    // On the first question, Back returns to the landing page; otherwise it
-    // steps to the previous question.
-    $("qBack").textContent = i === 0 ? "← Home" : "← Back";
+    // Back returns to the previous question, or to the start chooser on the first.
+    $("qBack").textContent = "← Back";
     $("qNext").textContent = i === qs.length - 1 ? "Build my guide →" : "Next →";
 
-    // First question of every category offers a shortcut: paste notes / upload a
-    // file and let the AI build the whole guide instead of answering questions.
-    var oldPanel = document.getElementById("importPanel");
-    if (oldPanel) oldPanel.remove();
-    if (i === 0) {
-      var card = document.querySelector("#step2 .q-card");
-      var panel = buildImportPanel();
-      card.parentNode.insertBefore(panel, card);
-      // Arrived from the homepage "Paste your notes" CTA: open the panel and
-      // drop the cursor straight into it. Only the first time we land here.
-      if (autoPasteIntent) {
-        autoPasteIntent = false;
-        var toggle = panel.querySelector(".import-toggle");
-        if (toggle) toggle.click();
-        var ta = panel.querySelector(".import-text");
-        if (ta) setTimeout(function () {
-          ta.focus();
-          ta.scrollIntoView({ block: "center", behavior: "smooth" });
-        }, 80);
-      }
-    }
   }
 
-  /* ---------- Build instantly from notes / a file ---------- */
-  function buildImportPanel() {
-    importFile = null;
-    var panel = document.createElement("div");
-    panel.id = "importPanel";
-    panel.className = "import-panel";
-    panel.innerHTML =
-      '<button class="import-toggle" type="button">⚡ Already written it down? Build instantly from notes or a file</button>' +
-      '<div class="import-body" hidden>' +
-        '<p class="import-lead">Paste a rough note, checklist, email, text message or document. We\'ll organise it into a clear, shareable guide. You can also add a PDF or photo and we\'ll read it in.</p>' +
-        '<textarea class="q-textarea import-text" placeholder="Paste everything you already have here…"></textarea>' +
-        '<div class="import-file-row">' +
-          '<label class="tool-btn import-file-btn">📎 Add a file' +
-            '<input type="file" accept=".pdf,.txt,.md,.csv,text/plain,image/*" hidden /></label>' +
-          '<span class="import-file-name"></span>' +
-        '</div>' +
-        '<button class="btn btn-primary import-go" type="button">✨ Build my guide</button>' +
-      "</div>";
-
-    var toggle = panel.querySelector(".import-toggle");
-    var body = panel.querySelector(".import-body");
-    toggle.addEventListener("click", function () {
-      var willOpen = body.hasAttribute("hidden");
-      if (willOpen) body.removeAttribute("hidden"); else body.setAttribute("hidden", "");
-      toggle.classList.toggle("open", willOpen);
-    });
-
-    var fileInput = panel.querySelector('input[type="file"]');
-    var fileName = panel.querySelector(".import-file-name");
-    fileInput.addEventListener("change", function () {
-      importFile = fileInput.files[0] || null;
-      fileName.textContent = importFile ? importFile.name : "";
-    });
-
-    panel.querySelector(".import-go").addEventListener("click", function () {
-      runImport(panel.querySelector(".import-text").value.trim(), importFile);
-    });
-    return panel;
-  }
-
+  /* ---------- Build instantly from pasted notes / a file ---------- */
   function runImport(rawText, file) {
     if (!rawText && !file) { showToast("Paste some notes or add a file first."); return; }
     steps.building.querySelector(".building-title").textContent = "Reading your notes…";
@@ -659,8 +633,8 @@
       state.qIndex--;
       renderQuestion();
     } else {
-      // First question of the category — go back to the home page.
-      window.location.href = "index.html";
+      // First question — return to the "paste or start from scratch" chooser.
+      showStart();
     }
   }
 
@@ -1697,6 +1671,18 @@
   renderCategories();
   $("qNext").addEventListener("click", nextQuestion);
   $("qBack").addEventListener("click", prevQuestion);
+
+  // Start chooser: paste existing notes vs start from scratch
+  $("startScratch").addEventListener("click", startFromScratch);
+  $("startPaste").addEventListener("click", revealPaste);
+  $("startBack").addEventListener("click", function () { showStep(1); });
+  $("pasteFile").addEventListener("change", function () {
+    importFile = $("pasteFile").files[0] || null;
+    $("pasteFileName").textContent = importFile ? importFile.name : "";
+  });
+  $("pasteGo").addEventListener("click", function () {
+    runImport($("pasteText").value.trim(), importFile);
+  });
   $("previewBack").addEventListener("click", function () {
     state.qIndex = state.category.questions.length - 1;
     renderQuestion();

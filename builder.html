@@ -117,11 +117,6 @@
         <h1 class="step-heading">Make it yours</h1>
         <p class="step-lead">Tap any text to edit. Expand a section to add photos or video.</p>
 
-        <div class="edit-toolbar">
-          <button class="icon-btn" id="undoBtn" type="button" title="Undo (Ctrl/Cmd+Z)" disabled>↶ Undo</button>
-          <button class="icon-btn" id="redoBtn" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷ Redo</button>
-        </div>
-
         <div class="guide-doc" id="guideDoc"><!-- guide rendered here --></div>
 
         <div class="add-block-row">
@@ -229,6 +224,21 @@
   </main>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Floating editor controls (step 3 only): undo, redo, format -->
+  <div class="edit-fabs" id="editFabs" hidden>
+    <button class="edit-fab" id="undoFab" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled>↶</button>
+    <button class="edit-fab" id="redoFab" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>↷</button>
+    <div class="fmt-wrap">
+      <div class="fmt-pop" id="fmtPop" hidden>
+        <button class="fmt-fab-btn" type="button" data-cmd="bold" title="Bold" style="font-weight:800">B</button>
+        <button class="fmt-fab-btn" type="button" data-cmd="italic" title="Italic" style="font-style:italic">I</button>
+        <button class="fmt-fab-btn" type="button" data-cmd="insertUnorderedList" title="Bullet list">•</button>
+        <button class="fmt-fab-btn" type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+      </div>
+      <button class="edit-fab" id="fmtFab" type="button" title="Format the section you're editing" aria-label="Format">✏️</button>
+    </div>
+  </div>
 
   <!-- Feedback (persistent across every step of the build) -->
   <button class="feedback-fab" id="feedbackFab" type="button" aria-label="Send feedback">

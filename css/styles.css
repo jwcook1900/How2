@@ -877,13 +877,57 @@ ul { margin: 0; padding: 0; list-style: none; }
   color: var(--ink-soft);
   font-size: 1rem;
   line-height: 1.65;
-  white-space: pre-wrap;
 }
 .acc-content[contenteditable]:focus {
   outline: 2px dashed var(--coral);
   border-radius: 8px;
   background: var(--bg-tint);
 }
+/* Rich-text lists (the global ul reset hides bullets, so restore them here) */
+.acc-content ul, .acc-content ol { margin: 6px 0; padding-left: 1.5em; }
+.acc-content ul { list-style: disc; }
+.acc-content ol { list-style: decimal; }
+.acc-content li { margin: 3px 0; }
+.acc-content p { margin: 0 0 6px; }
+
+/* Formatting toolbar (bullets / numbered / bold) */
+.fmt-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 22px; margin-bottom: 10px; }
+.fmt-btn {
+  font-family: inherit; font-size: 0.8rem; font-weight: 600;
+  color: var(--ink-soft); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 5px 11px; cursor: pointer;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.fmt-btn:hover { border-color: var(--coral); color: var(--coral); }
+.fmt-btn--b { font-weight: 800; }
+
+/* Per-media remove (×) overlay */
+.sec-media-item { position: relative; margin-bottom: 12px; }
+.sec-media-item:last-child { margin-bottom: 0; }
+.sec-media-item .sec-photo { margin-bottom: 0; display: block; }
+.sec-media-x {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(26, 26, 26, 0.66); color: #fff;
+  font-size: 1.4rem; line-height: 1; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.sec-media-x:hover { background: #d64545; }
+
+/* Undo / redo toolbar */
+.edit-toolbar { display: flex; gap: 8px; justify-content: flex-end; margin-bottom: 14px; }
+.icon-btn {
+  font-family: inherit; font-size: 0.9rem; font-weight: 600;
+  color: var(--ink-soft); background: var(--white);
+  border: 1.5px solid var(--line); border-radius: 999px;
+  padding: 8px 16px; cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease), opacity 0.18s var(--ease);
+}
+.icon-btn:hover:not(:disabled) { border-color: var(--coral); color: var(--coral); }
+.icon-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* Section media */
 .sec-media { padding: 0 22px 18px; }

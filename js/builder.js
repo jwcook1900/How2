@@ -189,6 +189,43 @@
   var toast = $("toast");
   var currentStepKey = 1;
 
+  /* ---------- Undo / redo (step 3 editing) ----------
+     Snapshots the whole guide on each change (debounced for typing). */
+  var history = [], hIndex = -1, histTimer = null, histBusy = false;
+  var MAX_HISTORY = 40;
+  function snapshot() { return JSON.stringify(state.guide); }
+  function recordHistory() {
+    if (histBusy || !state.guide) return;
+    var s = snapshot();
+    if (history[hIndex] === s) return;
+    history = history.slice(0, hIndex + 1);
+    history.push(s);
+    if (history.length > MAX_HISTORY) history.shift();
+    hIndex = history.length - 1;
+    updateUndoRedo();
+  }
+  function scheduleHistory() {
+    if (histBusy) return;
+    clearTimeout(histTimer);
+    histTimer = setTimeout(recordHistory, 300);
+  }
+  function flushHistory() { clearTimeout(histTimer); recordHistory(); }
+  function initHistory() { history = [snapshot()]; hIndex = 0; updateUndoRedo(); }
+  function restoreHistory() {
+    histBusy = true;
+    state.guide = JSON.parse(history[hIndex]);
+    renderGuideEditor();
+    updateUndoRedo();
+    histBusy = false;
+  }
+  function undo() { flushHistory(); if (hIndex > 0) { hIndex--; restoreHistory(); } }
+  function redo() { if (hIndex < history.length - 1) { hIndex++; restoreHistory(); } }
+  function updateUndoRedo() {
+    var u = $("undoBtn"), r = $("redoBtn");
+    if (u) u.disabled = hIndex <= 0;
+    if (r) r.disabled = hIndex >= history.length - 1;
+  }
+
   function showStep(key) {
     currentStepKey = key;
     Object.keys(steps).forEach(function (k) { steps[k].classList.remove("active"); });
@@ -440,6 +477,7 @@
           buildGuideFromAI(res, state.category, mergedText);
           renderGuideEditor();
           showStep(3);
+          initHistory();
           showToast(files.length > 1 ? "Built from your notes and photos ✨" : "Built from your notes ✨");
         } else {
           importFallback(mergedText, !res); // null = no cloud backend
@@ -574,6 +612,7 @@
     }, state.category, rawText);
     renderGuideEditor();
     showStep(3);
+    initHistory();
     showToast(noCloud
       ? "Saved your notes — shape them into a guide below."
       : "AI couldn't process that — added your notes to edit.");
@@ -850,6 +889,7 @@
     setTimeout(function () {
       renderGuideEditor();
       showStep(3);
+      initHistory();
     }, 1300);
   }
 
@@ -1060,6 +1100,7 @@
       compressImage(file, 1400, 0.78, 300000).then(function (dataUrl) {
         state.guide.cover = dataUrl;
         applyCover(coverEl, state.guide);
+        recordHistory();
       });
     });
     input.click();
@@ -1075,6 +1116,7 @@
       else if (el.classList.contains("guide-log")) order.push("l:" + el.dataset.id);
     });
     state.guide.blockOrder = order;
+    recordHistory(); // covers drag-reorder (not a click) and add/remove
   }
 
   // Drag-to-reorder via a grip handle. Pointer events → works on mouse + touch.
@@ -1215,7 +1257,8 @@
         '<span class="acc-chevron">▾</span>' +
       "</button>" +
       '<div class="acc-body"><div class="acc-body-inner">' +
-        '<div class="acc-content" contenteditable="true">' + esc(sec.body) + "</div>" +
+        '<div class="fmt-bar"></div>' +
+        '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
         '<div class="sec-tools">' +
           '<button class="tool-btn" data-act="polish" type="button">✨ Polish</button>' +
@@ -1233,7 +1276,27 @@
     enableDrag(el.querySelector(".drag-handle"), el);
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
-    bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; });
+    var contentEl = el.querySelector(".acc-content");
+    bindEditable(contentEl, function (v) { sec.body = v; }, true);
+
+    // Formatting toolbar (bullets / numbered list / bold).
+    var fmtBar = el.querySelector(".fmt-bar");
+    [["• List", "insertUnorderedList"], ["1. List", "insertOrderedList"], ["B", "bold"]].forEach(function (f) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "fmt-btn" + (f[1] === "bold" ? " fmt-btn--b" : "");
+      b.textContent = f[0];
+      b.title = f[1] === "bold" ? "Bold" : (f[1] === "insertOrderedList" ? "Numbered list" : "Bullet list");
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep the text selection
+      b.addEventListener("click", function () {
+        if (!el.classList.contains("open")) el.classList.add("open");
+        contentEl.focus();
+        try { document.execCommand(f[1], false, null); } catch (e) {}
+        sec.body = GotItStore.sanitizeHtml(contentEl.innerHTML);
+        recordHistory();
+      });
+      fmtBar.appendChild(b);
+    });
 
     renderSectionMedia(el, sec);
 
@@ -1249,7 +1312,7 @@
       var contentEl = el.querySelector(".acc-content");
       if (!el.classList.contains("open")) el.classList.add("open");
       polishInto(function () { return contentEl.innerText; },
-        function (v) { contentEl.innerText = v; sec.body = v; }, polishBtn, aiCtx(sec.title));
+        function (v) { contentEl.innerText = v; sec.body = v; recordHistory(); }, polishBtn, aiCtx(sec.title));
     });
 
     // File / photo / video grouped into one "Add" menu, placed before Remove.
@@ -1259,7 +1322,7 @@
         if (!el.classList.contains("open")) el.classList.add("open");
         readFileIntoField({ btn: trigger, question: sec.title,
           get: function () { return contentEl.innerText; },
-          set: function (v) { contentEl.innerText = v; sec.body = v; } });
+          set: function (v) { contentEl.innerText = v; sec.body = v; recordHistory(); } });
       } },
       { label: "📷 Photo", onClick: function () { pickPhoto(sec, el); } },
       { label: "🎬 Video", onClick: function () {
@@ -1267,6 +1330,7 @@
           sec.videoEmbed = embed;
           renderSectionMedia(el, sec);
           if (!el.classList.contains("open")) el.classList.add("open");
+          recordHistory();
         });
       } }
     ]), tools.querySelector('[data-act="remove"]'));
@@ -1284,31 +1348,35 @@
   function renderSectionMedia(el, sec) {
     var media = el.querySelector(".sec-media");
     media.innerHTML = "";
+    // Each media item gets a clear "×" so you can remove just the photo or
+    // just the video without deleting the whole section.
+    function addItem(inner, onRemove, label) {
+      var item = document.createElement("div");
+      item.className = "sec-media-item";
+      item.appendChild(inner);
+      var x = document.createElement("button");
+      x.type = "button";
+      x.className = "sec-media-x";
+      x.textContent = "×";
+      x.title = label;
+      x.setAttribute("aria-label", label);
+      x.addEventListener("click", function () { onRemove(); renderSectionMedia(el, sec); recordHistory(); });
+      item.appendChild(x);
+      media.appendChild(item);
+    }
     if (sec.photo) {
-      var fig = document.createElement("div");
-      fig.innerHTML = '<img class="sec-photo" src="' + sec.photo + '" alt="" />';
-      var rm = document.createElement("button");
-      rm.className = "tool-btn danger";
-      rm.type = "button";
-      rm.textContent = "Remove photo";
-      rm.addEventListener("click", function () { sec.photo = null; renderSectionMedia(el, sec); });
-      fig.appendChild(rm);
-      media.appendChild(fig);
+      var img = document.createElement("img");
+      img.className = "sec-photo";
+      img.src = sec.photo;
+      img.alt = "";
+      addItem(img, function () { sec.photo = null; }, "Remove photo");
     }
     var vsrc = videoSrc(sec);
     if (vsrc) {
       var v = document.createElement("div");
       v.className = "sec-video";
       v.innerHTML = '<iframe src="' + vsrc + '" allowfullscreen loading="lazy"></iframe>';
-      var rmv = document.createElement("button");
-      rmv.className = "tool-btn danger";
-      rmv.type = "button";
-      rmv.textContent = "Remove video";
-      rmv.addEventListener("click", function () {
-        sec.videoEmbed = null; sec.videoId = null; renderSectionMedia(el, sec);
-      });
-      v.appendChild(rmv);
-      media.appendChild(v);
+      addItem(v, function () { sec.videoEmbed = null; sec.videoId = null; }, "Remove video");
     }
   }
 
@@ -1323,6 +1391,7 @@
         sec.photo = dataUrl;
         renderSectionMedia(el, sec);
         if (!el.classList.contains("open")) el.classList.add("open");
+        recordHistory();
       });
     });
     input.click();
@@ -1612,9 +1681,11 @@
   }
 
   /* ---------- Editable binding ---------- */
-  function bindEditable(node, onChange) {
+  function bindEditable(node, onChange, html) {
     if (!node) return;
-    node.addEventListener("blur", function () { onChange(node.innerText.trim()); });
+    node.addEventListener("blur", function () {
+      onChange(html ? GotItStore.sanitizeHtml(node.innerHTML) : node.innerText.trim());
+    });
     node.addEventListener("keydown", function (e) {
       // single-line fields (titles/contacts) shouldn't insert newlines
       if (e.key === "Enter" && !node.classList.contains("acc-content")) {
@@ -1914,6 +1985,21 @@
   $("addLog").addEventListener("click", addLog);
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
+
+  // Undo / redo: snapshot on edits (typing debounced; structural clicks too).
+  $("undoBtn").addEventListener("click", undo);
+  $("redoBtn").addEventListener("click", redo);
+  $("guideDoc").addEventListener("input", scheduleHistory);
+  $("step3").addEventListener("click", function (e) {
+    if (e.target.closest("#undoBtn,#redoBtn,#publishBtn,#previewBack")) return;
+    scheduleHistory();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (currentStepKey !== 3 || !(e.metaKey || e.ctrlKey)) return;
+    var k = (e.key || "").toLowerCase();
+    if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redo(); }
+  });
   $("copyBtn").addEventListener("click", function () { logShare(); copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
@@ -2008,6 +2094,7 @@
     state.created = true;
     renderGuideEditor();
     showStep(3);
+    initHistory();
   }
 
   function catById(id) {

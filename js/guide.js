@@ -118,7 +118,7 @@
           '<span class="acc-chevron">▾</span>' +
         "</button>" +
         '<div class="acc-body"><div class="acc-body-inner">' +
-          '<div class="acc-content">' + esc(sec.body) + "</div>" +
+          '<div class="acc-content">' + GotItStore.renderBody(sec.body) + "</div>" +
           media +
         "</div></div>" +
       "</div>";

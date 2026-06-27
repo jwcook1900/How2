@@ -87,6 +87,37 @@ window.GotItStore = (function () {
     }
   }
 
+  /* ---- HTML sanitiser for rich-text section bodies ----
+     Parses inertly (DOMParser, so no images load and no scripts run), then
+     rebuilds with only whitelisted tags and no attributes. */
+  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1 };
+  function sanitizeHtml(html) {
+    var docp;
+    try { docp = new DOMParser().parseFromString(String(html), "text/html"); }
+    catch (e) { return ""; }
+    function clean(node) {
+      var frag = document.createDocumentFragment();
+      Array.prototype.forEach.call(node.childNodes, function (ch) {
+        if (ch.nodeType === 3) {
+          frag.appendChild(document.createTextNode(ch.nodeValue));
+        } else if (ch.nodeType === 1) {
+          var inner = clean(ch);
+          if (ALLOWED_TAGS[ch.tagName]) {
+            var keep = document.createElement(ch.tagName); // fresh = no attributes
+            keep.appendChild(inner);
+            frag.appendChild(keep);
+          } else {
+            frag.appendChild(inner); // unwrap disallowed tags, keep their text
+          }
+        }
+      });
+      return frag;
+    }
+    var out = document.createElement("div");
+    out.appendChild(clean(docp.body));
+    return out.innerHTML;
+  }
+
   /* ---- public API (all async, return Promises) ---- */
   return {
     // Is the cloud backend available?
@@ -132,6 +163,20 @@ window.GotItStore = (function () {
         ? "linear-gradient(135deg, rgba(0,0,0,0.04), rgba(0,0,0,0.26)), " + c.accent
         : "";
     },
+
+    /* ---- Rich-text section bodies (shared by builder + published guide) ----
+       Bodies may be plain text (legacy) or limited HTML (bullets/bold/italic
+       added in the editor). renderBody returns safe HTML to drop into the DOM:
+       plain text is escaped with line breaks; HTML is sanitised to a small tag
+       whitelist with all attributes stripped (no XSS from a shared link). */
+    renderBody: function (body) {
+      body = body == null ? "" : String(body);
+      if (!/<[a-z!/][\s\S]*>/i.test(body)) {
+        return body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+      }
+      return sanitizeHtml(body);
+    },
+    sanitizeHtml: function (html) { return sanitizeHtml(html); },
 
     // Can we password-protect (needs a secure context)?
     canEncrypt: function () { return !!subtle(); },

@@ -193,6 +193,7 @@
      Snapshots the whole guide on each change (debounced for typing). */
   var history = [], hIndex = -1, histTimer = null, histBusy = false;
   var MAX_HISTORY = 40;
+  var activeContent = null, activeSection = null; // section text being edited (for the floating Format button)
   function snapshot() { return JSON.stringify(state.guide); }
   function recordHistory() {
     if (histBusy || !state.guide) return;
@@ -221,7 +222,7 @@
   function undo() { flushHistory(); if (hIndex > 0) { hIndex--; restoreHistory(); } }
   function redo() { if (hIndex < history.length - 1) { hIndex++; restoreHistory(); } }
   function updateUndoRedo() {
-    var u = $("undoBtn"), r = $("redoBtn");
+    var u = $("undoFab"), r = $("redoFab");
     if (u) u.disabled = hIndex <= 0;
     if (r) r.disabled = hIndex >= history.length - 1;
   }
@@ -230,6 +231,10 @@
     currentStepKey = key;
     Object.keys(steps).forEach(function (k) { steps[k].classList.remove("active"); });
     steps[key].classList.add("active");
+    // Floating undo/redo/format controls only make sense on the editor step.
+    var fabs = $("editFabs");
+    if (fabs) fabs.hidden = (key !== 3);
+    if (key !== 3) closeFmtPop();
     // progress dots
     var stepNum = steps[key].getAttribute("data-step");
     document.querySelectorAll(".wizard-progress .dot").forEach(function (d) {
@@ -1257,7 +1262,6 @@
         '<span class="acc-chevron">▾</span>' +
       "</button>" +
       '<div class="acc-body"><div class="acc-body-inner">' +
-        '<div class="fmt-bar"></div>' +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
         '<div class="sec-tools">' +
@@ -1278,41 +1282,8 @@
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
     var contentEl = el.querySelector(".acc-content");
     bindEditable(contentEl, function (v) { sec.body = v; }, true);
-
-    // Formatting: a small "Format" button reveals bold / italic / lists.
-    var fmtBar = el.querySelector(".fmt-bar");
-    var fmtToggle = document.createElement("button");
-    fmtToggle.type = "button";
-    fmtToggle.className = "fmt-btn fmt-toggle";
-    fmtToggle.textContent = "✏️ Format";
-    fmtToggle.title = "Formatting options";
-    var fmtTools = document.createElement("div");
-    fmtTools.className = "fmt-tools";
-    fmtTools.hidden = true;
-    fmtToggle.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep selection
-    fmtToggle.addEventListener("click", function () {
-      fmtTools.hidden = !fmtTools.hidden;
-      fmtToggle.classList.toggle("open", !fmtTools.hidden);
-    });
-    [["B", "bold", "Bold"], ["I", "italic", "Italic"],
-     ["• List", "insertUnorderedList", "Bullet list"], ["1. List", "insertOrderedList", "Numbered list"]].forEach(function (f) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.className = "fmt-btn fmt-btn--" + f[1];
-      b.textContent = f[0];
-      b.title = f[2];
-      b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep the text selection
-      b.addEventListener("click", function () {
-        if (!el.classList.contains("open")) el.classList.add("open");
-        contentEl.focus();
-        try { document.execCommand(f[1], false, null); } catch (e) {}
-        sec.body = GotItStore.sanitizeHtml(contentEl.innerHTML);
-        recordHistory();
-      });
-      fmtTools.appendChild(b);
-    });
-    fmtBar.appendChild(fmtToggle);
-    fmtBar.appendChild(fmtTools);
+    // Remember which section's text is being edited, for the floating Format button.
+    contentEl.addEventListener("focus", function () { activeContent = contentEl; activeSection = sec; });
 
     renderSectionMedia(el, sec);
 
@@ -2003,12 +1974,42 @@
   $("editAgain").addEventListener("click", function () { showStep(3); });
 
   // Undo / redo: snapshot on edits (typing debounced; structural clicks too).
-  $("undoBtn").addEventListener("click", undo);
-  $("redoBtn").addEventListener("click", redo);
+  $("undoFab").addEventListener("click", undo);
+  $("redoFab").addEventListener("click", redo);
   $("guideDoc").addEventListener("input", scheduleHistory);
   $("step3").addEventListener("click", function (e) {
-    if (e.target.closest("#undoBtn,#redoBtn,#publishBtn,#previewBack")) return;
+    if (e.target.closest("#publishBtn,#previewBack")) return;
     scheduleHistory();
+  });
+
+  /* ---------- Floating Format button ---------- */
+  function closeFmtPop() {
+    var pop = $("fmtPop"), fab = $("fmtFab");
+    if (pop) pop.hidden = true;
+    if (fab) fab.classList.remove("on");
+  }
+  $("fmtFab").addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep text selection
+  $("fmtFab").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var pop = $("fmtPop");
+    pop.hidden = !pop.hidden;
+    $("fmtFab").classList.toggle("on", !pop.hidden);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".fmt-fab-btn"), function (b) {
+    b.addEventListener("mousedown", function (e) { e.preventDefault(); }); // keep selection
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!activeContent || !activeSection) { showToast("Tap a section's text first, then format."); return; }
+      var secEl = activeContent.closest(".guide-section");
+      if (secEl && !secEl.classList.contains("open")) secEl.classList.add("open");
+      activeContent.focus();
+      try { document.execCommand(b.getAttribute("data-cmd"), false, null); } catch (err) {}
+      activeSection.body = GotItStore.sanitizeHtml(activeContent.innerHTML);
+      recordHistory();
+    });
+  });
+  document.addEventListener("click", function (e) {
+    if (!$("fmtPop").hidden && !e.target.closest("#editFabs")) closeFmtPop();
   });
   document.addEventListener("keydown", function (e) {
     if (currentStepKey !== 3 || !(e.metaKey || e.ctrlKey)) return;

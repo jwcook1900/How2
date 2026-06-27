@@ -885,6 +885,11 @@
       "</div>";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
     bindEditable(cover.querySelector('[data-bind="subtitle"]'), function (v) { g.subtitle = v; });
+    cover.querySelector(".cover-tools").appendChild(makeColorMenu(
+      function () { return g.coverColor; },
+      function (k) { g.coverColor = k === "default" ? null : k; applyCover(cover, g); },
+      "cover-btn"
+    ));
     applyCover(cover, g);
     cover.querySelector('[data-act="cover-photo"]').addEventListener("click", function () { pickCover(cover); });
     cover.querySelector('[data-act="cover-remove"]').addEventListener("click", function () {
@@ -943,6 +948,7 @@
       coverEl.classList.remove("has-cover");
       coverEl.style.backgroundImage = "";
       if (removeBtn) removeBtn.hidden = true;
+      GotItStore.applyCoverAccent(coverEl, g.coverColor); // colour gradient, or revert
     }
   }
 
@@ -1146,6 +1152,56 @@
     return wrap;
   }
 
+  // A palette colour picker for a block. getKey()/setKey(key) read & write the
+  // block's colour; the swatch dropdown reuses the Add menu's overflow-lift.
+  function makeColorMenu(getKey, setKey, btnClass) {
+    var wrap = document.createElement("div");
+    wrap.className = "add-menu color-menu";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = (btnClass || "tool-btn") + " color-menu-btn";
+    btn.appendChild(document.createTextNode("🎨 "));
+    var dot = document.createElement("span");
+    dot.className = "color-dot";
+    btn.appendChild(dot);
+
+    var menu = document.createElement("div");
+    menu.className = "add-menu-list color-menu-list";
+    menu.hidden = true;
+    function host() { return wrap.closest(".guide-section"); }
+    function close() { menu.hidden = true; var h = host(); if (h) h.classList.remove("add-open"); document.removeEventListener("click", onDoc); }
+    function onDoc(e) { if (!wrap.contains(e.target)) close(); }
+
+    function paint() {
+      var key = getKey() || "default";
+      var c = key !== "default" ? GotItStore.paletteColor(key) : null;
+      dot.style.background = c ? c.accent : "";
+      dot.classList.toggle("color-dot--none", !c);
+      Array.prototype.forEach.call(menu.children, function (sw) {
+        sw.classList.toggle("active", sw.getAttribute("data-key") === key);
+      });
+    }
+    [{ key: "default" }].concat(GotItStore.palette).forEach(function (o) {
+      var sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "swatch" + (o.key === "default" ? " swatch-default" : "");
+      sw.setAttribute("data-key", o.key);
+      if (o.accent) sw.style.background = o.accent;
+      sw.title = o.key === "default" ? "No colour" : o.key;
+      sw.addEventListener("click", function (e) { e.stopPropagation(); setKey(o.key); paint(); close(); });
+      menu.appendChild(sw);
+    });
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (menu.hidden) { menu.hidden = false; var h = host(); if (h) h.classList.add("add-open"); document.addEventListener("click", onDoc); }
+      else close();
+    });
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    paint();
+    return wrap;
+  }
+
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
     el.className = "guide-section" + (openFirst ? " open" : "");
@@ -1215,6 +1271,13 @@
       } }
     ]), tools.querySelector('[data-act="remove"]'));
 
+    // Colour picker, before Remove.
+    tools.insertBefore(makeColorMenu(
+      function () { return sec.color; },
+      function (k) { sec.color = k === "default" ? null : k; GotItStore.applyAccent(el, sec.color); }
+    ), tools.querySelector('[data-act="remove"]'));
+
+    GotItStore.applyAccent(el, sec.color);
     return el;
   }
 
@@ -1411,6 +1474,13 @@
         "<span>🚨 Emergency Contacts</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
+    var emColor = makeColorMenu(
+      function () { return g.emergencyColor; },
+      function (k) { g.emergencyColor = k === "default" ? null : k; GotItStore.applyAccent(el, g.emergencyColor); }
+    );
+    emColor.style.marginLeft = "auto";
+    el.querySelector(".em-head").appendChild(emColor);
+    GotItStore.applyAccent(el, g.emergencyColor);
     var list = document.createElement("div");
     list.className = "em-list";
     el.appendChild(list);
@@ -1467,11 +1537,19 @@
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
     bindEditable(el.querySelector(".log-title"), function (v) { log.title = v; });
-    el.querySelector(".log-head .contact-del").addEventListener("click", function () {
+    var logDel = el.querySelector(".log-head .contact-del");
+    logDel.style.marginLeft = "0";
+    el.querySelector(".log-head").insertBefore(makeColorMenu(
+      function () { return log.color; },
+      function (k) { log.color = k === "default" ? null : k; GotItStore.applyAccent(el, log.color); }
+    ), logDel);
+    el.querySelector(".log-head .color-menu").style.marginLeft = "auto";
+    logDel.addEventListener("click", function () {
       state.guide.logs = state.guide.logs.filter(function (l) { return l.id !== log.id; });
       el.remove();
       syncBlockOrder();
     });
+    GotItStore.applyAccent(el, log.color);
 
     var table = document.createElement("table");
     table.className = "log-table";

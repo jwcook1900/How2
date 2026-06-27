@@ -988,6 +988,26 @@ ul { margin: 0; padding: 0; list-style: none; }
   .log-add .log-add-btn { width: 100%; }
 }
 
+/* ── Per-block accent colours (sections / logs / emergency) ──────────────
+   Driven by --accent / --soft custom properties set in JS (GotItStore.applyAccent). */
+.guide-section.has-accent { border-left: 6px solid var(--accent); }
+.guide-section.has-accent .acc-header { background: var(--soft); }
+
+.guide-log.has-accent { border-left: 6px solid var(--accent); }
+.guide-emergency.has-accent {
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-left: 6px solid var(--accent);
+}
+.guide-log.has-accent .log-head,
+.guide-emergency.has-accent .em-head {
+  background: var(--soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: -2px -2px 14px;
+}
+.guide-emergency.has-accent .em-head { color: var(--ink); }
+
 /* Builder action bar */
 .builder-toolbar {
   display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
@@ -1446,9 +1466,50 @@ ul { margin: 0; padding: 0; list-style: none; }
   white-space: nowrap;
 }
 .add-menu-item:hover { background: var(--bg-tint); }
-/* While the dropdown is open, let it escape the card (which is overflow:hidden
-   for its rounded corners) and sit above the following section. */
+/* While a dropdown (Add / Colour) is open, let it escape the card. The section
+   is overflow:hidden for its corners AND the tools live inside .acc-body-inner
+   which is overflow:hidden for the accordion animation — lift both. */
 .guide-section.add-open { overflow: visible; position: relative; z-index: 5; }
+.guide-section.add-open .acc-body-inner { overflow: visible; }
+
+/* Colour picker (per-block accent) */
+.color-menu-btn { display: inline-flex; align-items: center; gap: 0; }
+.color-dot {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 0 0 1px var(--line);
+  vertical-align: middle;
+}
+.color-dot--none { background: var(--white); }
+.color-menu-list {
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 180px;
+  gap: 8px;
+  padding: 12px;
+}
+.swatch {
+  width: 26px; height: 26px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--line);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease);
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.active { box-shadow: 0 0 0 2px var(--ink); }
+.swatch-default { background: var(--white); position: relative; overflow: hidden; }
+.swatch-default::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: -3px; bottom: -3px;
+  width: 2px; margin-left: -1px;
+  background: #d64545;
+  transform: rotate(45deg);
+}
 
 /* Per-step media preview (photo / video) in the question flow */
 .q-media { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }

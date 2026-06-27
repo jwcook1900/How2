@@ -111,7 +111,7 @@
     }
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
-    return '<div class="guide-section' + open + '">' +
+    return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
           '<span class="acc-icon">' + sec.icon + "</span>" +
           '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
@@ -187,14 +187,31 @@
 
   doc.innerHTML = html;
 
-  // Cover photo (set via JS to avoid escaping the data URL in an attribute)
+  // Cover photo (set via JS to avoid escaping the data URL in an attribute).
+  // A cover photo always wins; otherwise an optional accent colour recolours it.
+  var coverEl = doc.querySelector(".guide-cover");
   if (guide.cover) {
-    var coverEl = doc.querySelector(".guide-cover");
     if (coverEl) {
       coverEl.classList.add("has-cover");
       coverEl.style.backgroundImage =
         "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + guide.cover + ")";
     }
+  } else if (guide.coverColor) {
+    GotItStore.applyCoverAccent(coverEl, guide.coverColor);
+  }
+
+  // Per-block accent colours
+  doc.querySelectorAll(".guide-section[data-sec]").forEach(function (el) {
+    var sec = byId(guide.sections, el.getAttribute("data-sec"));
+    if (sec && sec.color) GotItStore.applyAccent(el, sec.color);
+  });
+  doc.querySelectorAll(".guide-log[data-log]").forEach(function (el) {
+    var log = byId(guide.logs, el.getAttribute("data-log"));
+    if (log && log.color) GotItStore.applyAccent(el, log.color);
+  });
+  if (guide.emergencyColor) {
+    var emgEl = doc.querySelector(".guide-emergency");
+    if (emgEl) GotItStore.applyAccent(emgEl, guide.emergencyColor);
   }
 
   // Accordion behaviour

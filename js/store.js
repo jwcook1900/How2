@@ -92,6 +92,47 @@ window.GotItStore = (function () {
     // Is the cloud backend available?
     isCloud: function () { return loadConfig().then(function (c) { return !!c; }); },
 
+    /* ---- Per-block accent colours (shared by builder + published guide) ----
+       Each block (section / log / emergency) can store a palette `color` key;
+       the cover stores `coverColor`. Applied as a tasteful accent: a coloured
+       edge + soft header tint, text stays dark. */
+    palette: [
+      { key: "coral",  accent: "#FF6B35", soft: "#FFE7DC" },
+      { key: "red",    accent: "#E5484D", soft: "#FBE3E4" },
+      { key: "amber",  accent: "#F59E0B", soft: "#FCEFD3" },
+      { key: "green",  accent: "#22A06B", soft: "#DEF3E9" },
+      { key: "teal",   accent: "#14B8A6", soft: "#D6F3EF" },
+      { key: "blue",   accent: "#3B82F6", soft: "#E5EEFE" },
+      { key: "purple", accent: "#8B5CF6", soft: "#ECE6FD" },
+      { key: "pink",   accent: "#EC4899", soft: "#FBE3F1" }
+    ],
+    paletteColor: function (key) {
+      for (var i = 0; i < this.palette.length; i++) if (this.palette[i].key === key) return this.palette[i];
+      return null;
+    },
+    // Apply (or clear) a block's accent colour on its element.
+    applyAccent: function (el, key) {
+      if (!el) return;
+      var c = key && key !== "default" ? this.paletteColor(key) : null;
+      if (c) {
+        el.classList.add("has-accent");
+        el.style.setProperty("--accent", c.accent);
+        el.style.setProperty("--soft", c.soft);
+      } else {
+        el.classList.remove("has-accent");
+        el.style.removeProperty("--accent");
+        el.style.removeProperty("--soft");
+      }
+    },
+    // Recolour the cover gradient (kept separate so a cover photo can win).
+    applyCoverAccent: function (coverEl, key) {
+      if (!coverEl) return;
+      var c = key && key !== "default" ? this.paletteColor(key) : null;
+      coverEl.style.background = c
+        ? "linear-gradient(135deg, rgba(0,0,0,0.04), rgba(0,0,0,0.26)), " + c.accent
+        : "";
+    },
+
     // Can we password-protect (needs a secure context)?
     canEncrypt: function () { return !!subtle(); },
 

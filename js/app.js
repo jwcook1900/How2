@@ -9,6 +9,29 @@
   var yearEl = document.getElementById("year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+  /* ---- Header nav dropdown (jump to sections) ---- */
+  var navToggle = document.getElementById("navToggle");
+  var navDropdown = document.getElementById("navDropdown");
+  if (navToggle && navDropdown) {
+    var setNav = function (open) {
+      navDropdown.hidden = !open;
+      navToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    };
+    navToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setNav(navDropdown.hidden);
+    });
+    navDropdown.addEventListener("click", function (e) {
+      if (e.target.tagName === "A") setNav(false); // close after picking a section
+    });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest(".nav-menu")) setNav(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") setNav(false);
+    });
+  }
+
   /* ---- Sticky header shadow on scroll ---- */
   var header = document.getElementById("siteHeader");
   if (header) {

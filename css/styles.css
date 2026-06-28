@@ -30,7 +30,7 @@
 /* ───────── Reset / base ───────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-top: 84px; }
 
 body {
   margin: 0;
@@ -124,6 +124,49 @@ ul { margin: 0; padding: 0; list-style: none; }
   justify-content: space-between;
   height: 68px;
 }
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+/* Header nav dropdown (jump to sections) */
+.nav-menu { position: relative; }
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), color 0.18s var(--ease);
+}
+.nav-toggle:hover { border-color: var(--coral); color: var(--coral); }
+.nav-toggle svg { width: 15px; height: 15px; transition: transform 0.2s var(--ease); }
+.nav-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border-radius: 16px;
+  z-index: 60;
+  animation: navpop 0.16s var(--ease);
+}
+@keyframes navpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.nav-dropdown a {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.nav-dropdown a:hover { background: var(--coral-soft); color: var(--coral-dark); }
 .logo-mark {
   font-weight: 800;
   font-size: 1.4rem;
@@ -893,7 +936,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* ── Floating glass editor dock (step 3) ───────────────────────────────── */
 .edit-dock {
   position: fixed;
-  right: 16px;
+  /* Sit just right of the centred content column rather than against the far
+     edge of wide screens; clamp to 16px on narrower viewports. */
+  right: max(16px, calc(50vw - 440px));
   top: 50%;
   transform: translateY(-50%);
   z-index: 95;

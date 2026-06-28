@@ -1669,7 +1669,7 @@
     } else {
       input.disabled = false;
       row.classList.remove("locked");
-      $("slugHint").textContent = "Leave blank for an automatic link. Letters, numbers and hyphens only.";
+      $("slugHint").textContent = "Pick a fun, memorable web address for your guide — or leave it blank and we'll make one for you. Letters, numbers and hyphens only.";
     }
   }
 
@@ -2162,7 +2162,7 @@
       var c = normalizeSlug(this.value);
       $("slugHint").textContent = c
         ? "Your link will be: " + location.host + "/g/" + c
-        : "Leave blank for an automatic link. Letters, numbers and hyphens only.";
+        : "Pick a fun, memorable web address for your guide — or leave it blank and we'll make one for you. Letters, numbers and hyphens only.";
     });
   }
 

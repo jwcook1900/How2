@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#FF6B35" />
+  <title>My Guides | GotIt Guides</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <span class="logo-mark">GotIt Guides</span>
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="builder.html" class="btn btn-ghost btn-sm" id="dashCreateTop" hidden>Create a guide</a>
+        <button class="btn btn-ghost btn-sm" id="signoutBtn" type="button" hidden>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container dash-main">
+
+    <!-- Loading -->
+    <div class="dash-loading" id="dashLoading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading your guides…</p>
+    </div>
+
+    <!-- Signed out: invite to sign in -->
+    <section class="dash-signin" id="dashSignin" hidden>
+      <span class="dash-emoji">🔐</span>
+      <h1 class="dash-title">Your guides, in one place</h1>
+      <p class="dash-lead">Sign in to save guides to your free dashboard so you can find and update them any time. Creating and sharing guides never needs an account.</p>
+      <div class="dash-signin-actions">
+        <button class="btn btn-google" id="signinGoogle" type="button">
+          <svg class="g-ico" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.02-3.7H.96v2.34A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.98 10.72a5.4 5.4 0 0 1 0-3.44V4.94H.96a9 9 0 0 0 0 8.12l3.02-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.94l3.02 2.34C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </button>
+      </div>
+      <p class="dash-signin-note" id="dashSigninNote" hidden></p>
+      <a href="/" class="dash-back">← Back to home</a>
+    </section>
+
+    <!-- Signed in: the guides dashboard -->
+    <section class="dash-guides" id="dashGuides" hidden>
+      <div class="dash-head">
+        <div>
+          <h1 class="dash-title" id="dashGreeting">My Guides</h1>
+          <p class="dash-lead" id="dashSub">Everything you've saved to your dashboard.</p>
+        </div>
+        <a href="builder.html" class="btn btn-primary btn-sm">+ New guide</a>
+      </div>
+
+      <div class="dash-empty" id="dashEmpty" hidden>
+        <span class="dash-emoji">📭</span>
+        <p>No saved guides yet. When you publish a guide, choose <strong>“Save to my guides”</strong> on the share screen and it'll show up here.</p>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create your first guide</a>
+      </div>
+
+      <div class="dash-grid" id="dashGrid"></div>
+    </section>
+
+  </main>
+
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

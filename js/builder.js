@@ -2098,6 +2098,57 @@
   $("copyBtn").addEventListener("click", function () { logShare(); copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });
   $("downloadQr").addEventListener("click", downloadQR);
+
+  /* ---- "Save to my guides" (optional account at share time) ----
+     If already signed in, save straight away. Otherwise stash the guide and
+     send the user to sign in; the dashboard completes the save on return. */
+  function currentSavePayload() {
+    if (!state.guide) return null;
+    return {
+      slug: state.guide.slug,
+      editToken: state.editToken,
+      title: state.guide.title,
+      emoji: state.guide.emoji
+    };
+  }
+  function saveDashNote(msg, ok) {
+    var n = $("saveToDashNote");
+    if (!n) return;
+    n.textContent = msg;
+    n.hidden = false;
+    n.style.color = ok ? "var(--green, #22A06B)" : "";
+  }
+  if ($("saveToDash")) {
+    $("saveToDash").addEventListener("click", function () {
+      var payload = currentSavePayload();
+      if (!payload || !window.GotItAuth) return;
+      var btn = this;
+      if (GotItAuth.isSignedIn()) {
+        btn.disabled = true;
+        saveDashNote("Saving…", false);
+        GotItAuth.idToken().then(function (tok) {
+          if (!tok) throw new Error("Please sign in.");
+          return GotItStore.saveGuide(tok, payload);
+        }).then(function () {
+          saveDashNote("Saved to your dashboard ✓", true);
+          if ($("myGuidesLink")) $("myGuidesLink").hidden = false;
+          btn.textContent = "Saved ✓";
+        }).catch(function (e) {
+          btn.disabled = false;
+          saveDashNote(e.message || "Couldn't save just now — please try again.", false);
+        });
+      } else {
+        // Stash and sign in; dashboard.js finishes the save after the redirect.
+        try { localStorage.setItem("gotit_pending_save", JSON.stringify(payload)); } catch (e) {}
+        btn.disabled = true;
+        saveDashNote("Taking you to sign in…", false);
+        GotItAuth.signInWithGoogle().catch(function (e) {
+          btn.disabled = false;
+          saveDashNote(e.message || "Sign-in isn't available right now.", false);
+        });
+      }
+    });
+  }
   // Count a "share" when the link is copied or a share channel is used (best-effort).
   function logShare() { if (state.guide) GotItStore.event("share", state.guide.slug); }
   ["shareNative", "shareWhatsapp", "shareSms", "shareEmail"].forEach(function (id) {

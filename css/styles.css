@@ -958,6 +958,14 @@ ul { margin: 0; padding: 0; list-style: none; }
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 12px 40px rgba(26, 26, 26, 0.16);
 }
+/* The dock floats over content (especially on mobile, where it sits atop the
+   cover/cards). A lightly-tinted glass fill would disappear over saturated
+   colours and leave the lower buttons looking like loose circles, so give the
+   dock a more opaque frosted fill so it always reads as one cohesive bar. */
+.edit-dock.glass {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.85);
+}
 .dock-zone { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .dock-widget { transition: opacity 0.2s var(--ease); }
 .dock-widget.dim { opacity: 0.5; }

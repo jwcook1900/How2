@@ -33,14 +33,10 @@
   <!-- ───────────────────────── Header ───────────────────────── -->
   <header class="site-header" id="siteHeader">
     <div class="container header-inner">
-      <a href="/" class="logo" aria-label="GotIt Guides home">
-        <span class="logo-mark">GotIt Guides</span>
-      </a>
-      <div class="header-right">
+      <div class="header-left">
         <div class="nav-menu">
-          <button class="nav-toggle" id="navToggle" type="button" aria-haspopup="true" aria-expanded="false">
-            Menu
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          <button class="nav-toggle glass" id="navToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
           </button>
           <div class="nav-dropdown glass" id="navDropdown" hidden>
             <a href="#how">How it works</a>
@@ -50,6 +46,11 @@
             <a href="#about">About</a>
           </div>
         </div>
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <span class="logo-mark">GotIt Guides</span>
+        </a>
+      </div>
+      <div class="header-right">
         <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
       </div>
     </div>

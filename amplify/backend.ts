@@ -25,14 +25,11 @@ const backend = defineBackend({
   videoFn,
 });
 
-// Hosted UI (Managed Login) domain for sign-in and the Google redirect.
-// Gives a stable URL: https://gotitguides-auth-au.auth.<region>.amazoncognito.com
-// The prefix must be globally unique in the region; "gotitguides-auth" was
-// unavailable, so this uses the "-au" variant. If it must change again, update
-// the Google OAuth client's authorised redirect URI to match.
-backend.auth.resources.userPool.addDomain("HostedUiDomain", {
-  cognitoDomain: { domainPrefix: "gotitguides-auth-au" },
-});
+// Note: we do NOT add a Cognito user pool domain here. Amplify already
+// provisions one automatically for the hosted Managed Login + Google sign-in
+// (a user pool can only have one domain, so adding a second fails the deploy).
+// After deploy, read the generated domain from the Cognito console and set the
+// Google OAuth client's authorised redirect URI to <domain>/oauth2/idpresponse.
 
 // Let the email + feedback functions send through SES.
 for (const fn of [backend.emailFn, backend.feedbackFn]) {

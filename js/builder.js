@@ -259,9 +259,16 @@
   /* ---------- Feedback (floating, available on every step) ---------- */
   var STEP_LABELS = { 1: "category", 2: "questions", building: "building", 3: "editor", 4: "share" };
   var FEEDBACK_LEAD_DEFAULT = "What's working, what's confusing, what's missing? It goes straight to the team.";
+  var feedbackImage = null; // { data: base64, type } screenshot attached to feedback
+  function clearFeedbackImage() {
+    feedbackImage = null;
+    if ($("feedbackImg")) $("feedbackImg").value = "";
+    if ($("feedbackImgPreview")) $("feedbackImgPreview").hidden = true;
+  }
   function openFeedback(lead) {
     $("feedbackLead").textContent = (typeof lead === "string" && lead) ? lead : FEEDBACK_LEAD_DEFAULT;
     $("feedbackNote").hidden = true;
+    clearFeedbackImage();
     $("feedbackModal").hidden = false;
     setTimeout(function () { $("feedbackText").focus(); }, 50);
   }
@@ -280,13 +287,17 @@
     var context = "step:" + (STEP_LABELS[currentStepKey] || currentStepKey) +
       " · category:" + ((state.category && state.category.id) || (state.guide && state.guide.category) || "-") +
       " · " + location.href;
-    GotItStore.feedback({ message: text, email: ($("feedbackEmail").value || "").trim(), context: context })
+    GotItStore.feedback({
+      message: text, email: ($("feedbackEmail").value || "").trim(), context: context,
+      image: feedbackImage && feedbackImage.data, imageType: feedbackImage && feedbackImage.type
+    })
       .then(function () {
         note.textContent = "Thanks — got it! 🙌";
         note.className = "feedback-note ok";
         note.hidden = false;
         $("feedbackText").value = "";
         $("feedbackEmail").value = "";
+        clearFeedbackImage();
         setTimeout(closeFeedback, 1100);
       })
       .catch(function () {
@@ -2123,6 +2134,16 @@
     });
   }
   $("feedbackSend").addEventListener("click", sendFeedback);
+  $("feedbackImg").addEventListener("change", function () {
+    var file = this.files[0];
+    if (!file) return;
+    compressImage(file, 1280, 0.72, 380000).then(function (dataUrl) {
+      feedbackImage = { data: dataUrl.split(",")[1], type: "image/jpeg" };
+      $("feedbackImgThumb").src = dataUrl;
+      $("feedbackImgPreview").hidden = false;
+    });
+  });
+  $("feedbackImgRemove").addEventListener("click", clearFeedbackImage);
   document.querySelectorAll("[data-fb-close]").forEach(function (el) {
     el.addEventListener("click", closeFeedback);
   });

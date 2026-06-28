@@ -333,12 +333,14 @@ window.GotItStore = (function () {
           context: opts.context || null
         } }).then(function () { return true; }, function () { return false; });
 
-        var mailQ = "query Fb($message: String!, $email: String, $context: String){ " +
-          "sendFeedback(message: $message, email: $email, context: $context) }";
+        var mailQ = "query Fb($message: String!, $email: String, $context: String, $image: String, $imageType: String){ " +
+          "sendFeedback(message: $message, email: $email, context: $context, image: $image, imageType: $imageType) }";
         var mailed = gql(cfg, mailQ, {
           message: opts.message || "",
           email: opts.email || null,
-          context: opts.context || null
+          context: opts.context || null,
+          image: opts.image || null,
+          imageType: opts.imageType || null
         }).then(function () { return true; }, function () { return false; });
 
         return Promise.all([stored, mailed]).then(function (r) {

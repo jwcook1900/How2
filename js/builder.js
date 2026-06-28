@@ -1801,6 +1801,7 @@
     $("shareUrl").value = url;
     $("editUrl").value = editLink;
     $("openGuide").href = url;
+    if ($("printGuide")) $("printGuide").href = url + "?print=1";
 
     // Share-to channels
     var msg = "Check out my guide on GotIt Guides — " + g.title + ": " + url;

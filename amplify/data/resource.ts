@@ -86,6 +86,8 @@ const schema = a.schema({
       message: a.string().required(),
       email: a.string(),
       context: a.string(),
+      image: a.string(),     // optional screenshot (base64)
+      imageType: a.string(), // its mime type
     })
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])

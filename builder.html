@@ -257,6 +257,14 @@
       <p class="feedback-lead" id="feedbackLead">What's working, what's confusing, what's missing? It goes straight to the team.</p>
       <textarea class="q-textarea" id="feedbackText" placeholder="Your feedback…" rows="4"></textarea>
       <input class="q-input" id="feedbackEmail" type="email" placeholder="Email (optional — if you'd like a reply)" autocomplete="email" />
+      <div class="feedback-attach">
+        <label class="tool-btn feedback-attach-btn">📷 Add a screenshot
+          <input type="file" id="feedbackImg" accept="image/*" hidden /></label>
+        <div class="feedback-attach-preview" id="feedbackImgPreview" hidden>
+          <img id="feedbackImgThumb" alt="" />
+          <button type="button" class="feedback-attach-x" id="feedbackImgRemove" aria-label="Remove screenshot">×</button>
+        </div>
+      </div>
       <div class="feedback-actions">
         <button class="btn btn-ghost btn-sm" type="button" data-fb-close>Cancel</button>
         <button class="btn btn-primary btn-sm" id="feedbackSend" type="button">Send feedback</button>

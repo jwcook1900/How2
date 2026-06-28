@@ -27,7 +27,7 @@ const backend = defineBackend({
 for (const fn of [backend.emailFn, backend.feedbackFn]) {
   fn.resources.lambda.addToRolePolicy(
     new PolicyStatement({
-      actions: ["ses:SendEmail"],
+      actions: ["ses:SendEmail", "ses:SendRawEmail"],
       resources: ["*"],
     })
   );

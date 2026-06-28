@@ -2120,3 +2120,86 @@ ul { margin: 0; padding: 0; list-style: none; }
   .dash-head { flex-direction: column; align-items: stretch; }
   .dash-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Print / Save-as-PDF — a fridge-friendly A4 version of a guide
+   ============================================================ */
+.print-only { display: none; }
+
+/* Floating "Print / Save as PDF" button on the published guide (screen only) */
+.print-fab {
+  position: fixed; right: 18px; bottom: 18px; z-index: 80;
+  font-family: inherit; font-weight: 700; font-size: 0.92rem;
+  color: var(--white); background: var(--ink);
+  border: none; border-radius: 999px; padding: 12px 18px;
+  box-shadow: var(--shadow); cursor: pointer;
+  transition: transform 0.12s var(--ease), background 0.15s var(--ease);
+}
+.print-fab:hover { transform: translateY(-2px); background: #000; }
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff !important; }
+  .builder-main { padding: 0 !important; }
+  .builder-main > .container { max-width: none !important; padding: 0 !important; }
+
+  /* Hide interactive / screen-only chrome */
+  .print-fab, .no-print, .guide-footer, .acc-chevron,
+  .log-add, .log-add-msg, .sec-video, .lock-screen { display: none !important; }
+
+  /* Reveal print-only bits */
+  .print-only { display: block !important; }
+
+  /* Compact header (with QR) replaces the big colour cover to save ink */
+  .guide-cover { display: none !important; }
+  .print-header {
+    display: flex !important; column-span: all; -webkit-column-span: all;
+    align-items: center; justify-content: space-between; gap: 16px;
+    border-bottom: 2px solid #1A1A1A; padding-bottom: 10px; margin-bottom: 14px;
+  }
+  .print-head-text { display: flex; align-items: center; gap: 12px; }
+  .print-emoji { font-size: 2rem; line-height: 1; }
+  .print-title { font-size: 1.5rem; font-weight: 800; color: #111; }
+  .print-sub { font-size: 0.85rem; color: #555; }
+  .print-qr { display: flex; align-items: center; gap: 8px; flex: none; }
+  .print-qr #printQr img, .print-qr #printQr canvas { display: block; }
+  .print-qr-label { font-size: 0.68rem; color: #555; text-align: left; line-height: 1.3; }
+
+  /* Two-column A4 flow; each block stays intact across the columns/pages */
+  .guide-doc { max-width: none !important; margin: 0 !important; columns: 2; column-gap: 18px; }
+  .guide-section, .guide-emergency, .guide-log {
+    break-inside: avoid; -webkit-column-break-inside: avoid; page-break-inside: avoid;
+    margin: 0 0 12px !important; box-shadow: none !important;
+  }
+
+  /* Force every accordion open on paper */
+  .acc-body { grid-template-rows: 1fr !important; }
+  .acc-body-inner { overflow: visible !important; }
+
+  /* Ink-friendly section cards */
+  .guide-section { border: 1px solid #ccc; border-radius: 8px; padding: 4px 12px 10px; }
+  .guide-section .acc-header { background: transparent !important; padding: 8px 0 4px; cursor: default; }
+  .acc-title-text { font-weight: 700; color: #111; }
+  .acc-content { color: #222; font-size: 0.9rem; line-height: 1.45; }
+
+  /* Emergency contacts: boxed + prominent (the bit you want on the fridge) */
+  .guide-emergency {
+    border: 2px solid #C0392B !important; background: #fff !important;
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .em-head { color: #C0392B !important; }
+  .contact-value a { color: #111 !important; }
+
+  /* Photos: keep but bound the height so they don't dominate a column */
+  .sec-photo { max-width: 100%; max-height: 55mm; width: auto; margin: 6px 0; border-radius: 6px; }
+
+  .video-note {
+    font-size: 0.78rem; color: #333; border: 1px dashed #aaa;
+    padding: 6px 8px; border-radius: 6px; margin: 6px 0 0;
+  }
+
+  /* Logs: show recorded entries, drop the input row */
+  .log-table { font-size: 0.82rem; }
+
+  a { color: #111 !important; text-decoration: none; }
+}

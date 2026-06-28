@@ -107,7 +107,8 @@
     var vsrc = sec.videoEmbed || (sec.videoId ? "https://www.youtube.com/embed/" + sec.videoId : null);
     if (vsrc) {
       media += '<div class="sec-media"><div class="sec-video"><iframe src="' + vsrc +
-        '" allowfullscreen loading="lazy"></iframe></div></div>';
+        '" allowfullscreen loading="lazy"></iframe></div>' +
+        '<p class="print-only video-note">▶ Video — scan the QR code at the top to watch online.</p></div>';
     }
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
@@ -268,6 +269,49 @@
   } else {
     footer.innerHTML = "";
   }
+
+  setupPrint(guide);
+  }
+
+  // ---- Print / Save-as-PDF (browser-native; a print stylesheet reflows the
+  // guide onto A4). Adds a compact print-only header with a QR back to the
+  // live guide so the paper copy always points to videos + the latest version.
+  function setupPrint(guide) {
+    // Canonical pretty URL for the QR, however the page was opened.
+    var liveUrl = slug ? (location.origin + "/g/" + encodeURIComponent(slug))
+                       : (location.origin + location.pathname);
+    if (!doc.querySelector(".print-header")) {
+      var h = document.createElement("div");
+      h.className = "print-header print-only";
+      h.innerHTML =
+        '<div class="print-head-text">' +
+          '<span class="print-emoji">' + esc(guide.emoji) + "</span>" +
+          "<div><div class=\"print-title\">" + esc(guide.title) + "</div>" +
+          '<div class="print-sub">' + esc(guide.subtitle || "") + "</div></div>" +
+        "</div>" +
+        '<div class="print-qr"><div id="printQr"></div>' +
+          '<span class="print-qr-label">📱 Scan for videos<br>& the latest version</span></div>';
+      doc.insertBefore(h, doc.firstChild);
+      if (window.QRCode) {
+        try {
+          new QRCode(document.getElementById("printQr"),
+            { text: liveUrl, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M });
+        } catch (e) {}
+      }
+    }
+    if (!document.getElementById("printFab")) {
+      var b = document.createElement("button");
+      b.id = "printFab";
+      b.className = "print-fab no-print";
+      b.type = "button";
+      b.textContent = "🖨️ Print / Save as PDF";
+      b.addEventListener("click", function () { window.print(); });
+      document.body.appendChild(b);
+    }
+    // Opened from the share screen's "Printable version" link → print straight away.
+    if (/[?&]print=1/.test(location.search)) {
+      setTimeout(function () { window.print(); }, 700);
+    }
   }
 
   // Locked guides arrive as an encrypted envelope — show an unlock screen and

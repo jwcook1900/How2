@@ -26,10 +26,12 @@ const backend = defineBackend({
 });
 
 // Hosted UI (Managed Login) domain for sign-in and the Google redirect.
-// Gives a stable URL: https://gotitguides-auth.auth.<region>.amazoncognito.com
-// (if this prefix is ever taken, change it and redeploy).
+// Gives a stable URL: https://gotitguides-auth-au.auth.<region>.amazoncognito.com
+// The prefix must be globally unique in the region; "gotitguides-auth" was
+// unavailable, so this uses the "-au" variant. If it must change again, update
+// the Google OAuth client's authorised redirect URI to match.
 backend.auth.resources.userPool.addDomain("HostedUiDomain", {
-  cognitoDomain: { domainPrefix: "gotitguides-auth" },
+  cognitoDomain: { domainPrefix: "gotitguides-auth-au" },
 });
 
 // Let the email + feedback functions send through SES.

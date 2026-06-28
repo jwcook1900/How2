@@ -43,6 +43,22 @@ window.GotItStore = (function () {
     });
   }
 
+  // Same as gql but authenticated as a signed-in user (Cognito id token in the
+  // Authorization header → AppSync userPool auth). Used for owner-scoped data
+  // like the "My Guides" dashboard (SavedGuide).
+  function gqlAuth(cfg, query, variables, idToken) {
+    return fetch(cfg.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "Authorization": idToken },
+      body: JSON.stringify({ query: query, variables: variables })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res.errors && res.errors.length) {
+        throw new Error(res.errors[0].message || "Request failed");
+      }
+      return res.data;
+    });
+  }
+
   /* ---- optional password protection (AES-GCM, key from PBKDF2) ----
      A locked guide is stored as an envelope { enc:1, slug, salt, iv, ct }.
      The real guide JSON is encrypted in `ct`; nothing readable is stored,
@@ -122,6 +138,44 @@ window.GotItStore = (function () {
   return {
     // Is the cloud backend available?
     isCloud: function () { return loadConfig().then(function (c) { return !!c; }); },
+
+    /* ---- "My Guides" dashboard (owner-scoped SavedGuide, userPool auth) ----
+       These need a signed-in user's Cognito id token (from GotItAuth.idToken()).
+       The owner is set/enforced server-side, so a user only ever sees their own
+       saved guides. Storing slug + editToken lets the dashboard link straight to
+       viewing and editing. */
+    listSavedGuides: function (idToken) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return [];
+        return gqlAuth(cfg,
+          "query { listSavedGuides { items { id slug editToken title emoji createdAt } } }",
+          {}, idToken
+        ).then(function (d) {
+          var items = (d.listSavedGuides && d.listSavedGuides.items) || [];
+          items.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || ""); });
+          return items;
+        });
+      });
+    },
+    saveGuide: function (idToken, g) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        return gqlAuth(cfg,
+          "mutation($input: CreateSavedGuideInput!) { createSavedGuide(input: $input) { id slug } }",
+          { input: { slug: g.slug, editToken: g.editToken, title: g.title || "Untitled guide", emoji: g.emoji || "📘" } },
+          idToken
+        ).then(function (d) { return d.createSavedGuide; });
+      });
+    },
+    deleteSavedGuide: function (idToken, id) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        return gqlAuth(cfg,
+          "mutation($input: DeleteSavedGuideInput!) { deleteSavedGuide(input: $input) { id } }",
+          { input: { id: id } }, idToken
+        );
+      });
+    },
 
     /* ---- Per-block accent colours (shared by builder + published guide) ----
        Each block (section / log / emergency) can store a palette `color` key;

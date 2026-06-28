@@ -199,6 +199,14 @@
           </div>
           <p class="email-links-note" id="emailLinksNote" hidden></p>
 
+          <div class="save-dash" id="saveDash">
+            <label class="share-label">Keep it in your dashboard (optional)</label>
+            <p class="email-links-hint">Save this guide to a free account so you can find and update it any time. You'll sign in with Google.</p>
+            <button class="btn btn-primary btn-sm" id="saveToDash" type="button">⭐ Save to my guides</button>
+            <a class="btn btn-ghost btn-sm" id="myGuidesLink" href="dashboard.html" hidden>My guides ↗</a>
+            <p class="email-links-note" id="saveToDashNote" hidden></p>
+          </div>
+
           <div class="share-actions">
             <button class="btn btn-ghost btn-sm" id="downloadQr" type="button">Download QR</button>
             <a class="btn btn-ghost btn-sm" id="openGuide" target="_blank" rel="noopener">Open guide ↗</a>
@@ -307,6 +315,7 @@
   <!-- QR library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/builder.js"></script>
 </body>
 </html>

@@ -867,6 +867,9 @@ ul { margin: 0; padding: 0; list-style: none; }
   flex-direction: column;
   justify-content: center;
 }
+/* No icon + a cover photo: lift the title to the top so it sits above the
+   photo's subject (e.g. a pet's face in the middle) instead of over it. */
+.guide-cover.has-cover.no-emoji { justify-content: flex-start; }
 .guide-cover.has-cover .cover-emoji,
 .guide-cover.has-cover .cover-title,
 .guide-cover.has-cover .cover-sub {

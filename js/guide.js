@@ -112,6 +112,9 @@
     }
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
+    var remind = (sec.reminder && sec.reminder.times && sec.reminder.times.length)
+      ? '<button class="reminder-cal-btn no-print" data-remind="' + esc(sec.id) + '">📅 Add reminders to my calendar</button>'
+      : "";
     return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
           (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
@@ -120,7 +123,7 @@
         "</button>" +
         '<div class="acc-body"><div class="acc-body-inner">' +
           '<div class="acc-content">' + GotItStore.renderBody(sec.body) + "</div>" +
-          media +
+          media + remind +
         "</div></div>" +
       "</div>";
   }
@@ -223,6 +226,15 @@
     });
   });
 
+  // "Add to my calendar" buttons on sections that have a reminder schedule.
+  doc.querySelectorAll(".reminder-cal-btn").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var sec = byId(guide.sections, btn.getAttribute("data-remind"));
+      if (sec) openReminderModal(sec, guide);
+    });
+  });
+
   // Interactive logs: let a viewer (sitter, carer, guest) record entries that
   // save back into the guide so everyone sees the latest.
   doc.querySelectorAll(".guide-log").forEach(function (logEl) {
@@ -313,6 +325,148 @@
     if (/[?&]print=1/.test(location.search)) {
       setTimeout(function () { window.print(); }, 700);
     }
+  }
+
+  /* ---------- Add-to-calendar reminders (sitter side) ----------
+     Turns a section's reminder times into a downloadable .ics calendar file
+     with a daily-recurring event (plus an alert) at each time, across the days
+     the sitter is caring. Works on any phone, no login or backend. */
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function isoFromToday(off) {
+    var d = new Date(); d.setDate(d.getDate() + (off || 0));
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function escICS(s) {
+    return String(s == null ? "" : s)
+      .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  }
+  function buildICS(opts) {
+    function dtLocal(dateStr, timeStr) {
+      return dateStr.replace(/-/g, "") + "T" + (timeStr || "00:00").replace(/:/g, "") + "00";
+    }
+    function stampUTC() {
+      var n = new Date();
+      return n.getUTCFullYear() + pad2(n.getUTCMonth() + 1) + pad2(n.getUTCDate()) + "T" +
+        pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + "Z";
+    }
+    var until = opts.endDate.replace(/-/g, "") + "T235959";
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GotIt Guides//Care Reminders//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+    opts.times.forEach(function (t, i) {
+      var uid = Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
+      L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(opts.startDate, t),
+        "DURATION:PT10M", "RRULE:FREQ=DAILY;UNTIL=" + until, "SUMMARY:" + escICS(opts.summary));
+      if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
+      L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(opts.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
+    });
+    L.push("END:VCALENDAR");
+    return L.join("\r\n");
+  }
+  function downloadICS(filename, ics) {
+    var blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+  }
+  function slugifyName(s) {
+    return String(s || "reminders").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "reminders";
+  }
+  function closeReminderModal() {
+    var m = document.getElementById("remModal");
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+  }
+  function openReminderModal(sec, guide) {
+    closeReminderModal();
+    var times = (sec.reminder.times || []).slice();
+
+    var overlay = document.createElement("div");
+    overlay.className = "rem-modal"; overlay.id = "remModal";
+    var backdrop = document.createElement("div");
+    backdrop.className = "rem-backdrop";
+    backdrop.addEventListener("click", closeReminderModal);
+    var card = document.createElement("div");
+    card.className = "rem-card";
+
+    var x = document.createElement("button");
+    x.className = "rem-x"; x.type = "button"; x.textContent = "×";
+    x.addEventListener("click", closeReminderModal);
+
+    var h = document.createElement("h3");
+    h.className = "rem-title";
+    h.textContent = "Add " + (sec.title || "reminders") + " to your calendar";
+    var p = document.createElement("p");
+    p.className = "rem-lead";
+    p.textContent = "Choose the days you're caring and we'll add a daily reminder at each time, with an alert.";
+
+    function field(labelText, input) {
+      var w = document.createElement("div"); w.className = "rem-field";
+      var l = document.createElement("label"); l.textContent = labelText;
+      w.appendChild(l); w.appendChild(input); return w;
+    }
+    var start = document.createElement("input");
+    start.type = "date"; start.className = "q-input"; start.value = isoFromToday(0);
+    var end = document.createElement("input");
+    end.type = "date"; end.className = "q-input"; end.value = isoFromToday(6);
+    var dates = document.createElement("div"); dates.className = "rem-dates";
+    dates.appendChild(field("From", start));
+    dates.appendChild(field("To", end));
+
+    var timesLabel = document.createElement("label");
+    timesLabel.className = "rem-sublabel"; timesLabel.textContent = "Times each day";
+    var timesWrap = document.createElement("div"); timesWrap.className = "rem-times";
+    function renderTimes() {
+      timesWrap.innerHTML = "";
+      times.forEach(function (t, i) {
+        var row = document.createElement("div"); row.className = "rem-time-row";
+        var inp = document.createElement("input"); inp.type = "time"; inp.className = "q-input"; inp.value = t;
+        inp.addEventListener("change", function () { times[i] = inp.value || "08:00"; });
+        var rm = document.createElement("button"); rm.type = "button"; rm.className = "rem-time-x"; rm.textContent = "✕";
+        rm.addEventListener("click", function () { times.splice(i, 1); renderTimes(); });
+        row.appendChild(inp); row.appendChild(rm); timesWrap.appendChild(row);
+      });
+    }
+    renderTimes();
+    var addT = document.createElement("button");
+    addT.type = "button"; addT.className = "rem-add-time"; addT.textContent = "＋ Add time";
+    addT.addEventListener("click", function () { times.push("12:00"); renderTimes(); });
+
+    var note = document.createElement("p"); note.className = "rem-note"; note.hidden = true;
+    var actions = document.createElement("div"); actions.className = "rem-actions";
+    var cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "btn btn-ghost btn-sm"; cancel.textContent = "Cancel";
+    cancel.addEventListener("click", closeReminderModal);
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "btn btn-primary btn-sm"; go.textContent = "Add to my calendar";
+    go.addEventListener("click", function () {
+      var ts = times.filter(Boolean);
+      if (!ts.length) { note.hidden = false; note.className = "rem-note err"; note.textContent = "Add at least one time."; return; }
+      if (start.value && end.value && end.value < start.value) {
+        note.hidden = false; note.className = "rem-note err"; note.textContent = "The end date is before the start date."; return;
+      }
+      var liveUrl = slug ? (location.origin + "/g/" + encodeURIComponent(slug)) : location.href;
+      var summary = (sec.icon ? sec.icon + " " : "") + (sec.title || "Reminder") + " · " + (guide.title || "GotIt guide");
+      var ics = buildICS({
+        summary: summary,
+        description: "From your GotIt guide: " + liveUrl,
+        times: ts.sort(),
+        startDate: start.value || isoFromToday(0),
+        endDate: end.value || start.value || isoFromToday(6)
+      });
+      downloadICS(slugifyName(sec.title) + "-reminders.ics", ics);
+      note.hidden = false; note.className = "rem-note ok";
+      note.textContent = "Opening your calendar… confirm there to add the reminders.";
+      go.disabled = true;
+      setTimeout(closeReminderModal, 2000);
+    });
+    actions.appendChild(cancel); actions.appendChild(go);
+
+    card.appendChild(x); card.appendChild(h); card.appendChild(p);
+    card.appendChild(dates);
+    card.appendChild(timesLabel); card.appendChild(timesWrap); card.appendChild(addT);
+    card.appendChild(actions); card.appendChild(note);
+    overlay.appendChild(backdrop); overlay.appendChild(card);
+    document.body.appendChild(overlay);
   }
 
   // Locked guides arrive as an encrypted envelope — show an unlock screen and

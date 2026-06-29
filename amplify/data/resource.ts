@@ -28,12 +28,27 @@ const schema = a.schema({
   // only the owner can read/write their own rows. Stores the slug + edit token
   // so the dashboard can link straight to viewing/editing. The Guide model
   // itself is unchanged and still fully account-less.
+  //   status  — "published" today (you only save after publishing); reserved
+  //             for a future draft state.
+  //   locked  — true if the guide is code-protected (drives the dashboard's
+  //             "Public link" vs "Code locked" badge).
+  // `updatedAt` is auto-managed by Amplify and powers "Updated N days ago".
   SavedGuide: a
     .model({
       slug: a.string().required(),
       editToken: a.string().required(),
       title: a.string(),
       emoji: a.string(),
+      status: a.string(),
+      locked: a.boolean(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
+  // A signed-in user's lightweight profile (just a display name for now, so the
+  // dashboard greets them by name instead of showing their email). Owner-scoped.
+  UserProfile: a
+    .model({
+      displayName: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 

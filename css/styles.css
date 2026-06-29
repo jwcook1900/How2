@@ -2203,3 +2203,117 @@ ul { margin: 0; padding: 0; list-style: none; }
 
   a { color: #111 !important; text-decoration: none; }
 }
+
+/* ============================================================
+   My Guides dashboard — cards, badges, menus, settings, teaser
+   ============================================================ */
+.dash-card-title { margin-bottom: 10px; }
+.dash-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.dash-badge {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.01em;
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.dash-badge.is-pub { background: #DEF3E9; color: #1B7A4F; }
+.dash-badge.is-draft { background: var(--line); color: var(--ink-muted); }
+.dash-badge.is-locked { background: #FBE3E4; color: #C0392B; }
+.dash-badge.is-public { background: #E5EEFE; color: #2B6CB0; }
+.dash-card-updated { font-size: 0.8rem; color: var(--ink-muted); margin-bottom: 14px; }
+
+/* More menu */
+.dash-card-more-wrap { position: absolute; top: 10px; right: 10px; }
+.dash-card-more {
+  width: 30px; height: 30px; border: none; border-radius: 8px;
+  background: transparent; color: var(--ink-muted); font-size: 1.2rem; line-height: 1;
+  cursor: pointer; transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.dash-card-more:hover { background: var(--bg-tint); color: var(--ink); }
+.dash-menu {
+  position: absolute; top: 34px; right: 0; z-index: 30; min-width: 176px;
+  display: none; flex-direction: column; padding: 6px;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow-lg);
+}
+.dash-menu.open { display: flex; }
+.dash-menu-item {
+  text-align: left; background: transparent; border: none; cursor: pointer;
+  font-family: inherit; font-size: 0.9rem; font-weight: 600; color: var(--ink);
+  padding: 9px 12px; border-radius: 8px;
+}
+.dash-menu-item:hover { background: var(--coral-soft); color: var(--coral-dark); }
+.dash-menu-item.danger { color: #C0392B; }
+.dash-menu-item.danger:hover { background: #FBE3E4; color: #C0392B; }
+.dash-menu-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+
+/* First-run name prompt */
+.name-prompt {
+  background: var(--bg-tint); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 22px;
+}
+.name-prompt label { display: block; font-weight: 700; margin-bottom: 10px; }
+.name-prompt-row { display: flex; gap: 10px; }
+.name-prompt-row .q-input { flex: 1; }
+
+/* Search */
+.dash-search { margin-bottom: 20px; }
+.dash-search .q-input { width: 100%; }
+
+.dash-empty-title { font-size: 1.3rem; font-weight: 800; margin: 6px 0 8px; }
+.dash-noresults { text-align: center; color: var(--ink-muted); padding: 24px 0; }
+
+/* Soft "coming soon" teaser */
+.dash-teaser {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  margin-top: 40px; padding: 18px 22px;
+  background: var(--bg-tint); border: 1px dashed var(--line); border-radius: var(--radius);
+}
+.dash-teaser-emoji { font-size: 1.6rem; }
+.dash-teaser-body { flex: 1; min-width: 200px; }
+.dash-teaser-title { font-weight: 800; }
+.dash-teaser-body p { color: var(--ink-soft); font-size: 0.9rem; margin: 2px 0 0; }
+
+/* Account settings modal */
+.dash-modal { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.dash-modal-backdrop { position: absolute; inset: 0; background: rgba(26, 26, 26, 0.45); }
+.dash-modal-card {
+  position: relative; z-index: 1; width: 100%; max-width: 420px;
+  background: var(--white); border-radius: var(--radius-lg); padding: 28px 26px;
+  box-shadow: var(--shadow-lg);
+}
+.dash-modal-x {
+  position: absolute; top: 14px; right: 16px; width: 30px; height: 30px;
+  border: none; background: transparent; font-size: 1.4rem; color: var(--ink-muted);
+  cursor: pointer; line-height: 1;
+}
+.dash-modal-title { font-size: 1.3rem; font-weight: 800; margin: 0 0 18px; }
+.set-label { display: block; font-weight: 700; font-size: 0.85rem; margin: 14px 0 6px; }
+.set-row { display: flex; gap: 10px; }
+.set-row .q-input { flex: 1; }
+.set-note { font-size: 0.85rem; color: #1B7A4F; margin: 8px 0 0; }
+.set-email { color: var(--ink-soft); margin: 0; }
+.set-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.btn-danger-ghost {
+  background: transparent; border: 1.5px solid #F2C2C2; color: #C0392B;
+  border-radius: 999px; font-family: inherit; font-weight: 600; cursor: pointer;
+}
+.btn-danger-ghost:hover { background: #FBE3E4; border-color: #C0392B; }
+
+/* Toast */
+.dash-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px);
+  background: var(--ink); color: #fff; font-weight: 600; font-size: 0.9rem;
+  padding: 11px 18px; border-radius: 999px; box-shadow: var(--shadow);
+  opacity: 0; transition: opacity 0.25s var(--ease), transform 0.25s var(--ease); z-index: 200;
+}
+.dash-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 600px) {
+  .name-prompt-row { flex-direction: column; }
+  .set-actions { flex-direction: column-reverse; }
+  .set-actions .btn { width: 100%; }
+}
+
+/* Dashboard card actions: keep three buttons inside narrow cards */
+.dash-card-actions { gap: 6px; flex-wrap: wrap; }
+.dash-card-actions .btn { flex: 1 1 auto; min-width: 0; padding: 8px 10px; font-size: 0.82rem; }
+/* Declutter the dashboard header on phones — "+ New guide" is in the body */
+@media (max-width: 600px) { #dashCreateTop { display: none; } }

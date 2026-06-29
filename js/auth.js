@@ -147,12 +147,12 @@ window.GotItAuth = (function () {
     return { sub: c.sub, email: c.email, name: c.name || c.given_name || c.email };
   }
 
-  /* ---- a valid id token, refreshing if needed (AppSync wants the id token) ---- */
-  function idToken() {
+  /* ---- a valid token set, refreshing if needed ---- */
+  function freshTokens() {
     var t = getTokens();
     if (!t.id_token) return Promise.resolve(null);
     var now = Math.floor(Date.now() / 1000);
-    if (t.expires_at && t.expires_at > now + 30) return Promise.resolve(t.id_token);
+    if (t.expires_at && t.expires_at > now + 30) return Promise.resolve(t);
     if (!t.refresh_token) { clearTokens(); return Promise.resolve(null); }
     return loadCfg().then(function (cfg) {
       return fetch(cfg.domain + "/oauth2/token", {
@@ -162,8 +162,31 @@ window.GotItAuth = (function () {
       }).then(function (r) { return r.json(); }).then(function (nt) {
         if (nt.error) { clearTokens(); return null; }
         saveTokens(nt);
-        return getTokens().id_token;
+        return getTokens();
       });
+    });
+  }
+  // AppSync wants the id token; Cognito self-service APIs want the access token.
+  function idToken() { return freshTokens().then(function (t) { return t ? t.id_token : null; }); }
+  function accessToken() { return freshTokens().then(function (t) { return t ? t.access_token : null; }); }
+
+  /* ---- self-service account deletion (Cognito DeleteUser via access token) ----
+     Needs the aws.cognito.signin.user.admin scope (present in our token). Removes
+     the auth account only — published guides are account-less and keep working. */
+  function deleteAccount() {
+    return Promise.all([loadCfg(), accessToken()]).then(function (a) {
+      var cfg = a[0], at = a[1];
+      if (!cfg || !at) throw new Error("You're not signed in.");
+      return fetch("https://cognito-idp." + cfg.region + ".amazonaws.com/", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-amz-json-1.1",
+          "x-amz-target": "AWSCognitoIdentityProviderService.DeleteUser"
+        },
+        body: JSON.stringify({ AccessToken: at })
+      }).then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw new Error(e.message || "Couldn't delete the account."); });
+      }).then(function () { clearTokens(); });
     });
   }
 
@@ -206,6 +229,8 @@ window.GotItAuth = (function () {
     isSignedIn: isSignedIn,
     getUser: getUser,
     idToken: idToken,
+    accessToken: accessToken,
+    deleteAccount: deleteAccount,
     signOut: signOut
   };
 })();

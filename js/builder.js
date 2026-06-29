@@ -239,6 +239,7 @@
     var fb = $("feedbackFab");
     if (fb) fb.hidden = (key === 3);
     if (key !== 3) closeDockPop();
+    else applyDockPos(); // restore any dragged-to position on the edit step
     // progress dots
     var stepNum = steps[key].getAttribute("data-step");
     document.querySelectorAll(".wizard-progress .dot").forEach(function (d) {
@@ -789,17 +790,22 @@
 
   // Wires a Polish button to read/replace a piece of text with a loading state.
   // `ctx` ({ category, question }) gives the AI context about what it's editing.
+  function showPolishOverlay(on) {
+    var o = $("polishOverlay");
+    if (o) o.hidden = !on;
+  }
   function polishInto(getText, setText, btn, ctx) {
     var text = (getText() || "").trim();
     if (!text || text === "Tap to add details…") { showToast("Nothing to polish yet."); return; }
-    var orig = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "✨ Polishing…";
+    // Dim the whole screen with a centred sparkle while the AI works, rather
+    // than squeezing "Polishing…" into a small round dock button.
+    if (btn) btn.disabled = true;
+    showPolishOverlay(true);
     polish(text, ctx).then(function (out) {
       setText(out);
     }).then(null, function () {}).then(function () {
-      btn.disabled = false;
-      btn.textContent = orig;
+      if (btn) btn.disabled = false;
+      showPolishOverlay(false);
     });
   }
 
@@ -936,11 +942,17 @@
     var cover = document.createElement("div");
     cover.className = "guide-cover";
     cover.innerHTML =
-      '<span class="cover-emoji">' + g.emoji + "</span>" +
+      '<span class="cover-emoji" contenteditable="true" data-bind="emoji" role="textbox" aria-label="Cover icon — type an emoji, or backspace to remove it">' + esc(g.emoji || "") + "</span>" +
       '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
       '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
     bindEditable(cover.querySelector('[data-bind="subtitle"]'), function (v) { g.subtitle = v; });
+    // The cover icon is now editable: type/paste an emoji to change it, or
+    // backspace it away to remove it entirely (handy when you've set a photo).
+    bindEditable(cover.querySelector('[data-bind="emoji"]'), function (v) {
+      g.emoji = (v || "").replace(/\s+/g, "").slice(0, 16);
+      scheduleHistory();
+    });
     applyCover(cover, g);
     doc.appendChild(cover);
 
@@ -1934,6 +1946,63 @@
     pop.hidden = false;
     btn.classList.add("on");
     pop.style.top = btn.offsetTop + "px"; // align with the button (desktop)
+    // Open popovers away from the nearest screen edge so they stay on-screen
+    // even after the dock has been dragged to the left side.
+    var dockRect = $("editDock").getBoundingClientRect();
+    if (dockRect.left < window.innerWidth / 2) {
+      pop.style.right = "auto"; pop.style.left = "calc(100% + 12px)";
+    } else {
+      pop.style.left = "auto"; pop.style.right = "calc(100% + 12px)";
+    }
+  }
+
+  /* ---------- Draggable dock ---------- */
+  function applyDockPos() {
+    var dock = $("editDock");
+    if (!dock || dock.hidden) return;
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem("gotit_dock_pos") || "null"); } catch (e) {}
+    if (!saved) return;
+    var w = dock.offsetWidth || 56, h = dock.offsetHeight || 380;
+    var left = Math.max(6, Math.min(window.innerWidth - w - 6, saved.left));
+    var top = Math.max(6, Math.min(window.innerHeight - h - 6, saved.top));
+    dock.style.left = left + "px";
+    dock.style.top = top + "px";
+    dock.style.right = "auto";
+    dock.style.transform = "none";
+  }
+  function initDockDrag() {
+    var dock = $("editDock"), grip = $("dockGrip");
+    if (!dock || !grip) return;
+    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    grip.addEventListener("pointerdown", function (e) {
+      dragging = true;
+      dock.classList.add("dragging");
+      var r = dock.getBoundingClientRect();
+      dock.style.left = r.left + "px"; dock.style.top = r.top + "px";
+      dock.style.right = "auto"; dock.style.bottom = "auto"; dock.style.transform = "none";
+      sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+      try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+      closeDockPop();
+      e.preventDefault();
+    });
+    grip.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var r = dock.getBoundingClientRect();
+      var nx = Math.max(6, Math.min(window.innerWidth - r.width - 6, ox + (e.clientX - sx)));
+      var ny = Math.max(6, Math.min(window.innerHeight - r.height - 6, oy + (e.clientY - sy)));
+      dock.style.left = nx + "px"; dock.style.top = ny + "px";
+    });
+    function end(e) {
+      if (!dragging) return;
+      dragging = false;
+      dock.classList.remove("dragging");
+      try { grip.releasePointerCapture(e.pointerId); } catch (_) {}
+      var r = dock.getBoundingClientRect();
+      try { localStorage.setItem("gotit_dock_pos", JSON.stringify({ left: r.left, top: r.top })); } catch (_) {}
+    }
+    grip.addEventListener("pointerup", end);
+    grip.addEventListener("pointercancel", end);
   }
 
   function buildColourPop(pop) {
@@ -2093,6 +2162,7 @@
   $("dockMedia").addEventListener("click", function (e) { e.stopPropagation(); openDockPop(this, buildMediaPop); });
   $("dockPolish").addEventListener("click", function (e) { e.stopPropagation(); dockPolish(); });
   $("dockDelete").addEventListener("click", function (e) { e.stopPropagation(); dockDelete(); });
+  initDockDrag(); // let users drag the floating toolbar to reposition it
   // Close the popover when clicking away from the dock.
   document.addEventListener("click", function (e) {
     if (!e.target.closest("#editDock")) closeDockPop();

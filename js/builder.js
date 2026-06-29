@@ -1279,6 +1279,7 @@
       '<div class="acc-body"><div class="acc-body-inner">' +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
+        '<div class="sec-reminder"></div>' +
       "</div></div>";
 
     // Accordion toggle (ignore clicks on the editable title)
@@ -1299,8 +1300,76 @@
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; }, true);
 
     renderSectionMedia(el, sec);
+    renderSectionReminder(el, sec);
     GotItStore.applyAccent(el, sec.color);
     return el;
+  }
+
+  // Optional reminder schedule on a section (e.g. Medication 8am/2pm/8pm).
+  // Stored on sec.reminder.times; the published guide turns it into an
+  // "Add to my calendar" button for the sitter. Frontend-only — it rides along
+  // in the guide JSON, no schema change.
+  function renderSectionReminder(el, sec) {
+    var box = el.querySelector(".sec-reminder");
+    if (!box) return;
+    box.innerHTML = "";
+    var has = sec.reminder && sec.reminder.times && sec.reminder.times.length;
+    if (!has) {
+      var add = document.createElement("button");
+      add.type = "button";
+      add.className = "reminder-add-btn";
+      add.textContent = "⏰ Add reminder times";
+      add.addEventListener("click", function () {
+        sec.reminder = { times: ["08:00"] };
+        renderSectionReminder(el, sec);
+        scheduleHistory();
+      });
+      box.appendChild(add);
+      return;
+    }
+    var head = document.createElement("div");
+    head.className = "reminder-head";
+    head.textContent = "⏰ Reminder times";
+    box.appendChild(head);
+    var hint = document.createElement("p");
+    hint.className = "reminder-hint";
+    hint.textContent = "Sitters can add these to their calendar for the days they're caring.";
+    box.appendChild(hint);
+
+    var list = document.createElement("div");
+    list.className = "reminder-times";
+    sec.reminder.times.forEach(function (t, i) {
+      var row = document.createElement("div");
+      row.className = "reminder-time-row";
+      var inp = document.createElement("input");
+      inp.type = "time"; inp.value = t; inp.className = "reminder-time q-input";
+      inp.addEventListener("change", function () {
+        sec.reminder.times[i] = inp.value || "08:00";
+        scheduleHistory();
+      });
+      var rm = document.createElement("button");
+      rm.type = "button"; rm.className = "reminder-time-x"; rm.title = "Remove time"; rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        sec.reminder.times.splice(i, 1);
+        if (!sec.reminder.times.length) delete sec.reminder;
+        renderSectionReminder(el, sec);
+        scheduleHistory();
+      });
+      row.appendChild(inp);
+      row.appendChild(rm);
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+
+    var addTime = document.createElement("button");
+    addTime.type = "button"; addTime.className = "reminder-add-time";
+    addTime.textContent = "＋ Add another time";
+    addTime.addEventListener("click", function () {
+      sec.reminder.times.push("12:00");
+      renderSectionReminder(el, sec);
+      scheduleHistory();
+    });
+    box.appendChild(addTime);
   }
 
   function renderSectionMedia(el, sec) {

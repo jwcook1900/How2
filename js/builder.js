@@ -1726,6 +1726,7 @@
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
+      touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
     }).catch(function (err) {
       if (err && err.message === "__HANDLED__") { /* toast already shown */ }
       else if (err && err.message === "__TOOBIG__") {
@@ -2109,8 +2110,22 @@
       slug: state.guide.slug,
       editToken: state.editToken,
       title: state.guide.title,
-      emoji: state.guide.emoji
+      emoji: state.guide.emoji,
+      status: "published",
+      locked: !!state.password
     };
+  }
+  // Best-effort: if this guide is already in the signed-in user's dashboard,
+  // refresh its title/emoji/lock state (and bump "updated") after a re-publish.
+  function touchDashboard(g, locked) {
+    if (!window.GotItAuth || !GotItAuth.isSignedIn()) return;
+    GotItAuth.idToken().then(function (tok) {
+      if (!tok) return;
+      GotItStore.listSavedGuides(tok).then(function (items) {
+        var row = items.filter(function (x) { return x.slug === g.slug; })[0];
+        if (row) GotItStore.updateSavedGuide(tok, row.id, { title: g.title, emoji: g.emoji, locked: !!locked });
+      });
+    }).catch(function () {});
   }
   function saveDashNote(msg, ok) {
     var n = $("saveToDashNote");

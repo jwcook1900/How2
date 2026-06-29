@@ -148,11 +148,13 @@ window.GotItStore = (function () {
       return loadConfig().then(function (cfg) {
         if (!cfg) return [];
         return gqlAuth(cfg,
-          "query { listSavedGuides { items { id slug editToken title emoji createdAt } } }",
+          "query { listSavedGuides { items { id slug editToken title emoji status locked createdAt updatedAt } } }",
           {}, idToken
         ).then(function (d) {
           var items = (d.listSavedGuides && d.listSavedGuides.items) || [];
-          items.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || ""); });
+          items.sort(function (a, b) {
+            return (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "");
+          });
           return items;
         });
       });
@@ -162,9 +164,28 @@ window.GotItStore = (function () {
         if (!cfg) throw new Error("Backend not available");
         return gqlAuth(cfg,
           "mutation($input: CreateSavedGuideInput!) { createSavedGuide(input: $input) { id slug } }",
-          { input: { slug: g.slug, editToken: g.editToken, title: g.title || "Untitled guide", emoji: g.emoji || "📘" } },
+          { input: {
+            slug: g.slug, editToken: g.editToken,
+            title: g.title || "Untitled guide", emoji: g.emoji || "📘",
+            status: g.status || "published", locked: !!g.locked
+          } },
           idToken
         ).then(function (d) { return d.createSavedGuide; });
+      });
+    },
+    // Update fields on a saved guide (rename, or refresh title/emoji/locked +
+    // bump updatedAt when the underlying guide is edited).
+    updateSavedGuide: function (idToken, id, fields) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        var input = { id: id };
+        ["title", "emoji", "status", "locked"].forEach(function (k) {
+          if (fields[k] !== undefined) input[k] = fields[k];
+        });
+        return gqlAuth(cfg,
+          "mutation($input: UpdateSavedGuideInput!) { updateSavedGuide(input: $input) { id updatedAt } }",
+          { input: input }, idToken
+        ).then(function (d) { return d.updateSavedGuide; });
       });
     },
     deleteSavedGuide: function (idToken, id) {
@@ -172,6 +193,45 @@ window.GotItStore = (function () {
         if (!cfg) throw new Error("Backend not available");
         return gqlAuth(cfg,
           "mutation($input: DeleteSavedGuideInput!) { deleteSavedGuide(input: $input) { id } }",
+          { input: { id: id } }, idToken
+        );
+      });
+    },
+
+    /* ---- User profile (display name) ---- */
+    getProfile: function (idToken) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        return gqlAuth(cfg,
+          "query { listUserProfiles { items { id displayName } } }", {}, idToken
+        ).then(function (d) {
+          var items = (d.listUserProfiles && d.listUserProfiles.items) || [];
+          return items[0] || null;
+        });
+      });
+    },
+    saveProfile: function (idToken, displayName) {
+      var self = this;
+      return self.getProfile(idToken).then(function (existing) {
+        return loadConfig().then(function (cfg) {
+          if (existing && existing.id) {
+            return gqlAuth(cfg,
+              "mutation($input: UpdateUserProfileInput!) { updateUserProfile(input: $input) { id displayName } }",
+              { input: { id: existing.id, displayName: displayName } }, idToken
+            ).then(function (d) { return d.updateUserProfile; });
+          }
+          return gqlAuth(cfg,
+            "mutation($input: CreateUserProfileInput!) { createUserProfile(input: $input) { id displayName } }",
+            { input: { displayName: displayName } }, idToken
+          ).then(function (d) { return d.createUserProfile; });
+        });
+      });
+    },
+    deleteProfile: function (idToken, id) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        return gqlAuth(cfg,
+          "mutation($input: DeleteUserProfileInput!) { deleteUserProfile(input: $input) { id } }",
           { input: { id: id } }, idToken
         );
       });

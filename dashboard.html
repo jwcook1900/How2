@@ -27,7 +27,7 @@
       </div>
       <div class="header-right">
         <a href="builder.html" class="btn btn-ghost btn-sm" id="dashCreateTop" hidden>Create a guide</a>
-        <button class="btn btn-ghost btn-sm" id="signoutBtn" type="button" hidden>Sign out</button>
+        <button class="btn btn-ghost btn-sm" id="settingsBtn" type="button" hidden>Settings</button>
       </div>
     </div>
   </header>
@@ -40,7 +40,7 @@
       <p>Loading your guides…</p>
     </div>
 
-    <!-- Signed out: invite to sign in -->
+    <!-- Signed out -->
     <section class="dash-signin" id="dashSignin" hidden>
       <span class="dash-emoji">🔐</span>
       <h1 class="dash-title">Your guides, in one place</h1>
@@ -55,27 +55,78 @@
       <a href="/" class="dash-back">← Back to home</a>
     </section>
 
-    <!-- Signed in: the guides dashboard -->
+    <!-- Signed in -->
     <section class="dash-guides" id="dashGuides" hidden>
       <div class="dash-head">
         <div>
           <h1 class="dash-title" id="dashGreeting">My Guides</h1>
-          <p class="dash-lead" id="dashSub">Everything you've saved to your dashboard.</p>
+          <p class="dash-lead" id="dashSub">Create, edit and share your guides from one place.</p>
         </div>
         <a href="builder.html" class="btn btn-primary btn-sm">+ New guide</a>
       </div>
 
+      <!-- First-run: ask for a display name -->
+      <form class="name-prompt" id="namePrompt" hidden>
+        <label for="nameInput">👋 What should we call you?</label>
+        <div class="name-prompt-row">
+          <input type="text" id="nameInput" class="q-input" placeholder="First name" autocomplete="given-name" maxlength="40" />
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </div>
+      </form>
+
+      <!-- Search (only when 3+ guides) -->
+      <div class="dash-search" id="dashSearchWrap" hidden>
+        <input type="search" id="dashSearch" class="q-input" placeholder="Search your guides…" autocomplete="off" />
+      </div>
+
+      <!-- Empty state -->
       <div class="dash-empty" id="dashEmpty" hidden>
         <span class="dash-emoji">📭</span>
-        <p>No saved guides yet. When you publish a guide, choose <strong>“Save to my guides”</strong> on the share screen and it'll show up here.</p>
-        <a href="builder.html" class="btn btn-primary btn-sm">Create your first guide</a>
+        <h2 class="dash-empty-title">Your guides will live here</h2>
+        <p>Create your first guide, save it to your dashboard, then come back any time to edit, share or duplicate it.</p>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
       </div>
 
       <div class="dash-grid" id="dashGrid"></div>
-    </section>
+      <p class="dash-noresults" id="dashNoResults" hidden>No guides match that search.</p>
 
+      <!-- Soft teaser for where things are headed -->
+      <div class="dash-teaser" id="dashTeaser" hidden>
+        <span class="dash-teaser-emoji">🚀</span>
+        <div class="dash-teaser-body">
+          <div class="dash-teaser-title">Coming soon: team spaces</div>
+          <p>Manage guides for teams, businesses, homes and handovers in one place.</p>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="/#waitlist">Tell us what you'd want →</a>
+      </div>
+    </section>
   </main>
 
+  <!-- Account settings -->
+  <div class="dash-modal" id="settingsModal" hidden>
+    <div class="dash-modal-backdrop" data-set-close></div>
+    <div class="dash-modal-card" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+      <button class="dash-modal-x" id="settingsClose" type="button" aria-label="Close" data-set-close>×</button>
+      <h2 class="dash-modal-title" id="setTitle">Account settings</h2>
+
+      <label class="set-label" for="setName">Display name</label>
+      <div class="set-row">
+        <input type="text" id="setName" class="q-input" placeholder="First name" maxlength="40" />
+        <button class="btn btn-primary btn-sm" id="setNameSave" type="button">Save</button>
+      </div>
+      <p class="set-note" id="setNameNote" hidden></p>
+
+      <label class="set-label">Email</label>
+      <p class="set-email" id="setEmail">—</p>
+
+      <div class="set-actions">
+        <button class="btn btn-ghost btn-sm" id="setSignout" type="button">Sign out</button>
+        <button class="btn btn-danger-ghost btn-sm" id="setDelete" type="button">Delete account</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="js/store.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/dashboard.js"></script>

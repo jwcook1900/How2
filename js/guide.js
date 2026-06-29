@@ -114,7 +114,7 @@
     firstSectionOpen = false;
     return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
-          '<span class="acc-icon">' + sec.icon + "</span>" +
+          (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
           '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
           '<span class="acc-chevron">▾</span>' +
         "</button>" +

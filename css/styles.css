@@ -2361,3 +2361,9 @@ ul { margin: 0; padding: 0; list-style: none; }
   .contact-value { flex: 1 1 100%; }
   .contact-del { position: absolute; top: 8px; right: 0; }
 }
+
+/* Section icons are editable in the builder too (type an emoji or backspace
+   to remove); an empty one shows a subtle "+" to add one back. */
+.acc-icon[contenteditable] { cursor: text; outline: none; min-width: 0.7em; }
+.acc-icon[contenteditable]:focus { outline: 2px dashed var(--coral); border-radius: 8px; }
+.acc-icon[contenteditable]:empty::before { content: "＋"; opacity: 0.4; font-weight: 400; }

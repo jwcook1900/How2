@@ -1269,7 +1269,7 @@
     el.innerHTML =
       '<button class="acc-header" type="button">' +
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
-        '<span class="acc-icon">' + sec.icon + "</span>" +
+        '<span class="acc-icon" contenteditable="true" role="textbox" aria-label="Section icon — type an emoji, or backspace to remove">' + esc(sec.icon || "") + "</span>" +
         '<span class="acc-title-text" contenteditable="true">' + esc(sec.title) + "</span>" +
         '<span class="acc-chevron">▾</span>' +
       "</button>" +
@@ -1282,12 +1282,17 @@
     var header = el.querySelector(".acc-header");
     header.addEventListener("click", function (e) {
       if (e.target.classList.contains("acc-title-text") ||
+          e.target.classList.contains("acc-icon") ||
           e.target.classList.contains("drag-handle")) return;
       el.classList.toggle("open");
     });
     enableDrag(el.querySelector(".drag-handle"), el);
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
+    bindEditable(el.querySelector(".acc-icon"), function (v) {
+      sec.icon = (v || "").replace(/\s+/g, "").slice(0, 16);
+      scheduleHistory();
+    });
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; }, true);
 
     renderSectionMedia(el, sec);
@@ -1971,33 +1976,48 @@
     dock.style.right = "auto";
     dock.style.transform = "none";
   }
+  function resetDockPos() {
+    var dock = $("editDock");
+    if (!dock) return;
+    try { localStorage.removeItem("gotit_dock_pos"); } catch (_) {}
+    dock.style.left = ""; dock.style.top = "";
+    dock.style.right = ""; dock.style.bottom = ""; dock.style.transform = "";
+    showToast("Toolbar reset to the right");
+  }
   function initDockDrag() {
     var dock = $("editDock"), grip = $("dockGrip");
     if (!dock || !grip) return;
-    var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+    var dragging = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0, lastTap = 0;
     grip.addEventListener("pointerdown", function (e) {
-      dragging = true;
-      dock.classList.add("dragging");
+      // Double-tap / double-click the grip to snap back to the default spot.
+      var now = Date.now();
+      if (now - lastTap < 350) { lastTap = 0; resetDockPos(); return; }
+      lastTap = now;
+      dragging = true; moved = false;
       var r = dock.getBoundingClientRect();
-      dock.style.left = r.left + "px"; dock.style.top = r.top + "px";
-      dock.style.right = "auto"; dock.style.bottom = "auto"; dock.style.transform = "none";
-      sx = e.clientX; sy = e.clientY; ox = r.left; oy = r.top;
+      ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
       try { grip.setPointerCapture(e.pointerId); } catch (_) {}
-      closeDockPop();
-      e.preventDefault();
     });
     grip.addEventListener("pointermove", function (e) {
       if (!dragging) return;
-      var r = dock.getBoundingClientRect();
-      var nx = Math.max(6, Math.min(window.innerWidth - r.width - 6, ox + (e.clientX - sx)));
-      var ny = Math.max(6, Math.min(window.innerHeight - r.height - 6, oy + (e.clientY - sy)));
+      if (!moved) {
+        if (Math.abs(e.clientX - sx) < 4 && Math.abs(e.clientY - sy) < 4) return; // ignore micro-moves (a tap)
+        moved = true;
+        dock.classList.add("dragging");
+        dock.style.left = ox + "px"; dock.style.top = oy + "px";
+        dock.style.right = "auto"; dock.style.bottom = "auto"; dock.style.transform = "none";
+        closeDockPop();
+      }
+      var nx = Math.max(6, Math.min(window.innerWidth - dock.offsetWidth - 6, ox + (e.clientX - sx)));
+      var ny = Math.max(6, Math.min(window.innerHeight - dock.offsetHeight - 6, oy + (e.clientY - sy)));
       dock.style.left = nx + "px"; dock.style.top = ny + "px";
     });
     function end(e) {
       if (!dragging) return;
       dragging = false;
-      dock.classList.remove("dragging");
       try { grip.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (!moved) return; // a tap, not a drag — don't pin/save
+      dock.classList.remove("dragging");
       var r = dock.getBoundingClientRect();
       try { localStorage.setItem("gotit_dock_pos", JSON.stringify({ left: r.left, top: r.top })); } catch (_) {}
     }

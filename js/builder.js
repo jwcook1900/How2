@@ -951,6 +951,7 @@
     // backspace it away to remove it entirely (handy when you've set a photo).
     bindEditable(cover.querySelector('[data-bind="emoji"]'), function (v) {
       g.emoji = (v || "").replace(/\s+/g, "").slice(0, 16);
+      cover.classList.toggle("no-emoji", !g.emoji); // re-flow the title to the top when removed
       scheduleHistory();
     });
     applyCover(cover, g);
@@ -1007,6 +1008,8 @@
       coverEl.style.backgroundImage = "";
       GotItStore.applyCoverAccent(coverEl, g.coverColor); // colour gradient, or revert
     }
+    // With no icon, sit the title near the top so it clears the photo's subject.
+    coverEl.classList.toggle("no-emoji", !g.emoji);
   }
 
   // ---- Image helpers: downscale + re-encode so guides fit the store limit ----
@@ -2183,6 +2186,8 @@
   $("dockPolish").addEventListener("click", function (e) { e.stopPropagation(); dockPolish(); });
   $("dockDelete").addEventListener("click", function (e) { e.stopPropagation(); dockDelete(); });
   initDockDrag(); // let users drag the floating toolbar to reposition it
+  // Exit returns a signed-in user to their dashboard (account-less users go home).
+  if ($("exitBtn") && window.GotItAuth && GotItAuth.isSignedIn()) $("exitBtn").href = "dashboard.html";
   // Close the popover when clicking away from the dock.
   document.addEventListener("click", function (e) {
     if (!e.target.closest("#editDock")) closeDockPop();

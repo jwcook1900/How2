@@ -191,6 +191,7 @@
   // Cover photo (set via JS to avoid escaping the data URL in an attribute).
   // A cover photo always wins; otherwise an optional accent colour recolours it.
   var coverEl = doc.querySelector(".guide-cover");
+  if (coverEl && !guide.emoji) coverEl.classList.add("no-emoji"); // title sits up top, clear of the photo subject
   if (guide.cover) {
     if (coverEl) {
       coverEl.classList.add("has-cover");

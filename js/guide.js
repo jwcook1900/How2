@@ -94,7 +94,7 @@
   // Cover
   html +=
     '<div class="guide-cover">' +
-      '<span class="cover-emoji">' + guide.emoji + "</span>" +
+      (guide.emoji ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "") +
       '<div class="cover-title">' + esc(guide.title) + "</div>" +
       '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
     "</div>";

@@ -2201,6 +2201,19 @@ ul { margin: 0; padding: 0; list-style: none; }
   .em-head { color: #C0392B !important; }
   .contact-value a { color: #111 !important; }
 
+  /* Daily Routine: a clean full-width schedule for the fridge */
+  .guide-routine {
+    column-span: all; -webkit-column-span: all;
+    break-inside: avoid; page-break-inside: avoid;
+    border: 1px solid #bbb; border-radius: 8px; padding: 10px 14px;
+    margin: 0 0 14px !important; box-shadow: none !important; background: #fff !important;
+  }
+  .routine-head { font-size: 1.05rem; font-weight: 800; color: #111; }
+  .routine-hint, .reminder-cal-btn, .routine-chip { display: none !important; }
+  .routine-period-label { color: #333 !important; }
+  .routine-entry { border-top: 1px solid #ddd; padding: 6px 0; }
+  .routine-time { color: #111 !important; min-width: 70px; }
+
   /* Photos: keep but bound the height so they don't dominate a column */
   .sec-photo { max-width: 100%; max-height: 55mm; width: auto; margin: 6px 0; border-radius: 6px; }
 
@@ -2480,3 +2493,13 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Modal: read-only routine summary */
 .rem-summary { background: var(--bg-tint); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
 .rem-summary-row { font-size: 0.9rem; color: var(--ink-soft); padding: 3px 0; }
+
+/* Subtle "daily routine inside" hint chip near the top of a published guide */
+.routine-chip {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 16px; padding: 11px 16px;
+  background: var(--coral-soft); color: var(--coral-dark);
+  border-radius: 12px; font-weight: 600; font-size: 0.9rem;
+  line-height: 1.35; transition: background 0.15s var(--ease);
+}
+.routine-chip:hover { background: #FFD9C9; }

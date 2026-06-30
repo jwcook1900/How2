@@ -99,6 +99,13 @@
       '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
     "</div>";
 
+  // Subtle hint so sitters notice the routine + calendar option.
+  var hasRoutine = guide.routine && guide.routine.items &&
+    guide.routine.items.some(function (it) { return it.times && it.times.length; });
+  if (hasRoutine) {
+    html += '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
+  }
+
   // ---- Block renderers ----
   var firstSectionOpen = true;
   function sectionHtml(sec) {
@@ -159,7 +166,7 @@
       if (h < 12) groups.morning.push(e); else if (h < 17) groups.afternoon.push(e); else groups.evening.push(e);
     });
     var periods = [["morning", "🌅 Morning"], ["afternoon", "☀️ Afternoon"], ["evening", "🌙 Evening"]];
-    var s = '<div class="guide-routine"><div class="routine-head">⏰ Daily Routine</div>';
+    var s = '<div class="guide-routine" id="routine"><div class="routine-head">⏰ Daily Routine</div>';
     periods.forEach(function (p) {
       var list = groups[p[0]];
       if (!list.length) return;

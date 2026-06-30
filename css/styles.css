@@ -875,6 +875,44 @@ ul { margin: 0; padding: 0; list-style: none; }
 .guide-cover.has-cover .cover-sub {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
 }
+/* Drag-to-reposition the cover photo */
+.guide-cover.repositioning { cursor: grab; touch-action: none; user-select: none; }
+.guide-cover.repositioning:active { cursor: grabbing; }
+.guide-cover.repositioning .cover-emoji,
+.guide-cover.repositioning .cover-title,
+.guide-cover.repositioning .cover-sub { pointer-events: none; }
+.cover-reposition-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 16px;
+  background: rgba(26, 26, 26, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  z-index: 5;
+}
+.cover-reposition-done {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink, #1a1a1a);
+  background: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.guide-cover { position: relative; }
+
 .cover-tools { display: flex; gap: 8px; justify-content: center; margin-top: 18px; }
 .cover-btn {
   font-family: inherit;

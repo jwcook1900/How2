@@ -1013,9 +1013,12 @@
       coverEl.classList.add("has-cover");
       coverEl.style.backgroundImage =
         "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + g.cover + ")";
+      coverEl.style.backgroundPosition = g.coverPos || "center";
     } else {
       coverEl.classList.remove("has-cover");
+      coverEl.classList.remove("repositioning");
       coverEl.style.backgroundImage = "";
+      coverEl.style.backgroundPosition = "";
       GotItStore.applyCoverAccent(coverEl, g.coverColor); // colour gradient, or revert
     }
     // With no icon, sit the title near the top so it clears the photo's subject.
@@ -1134,6 +1137,59 @@
       });
     });
     input.click();
+  }
+
+  // Lets the creator drag the cover photo to choose which part of it shows
+  // (background-size is "cover", so the image is cropped to the banner). The
+  // chosen focal point is stored as a CSS background-position on g.coverPos.
+  function startCoverReposition(coverEl) {
+    if (!state.guide.cover) return;
+    var g = state.guide;
+    // Parse the current position into x/y percentages (default centre).
+    var parts = (g.coverPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
+    var posX = parseFloat(parts[0]); if (isNaN(posX)) posX = 50;
+    var posY = parseFloat(parts[1]); if (isNaN(posY)) posY = 50;
+
+    coverEl.classList.add("repositioning");
+    var hint = document.createElement("div");
+    hint.className = "cover-reposition-hint";
+    hint.innerHTML = '<span>Drag the photo to reposition</span>' +
+      '<button type="button" class="cover-reposition-done">Done</button>';
+    coverEl.appendChild(hint);
+
+    var startX = 0, startY = 0, baseX = posX, baseY = posY, dragging = false;
+
+    function apply() { coverEl.style.backgroundPosition = posX + "% " + posY + "%"; }
+    function onDown(e) {
+      if (e.target.closest(".cover-reposition-done")) return;
+      e.preventDefault();
+      dragging = true; startX = e.clientX; startY = e.clientY; baseX = posX; baseY = posY;
+      coverEl.setPointerCapture && coverEl.setPointerCapture(e.pointerId);
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      var w = coverEl.clientWidth || 1, h = coverEl.clientHeight || 1;
+      // Dragging right reveals the left of the image, so position decreases.
+      posX = Math.max(0, Math.min(100, baseX - (e.clientX - startX) / w * 100));
+      posY = Math.max(0, Math.min(100, baseY - (e.clientY - startY) / h * 100));
+      apply();
+    }
+    function onUp() { dragging = false; }
+    function finish() {
+      coverEl.removeEventListener("pointerdown", onDown);
+      coverEl.removeEventListener("pointermove", onMove);
+      coverEl.removeEventListener("pointerup", onUp);
+      coverEl.classList.remove("repositioning");
+      if (hint.parentNode) hint.parentNode.removeChild(hint);
+      g.coverPos = posX + "% " + posY + "%";
+      recordHistory();
+    }
+    coverEl.addEventListener("pointerdown", onDown);
+    coverEl.addEventListener("pointermove", onMove);
+    coverEl.addEventListener("pointerup", onUp);
+    hint.querySelector(".cover-reposition-done").addEventListener("click", function (e) {
+      e.stopPropagation(); finish();
+    });
   }
 
   // Records the current DOM order of all blocks (sections / emergency / logs).
@@ -2187,7 +2243,8 @@
     }
     if (selectedType === "cover") {
       item("📸 " + (state.guide.cover ? "Change photo" : "Add a photo"), function () { pickCover(selectedEl); });
-      if (state.guide.cover) item("🗑 Remove photo", function () { state.guide.cover = null; applyCover(selectedEl, state.guide); recordHistory(); });
+      if (state.guide.cover) item("↔ Reposition photo", function () { startCoverReposition(selectedEl); });
+      if (state.guide.cover) item("🗑 Remove photo", function () { state.guide.cover = null; state.guide.coverPos = null; applyCover(selectedEl, state.guide); recordHistory(); });
       return;
     }
     var sec = selectedRef, el = selectedEl;

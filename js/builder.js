@@ -963,6 +963,12 @@
         .concat(["e"]).concat(g.logs.map(function (l) { return "l:" + l.id; }));
     }
     if (g.blockOrder.indexOf("e") === -1) g.blockOrder.push("e");
+    // The Daily Routine block (auto-included; only shows to sitters once it has
+    // items). Default it just before the emergency contacts.
+    if (g.blockOrder.indexOf("r") === -1) {
+      var ei = g.blockOrder.indexOf("e");
+      if (ei >= 0) g.blockOrder.splice(ei, 0, "r"); else g.blockOrder.push("r");
+    }
 
     var rendered = {};
     var firstSection = true;
@@ -970,6 +976,9 @@
       if (tok === "e") {
         doc.appendChild(buildEmergencyEl());
         rendered.e = true;
+      } else if (tok === "r") {
+        doc.appendChild(buildRoutineEl());
+        rendered.r = true;
       } else if (tok.indexOf("s:") === 0) {
         var sec = findSection(tok.slice(2));
         if (sec) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; rendered[tok] = true; }
@@ -980,6 +989,7 @@
     });
     // Reconcile anything missing from blockOrder (e.g. legacy guides)
     if (!rendered.e) doc.appendChild(buildEmergencyEl());
+    if (!rendered.r) doc.appendChild(buildRoutineEl());
     g.sections.forEach(function (sec) {
       if (!rendered["s:" + sec.id]) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; }
     });
@@ -1127,12 +1137,13 @@
   }
 
   // Records the current DOM order of all blocks (sections / emergency / logs).
-  var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log";
+  var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log, .guide-routine";
   function syncBlockOrder() {
     var order = [];
     Array.prototype.forEach.call($("guideDoc").children, function (el) {
       if (el.classList.contains("guide-section")) order.push("s:" + el.dataset.id);
       else if (el.classList.contains("guide-emergency")) order.push("e");
+      else if (el.classList.contains("guide-routine")) order.push("r");
       else if (el.classList.contains("guide-log")) order.push("l:" + el.dataset.id);
     });
     state.guide.blockOrder = order;
@@ -1279,7 +1290,6 @@
       '<div class="acc-body"><div class="acc-body-inner">' +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
-        '<div class="sec-reminder"></div>' +
       "</div></div>";
 
     // Accordion toggle (ignore clicks on the editable title)
@@ -1300,76 +1310,8 @@
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; }, true);
 
     renderSectionMedia(el, sec);
-    renderSectionReminder(el, sec);
     GotItStore.applyAccent(el, sec.color);
     return el;
-  }
-
-  // Optional reminder schedule on a section (e.g. Medication 8am/2pm/8pm).
-  // Stored on sec.reminder.times; the published guide turns it into an
-  // "Add to my calendar" button for the sitter. Frontend-only — it rides along
-  // in the guide JSON, no schema change.
-  function renderSectionReminder(el, sec) {
-    var box = el.querySelector(".sec-reminder");
-    if (!box) return;
-    box.innerHTML = "";
-    var has = sec.reminder && sec.reminder.times && sec.reminder.times.length;
-    if (!has) {
-      var add = document.createElement("button");
-      add.type = "button";
-      add.className = "reminder-add-btn";
-      add.textContent = "⏰ Add reminder times";
-      add.addEventListener("click", function () {
-        sec.reminder = { times: ["08:00"] };
-        renderSectionReminder(el, sec);
-        scheduleHistory();
-      });
-      box.appendChild(add);
-      return;
-    }
-    var head = document.createElement("div");
-    head.className = "reminder-head";
-    head.textContent = "⏰ Reminder times";
-    box.appendChild(head);
-    var hint = document.createElement("p");
-    hint.className = "reminder-hint";
-    hint.textContent = "Sitters can add these to their calendar for the days they're caring.";
-    box.appendChild(hint);
-
-    var list = document.createElement("div");
-    list.className = "reminder-times";
-    sec.reminder.times.forEach(function (t, i) {
-      var row = document.createElement("div");
-      row.className = "reminder-time-row";
-      var inp = document.createElement("input");
-      inp.type = "time"; inp.value = t; inp.className = "reminder-time q-input";
-      inp.addEventListener("change", function () {
-        sec.reminder.times[i] = inp.value || "08:00";
-        scheduleHistory();
-      });
-      var rm = document.createElement("button");
-      rm.type = "button"; rm.className = "reminder-time-x"; rm.title = "Remove time"; rm.textContent = "✕";
-      rm.addEventListener("click", function () {
-        sec.reminder.times.splice(i, 1);
-        if (!sec.reminder.times.length) delete sec.reminder;
-        renderSectionReminder(el, sec);
-        scheduleHistory();
-      });
-      row.appendChild(inp);
-      row.appendChild(rm);
-      list.appendChild(row);
-    });
-    box.appendChild(list);
-
-    var addTime = document.createElement("button");
-    addTime.type = "button"; addTime.className = "reminder-add-time";
-    addTime.textContent = "＋ Add another time";
-    addTime.addEventListener("click", function () {
-      sec.reminder.times.push("12:00");
-      renderSectionReminder(el, sec);
-      scheduleHistory();
-    });
-    box.appendChild(addTime);
   }
 
   function renderSectionMedia(el, sec) {
@@ -1610,6 +1552,99 @@
     add.addEventListener("click", function () {
       g.contacts.push({ id: uid(), label: "Name", value: "Phone or email" });
       renderRows();
+    });
+    el.appendChild(add);
+    return el;
+  }
+
+  // Daily Routine widget: scheduled care (feeding, medication, walks) with
+  // times. Stored on guide.routine.items; the published guide renders it as a
+  // timeline and lets the sitter add the whole routine to their calendar.
+  function buildRoutineEl() {
+    var g = state.guide;
+    if (!g.routine) g.routine = { items: [] };
+    var el = document.createElement("div");
+    el.className = "guide-routine";
+    el.innerHTML =
+      '<div class="routine-head">' +
+        '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
+        "<span>⏰ Daily Routine</span>" +
+      "</div>" +
+      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Sitters can add the whole routine to their calendar.</p>';
+    enableDrag(el.querySelector(".drag-handle"), el);
+    var list = document.createElement("div");
+    list.className = "routine-list";
+    el.appendChild(list);
+
+    function timeRow(item, i) {
+      var row = document.createElement("div");
+      row.className = "reminder-time-row";
+      var inp = document.createElement("input");
+      inp.type = "time"; inp.className = "q-input reminder-time"; inp.value = item.times[i];
+      inp.addEventListener("change", function () { item.times[i] = inp.value || "08:00"; scheduleHistory(); });
+      var rm = document.createElement("button");
+      rm.type = "button"; rm.className = "reminder-time-x"; rm.title = "Remove time"; rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        item.times.splice(i, 1);
+        if (!item.times.length) item.times.push("08:00");
+        renderItems(); scheduleHistory();
+      });
+      row.appendChild(inp); row.appendChild(rm);
+      return row;
+    }
+
+    function renderItems() {
+      list.innerHTML = "";
+      if (!g.routine.items.length) {
+        var empty = document.createElement("p");
+        empty.className = "routine-empty";
+        empty.textContent = "No routine yet — add feeding, medication, walks…";
+        list.appendChild(empty);
+      }
+      g.routine.items.forEach(function (item) {
+        var card = document.createElement("div");
+        card.className = "routine-item";
+
+        var top = document.createElement("div");
+        top.className = "routine-item-top";
+        var icon = document.createElement("span");
+        icon.className = "routine-item-icon"; icon.setAttribute("contenteditable", "true");
+        icon.setAttribute("aria-label", "Icon"); icon.textContent = item.icon || "";
+        bindEditable(icon, function (v) { item.icon = (v || "").replace(/\s+/g, "").slice(0, 16); scheduleHistory(); });
+        var label = document.createElement("span");
+        label.className = "routine-item-label"; label.setAttribute("contenteditable", "true");
+        label.setAttribute("aria-label", "What"); label.textContent = item.label || "";
+        bindEditable(label, function (v) { item.label = v; scheduleHistory(); });
+        var del = document.createElement("button");
+        del.type = "button"; del.className = "routine-item-del"; del.title = "Remove"; del.textContent = "✕";
+        del.addEventListener("click", function () {
+          g.routine.items = g.routine.items.filter(function (x) { return x.id !== item.id; });
+          renderItems(); scheduleHistory();
+        });
+        top.appendChild(icon); top.appendChild(label); top.appendChild(del);
+        card.appendChild(top);
+
+        var times = document.createElement("div");
+        times.className = "routine-times reminder-times";
+        item.times = item.times && item.times.length ? item.times : ["08:00"];
+        item.times.forEach(function (t, i) { times.appendChild(timeRow(item, i)); });
+        var addTime = document.createElement("button");
+        addTime.type = "button"; addTime.className = "reminder-add-time"; addTime.textContent = "＋ time";
+        addTime.addEventListener("click", function () { item.times.push("12:00"); renderItems(); scheduleHistory(); });
+        times.appendChild(addTime);
+        card.appendChild(times);
+
+        list.appendChild(card);
+      });
+    }
+    renderItems();
+
+    var add = document.createElement("button");
+    add.className = "tool-btn"; add.type = "button"; add.textContent = "＋ Add routine item";
+    add.style.marginTop = "12px";
+    add.addEventListener("click", function () {
+      g.routine.items.push({ id: uid(), icon: "💊", label: "Medication", times: ["08:00"] });
+      renderItems(); scheduleHistory();
     });
     el.appendChild(add);
     return el;

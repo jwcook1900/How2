@@ -1101,6 +1101,11 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Section media */
 .sec-media { padding: 0 22px 18px; }
 .sec-photo { width: 100%; border-radius: var(--radius-sm); margin-bottom: 12px; }
+/* A repositioned section photo is cropped into a banner the creator has panned. */
+.sec-photo.is-cropped { height: 220px; object-fit: cover; object-position: 50% 50%; }
+.sec-media-item.repositioning { cursor: grab; touch-action: none; user-select: none; }
+.sec-media-item.repositioning:active { cursor: grabbing; }
+.sec-media-item.repositioning .sec-media-x { display: none; }
 .sec-video {
   position: relative;
   width: 100%;
@@ -2254,6 +2259,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 
   /* Photos: keep but bound the height so they don't dominate a column */
   .sec-photo { max-width: 100%; max-height: 55mm; width: auto; margin: 6px 0; border-radius: 6px; }
+  /* A repositioned (cropped) photo keeps its banner crop on paper too. */
+  .sec-photo.is-cropped { width: 100%; height: 45mm; max-height: 45mm; object-fit: cover; }
 
   .video-note {
     font-size: 0.78rem; color: #333; border: 1px dashed #aaa;

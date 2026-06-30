@@ -110,7 +110,11 @@
   var firstSectionOpen = true;
   function sectionHtml(sec) {
     var media = "";
-    if (sec.photo) media += '<div class="sec-media"><img class="sec-photo" src="' + sec.photo + '" alt="" /></div>';
+    if (sec.photo) {
+      var pCls = sec.photoPos ? " is-cropped" : "";
+      var pStyle = sec.photoPos ? ' style="object-position:' + esc(sec.photoPos) + '"' : "";
+      media += '<div class="sec-media"><img class="sec-photo' + pCls + '" src="' + sec.photo + '" alt=""' + pStyle + ' /></div>';
+    }
     var vsrc = sec.videoEmbed || (sec.videoId ? "https://www.youtube.com/embed/" + sec.videoId : null);
     if (vsrc) {
       media += '<div class="sec-media"><div class="sec-video"><iframe src="' + vsrc +

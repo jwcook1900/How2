@@ -1142,54 +1142,77 @@
   // Lets the creator drag the cover photo to choose which part of it shows
   // (background-size is "cover", so the image is cropped to the banner). The
   // chosen focal point is stored as a CSS background-position on g.coverPos.
-  function startCoverReposition(coverEl) {
-    if (!state.guide.cover) return;
-    var g = state.guide;
-    // Parse the current position into x/y percentages (default centre).
-    var parts = (g.coverPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
+
+  // Shared drag-to-reposition: the user drags `frameEl` to pan a cropped image;
+  // `apply(pos)` paints the live position, `commit(pos)` stores it. `pos` is a
+  // CSS position string like "50% 30%" used for both background- and
+  // object-position. Returns nothing; cleans up after the user taps Done.
+  function beginReposition(frameEl, startPos, apply, commit) {
+    var parts = (startPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
     var posX = parseFloat(parts[0]); if (isNaN(posX)) posX = 50;
     var posY = parseFloat(parts[1]); if (isNaN(posY)) posY = 50;
 
-    coverEl.classList.add("repositioning");
+    frameEl.classList.add("repositioning");
     var hint = document.createElement("div");
     hint.className = "cover-reposition-hint";
-    hint.innerHTML = '<span>Drag the photo to reposition</span>' +
+    hint.innerHTML = '<span>Drag to reposition</span>' +
       '<button type="button" class="cover-reposition-done">Done</button>';
-    coverEl.appendChild(hint);
+    frameEl.appendChild(hint);
 
     var startX = 0, startY = 0, baseX = posX, baseY = posY, dragging = false;
-
-    function apply() { coverEl.style.backgroundPosition = posX + "% " + posY + "%"; }
     function onDown(e) {
       if (e.target.closest(".cover-reposition-done")) return;
       e.preventDefault();
       dragging = true; startX = e.clientX; startY = e.clientY; baseX = posX; baseY = posY;
-      coverEl.setPointerCapture && coverEl.setPointerCapture(e.pointerId);
+      frameEl.setPointerCapture && frameEl.setPointerCapture(e.pointerId);
     }
     function onMove(e) {
       if (!dragging) return;
-      var w = coverEl.clientWidth || 1, h = coverEl.clientHeight || 1;
+      var w = frameEl.clientWidth || 1, h = frameEl.clientHeight || 1;
       // Dragging right reveals the left of the image, so position decreases.
       posX = Math.max(0, Math.min(100, baseX - (e.clientX - startX) / w * 100));
       posY = Math.max(0, Math.min(100, baseY - (e.clientY - startY) / h * 100));
-      apply();
+      apply(posX + "% " + posY + "%");
     }
     function onUp() { dragging = false; }
     function finish() {
-      coverEl.removeEventListener("pointerdown", onDown);
-      coverEl.removeEventListener("pointermove", onMove);
-      coverEl.removeEventListener("pointerup", onUp);
-      coverEl.classList.remove("repositioning");
+      frameEl.removeEventListener("pointerdown", onDown);
+      frameEl.removeEventListener("pointermove", onMove);
+      frameEl.removeEventListener("pointerup", onUp);
+      frameEl.classList.remove("repositioning");
       if (hint.parentNode) hint.parentNode.removeChild(hint);
-      g.coverPos = posX + "% " + posY + "%";
+      commit(posX + "% " + posY + "%");
       recordHistory();
     }
-    coverEl.addEventListener("pointerdown", onDown);
-    coverEl.addEventListener("pointermove", onMove);
-    coverEl.addEventListener("pointerup", onUp);
+    frameEl.addEventListener("pointerdown", onDown);
+    frameEl.addEventListener("pointermove", onMove);
+    frameEl.addEventListener("pointerup", onUp);
     hint.querySelector(".cover-reposition-done").addEventListener("click", function (e) {
       e.stopPropagation(); finish();
     });
+  }
+
+  function startCoverReposition(coverEl) {
+    if (!state.guide.cover) return;
+    var g = state.guide;
+    beginReposition(coverEl, g.coverPos,
+      function (pos) { coverEl.style.backgroundPosition = pos; },
+      function (pos) { g.coverPos = pos; });
+  }
+
+  // Repositions a section photo. Section photos normally show in full; choosing
+  // "reposition" crops them into a banner frame the user can pan (object-fit:
+  // cover + object-position), stored on sec.photoPos.
+  function startPhotoReposition(sec, el) {
+    if (!sec.photo) return;
+    if (!sec.photoPos) sec.photoPos = "50% 50%"; // enter banner/crop mode
+    renderSectionMedia(el, sec);
+    var img = el.querySelector(".sec-photo");
+    var frame = img && img.closest(".sec-media-item");
+    if (!frame) return;
+    beginReposition(frame, sec.photoPos,
+      function (pos) { img.style.objectPosition = pos; },
+      function (pos) { sec.photoPos = pos; });
   }
 
   // Records the current DOM order of all blocks (sections / emergency / logs).
@@ -1394,7 +1417,8 @@
       img.className = "sec-photo";
       img.src = sec.photo;
       img.alt = "";
-      addItem(img, function () { sec.photo = null; }, "Remove photo");
+      if (sec.photoPos) { img.classList.add("is-cropped"); img.style.objectPosition = sec.photoPos; }
+      addItem(img, function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
     }
     var vsrc = videoSrc(sec);
     if (vsrc) {
@@ -1414,6 +1438,7 @@
       if (!file) return;
       compressImage(file, 1200, 0.72, 220000).then(function (dataUrl) {
         sec.photo = dataUrl;
+        sec.photoPos = null; // a fresh photo starts uncropped
         renderSectionMedia(el, sec);
         if (!el.classList.contains("open")) el.classList.add("open");
         recordHistory();
@@ -2249,7 +2274,11 @@
     }
     var sec = selectedRef, el = selectedEl;
     if (!el.classList.contains("open")) el.classList.add("open");
-    item("📷 Photo", function () { pickPhoto(sec, el); });
+    item("📷 " + (sec.photo ? "Change photo" : "Photo"), function () { pickPhoto(sec, el); });
+    if (sec.photo) item("↔ Reposition photo", function () { startPhotoReposition(sec, el); });
+    if (sec.photo && sec.photoPos) item("🖼 Show whole photo", function () {
+      sec.photoPos = null; renderSectionMedia(el, sec); recordHistory();
+    });
     item("🎬 Video", function () {
       openVideoModal(function (embed) { sec.videoEmbed = embed; renderSectionMedia(el, sec); el.classList.add("open"); recordHistory(); });
     });

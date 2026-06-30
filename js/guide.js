@@ -100,7 +100,7 @@
     "</div>";
 
   // Subtle hint so sitters notice the routine + calendar option.
-  var hasRoutine = guide.routine && guide.routine.items &&
+  var hasRoutine = !guide.noRoutine && guide.routine && guide.routine.items &&
     guide.routine.items.some(function (it) { return it.times && it.times.length; });
   if (hasRoutine) {
     html += '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
@@ -136,6 +136,7 @@
       "</div>";
   }
   function emergencyHtml() {
+    if (guide.noEmergency) return "";
     if (!(guide.contacts && guide.contacts.length)) return "";
     var s = '<div class="guide-emergency"><div class="em-head">🚨 Emergency Contacts</div>';
     guide.contacts.forEach(function (c) {
@@ -156,6 +157,7 @@
   // Daily Routine timeline (Morning / Afternoon / Evening) + one button to add
   // the whole routine to the sitter's calendar.
   function routineHtml() {
+    if (guide.noRoutine) return "";
     var r = guide.routine;
     if (!r || !r.items || !r.items.length) return "";
     var entries = [];

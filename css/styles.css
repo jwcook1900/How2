@@ -956,6 +956,24 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .acc-icon { font-size: 1.5rem; flex-shrink: 0; }
 .acc-title-text { flex: 1; }
+/* Remove-this-widget "✕" on every block header (sections, emergency, routine, logs) */
+.block-x {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: 0.85rem; line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.block-x:hover { background: #e2503e; color: #fff; }
+/* Keep the ✕ clear of the chevron on accordion section headers */
+.acc-header .block-x { margin-left: 6px; }
 .acc-chevron {
   transition: transform 0.3s var(--ease);
   color: var(--ink-muted);

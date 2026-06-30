@@ -962,10 +962,13 @@
       g.blockOrder = g.sections.map(function (s) { return "s:" + s.id; })
         .concat(["e"]).concat(g.logs.map(function (l) { return "l:" + l.id; }));
     }
-    if (g.blockOrder.indexOf("e") === -1) g.blockOrder.push("e");
-    // The Daily Routine block (auto-included; only shows to sitters once it has
-    // items). Default it just before the emergency contacts.
-    if (g.blockOrder.indexOf("r") === -1) {
+    // Emergency contacts: auto-included unless the creator removed the widget.
+    if (g.noEmergency) g.blockOrder = g.blockOrder.filter(function (t) { return t !== "e"; });
+    else if (g.blockOrder.indexOf("e") === -1) g.blockOrder.push("e");
+    // The Daily Routine block (auto-included unless removed; only shows to
+    // sitters once it has items). Default it just before the emergency contacts.
+    if (g.noRoutine) g.blockOrder = g.blockOrder.filter(function (t) { return t !== "r"; });
+    else if (g.blockOrder.indexOf("r") === -1) {
       var ei = g.blockOrder.indexOf("e");
       if (ei >= 0) g.blockOrder.splice(ei, 0, "r"); else g.blockOrder.push("r");
     }
@@ -988,8 +991,8 @@
       }
     });
     // Reconcile anything missing from blockOrder (e.g. legacy guides)
-    if (!rendered.e) doc.appendChild(buildEmergencyEl());
-    if (!rendered.r) doc.appendChild(buildRoutineEl());
+    if (!g.noEmergency && !rendered.e) doc.appendChild(buildEmergencyEl());
+    if (!g.noRoutine && !rendered.r) doc.appendChild(buildRoutineEl());
     g.sections.forEach(function (sec) {
       if (!rendered["s:" + sec.id]) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; }
     });
@@ -998,6 +1001,7 @@
     });
     syncBlockOrder();
     reselectAfterRender();
+    updateAddRow();
   }
 
   function findSection(id) {
@@ -1354,6 +1358,48 @@
     return wrap;
   }
 
+  // Adds a small "✕" to a block's header so the creator can remove the whole
+  // widget. Used by every block type (sections, emergency, routine, logs).
+  function addBlockRemoveBtn(headerEl, label, onRemove) {
+    var x = document.createElement("button");
+    x.type = "button";
+    x.className = "block-x";
+    x.textContent = "✕";
+    x.title = label;
+    x.setAttribute("aria-label", label);
+    // Don't let the tap toggle the accordion or start a drag.
+    x.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+    x.addEventListener("click", function (e) {
+      e.stopPropagation(); e.preventDefault(); onRemove();
+    });
+    headerEl.appendChild(x);
+    return x;
+  }
+
+  // Removes a whole widget. Sections/logs drop their data; the singleton
+  // emergency and routine widgets are flagged off (so they aren't re-added on
+  // the next render) and can be brought back from the add-block row.
+  function removeWidget(type, el, ref) {
+    var g = state.guide;
+    if (type === "section") g.sections = g.sections.filter(function (s) { return s.id !== ref.id; });
+    else if (type === "log") g.logs = g.logs.filter(function (l) { return l.id !== ref.id; });
+    else if (type === "emergency") g.noEmergency = true;
+    else if (type === "routine") g.noRoutine = true;
+    else return;
+    if (selectedEl === el) deselect();
+    if (el && el.parentNode) el.remove();
+    syncBlockOrder();   // rebuilds blockOrder from the remaining DOM (+ history)
+    updateAddRow();
+    reselectAfterRender();
+  }
+
+  // Shows the "add back" buttons for whichever singleton widgets are hidden.
+  function updateAddRow() {
+    var g = state.guide || {};
+    var e = $("addEmergency"); if (e) e.hidden = !g.noEmergency;
+    var r = $("addRoutine"); if (r) r.hidden = !g.noRoutine;
+  }
+
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
     el.className = "guide-section" + (openFirst ? " open" : "");
@@ -1380,6 +1426,7 @@
       el.classList.toggle("open");
     });
     enableDrag(el.querySelector(".drag-handle"), el);
+    addBlockRemoveBtn(header, "Remove this section", function () { removeWidget("section", el, sec); });
 
     bindEditable(el.querySelector(".acc-title-text"), function (v) { sec.title = v; });
     bindEditable(el.querySelector(".acc-icon"), function (v) {
@@ -1593,6 +1640,7 @@
         "<span>🚨 Emergency Contacts</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
+    addBlockRemoveBtn(el.querySelector(".em-head"), "Remove emergency contacts", function () { removeWidget("emergency", el); });
     GotItStore.applyAccent(el, g.emergencyColor);
     var list = document.createElement("div");
     list.className = "em-list";
@@ -1653,6 +1701,7 @@
       "</div>" +
       '<p class="routine-hint">Scheduled care like feeding, medication and walks. Sitters can add the whole routine to their calendar.</p>';
     enableDrag(el.querySelector(".drag-handle"), el);
+    addBlockRemoveBtn(el.querySelector(".routine-head"), "Remove daily routine", function () { removeWidget("routine", el); });
     var list = document.createElement("div");
     list.className = "routine-list";
     el.appendChild(list);
@@ -1741,6 +1790,7 @@
         '<span class="log-icon">📓</span> <span contenteditable="true" class="log-title">' + esc(log.title) + "</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
+    addBlockRemoveBtn(el.querySelector(".log-head"), "Remove this log", function () { removeWidget("log", el, log); });
     bindEditable(el.querySelector(".log-title"), function (v) { log.title = v; });
     GotItStore.applyAccent(el, log.color);
 
@@ -2342,6 +2392,12 @@
   });
   $("addSection").addEventListener("click", addSection);
   $("addLog").addEventListener("click", addLog);
+  $("addEmergency").addEventListener("click", function () {
+    state.guide.noEmergency = false; renderGuideEditor();
+  });
+  $("addRoutine").addEventListener("click", function () {
+    state.guide.noRoutine = false; renderGuideEditor();
+  });
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
 

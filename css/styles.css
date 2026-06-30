@@ -2445,3 +2445,38 @@ ul { margin: 0; padding: 0; list-style: none; }
   .rem-actions { flex-direction: column-reverse; }
   .rem-actions .btn { width: 100%; }
 }
+
+/* ============================================================
+   Daily Routine widget — editor + sitter timeline
+   ============================================================ */
+.guide-routine {
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--shadow-sm);
+}
+.routine-head { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; }
+.routine-hint { font-size: 0.85rem; color: var(--ink-muted); margin: 4px 0 12px; }
+
+/* Editor: routine items */
+.routine-list { display: flex; flex-direction: column; gap: 10px; }
+.routine-empty { color: var(--ink-muted); font-size: 0.9rem; margin: 4px 0; }
+.routine-item { background: var(--bg-tint); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.routine-item-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.routine-item-icon { font-size: 1.3rem; min-width: 1.4em; text-align: center; cursor: text; outline: none; }
+.routine-item-icon:empty::before { content: "＋"; opacity: 0.4; }
+.routine-item-label { font-weight: 700; flex: 1; min-width: 0; cursor: text; outline: none; }
+.routine-item-icon:focus, .routine-item-label:focus { outline: 2px dashed var(--coral); border-radius: 6px; }
+.routine-item-del { border: none; background: transparent; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; padding: 4px; }
+.routine-item-del:hover { color: #C0392B; }
+.routine-times { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Sitter: routine timeline */
+.routine-period { margin-top: 12px; }
+.routine-period-label { font-weight: 700; color: var(--ink-soft); font-size: 0.9rem; margin-bottom: 4px; }
+.routine-entry { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.routine-time { font-weight: 700; min-width: 78px; color: var(--coral-dark); font-variant-numeric: tabular-nums; }
+.routine-emoji { font-size: 1.2rem; flex: none; }
+.routine-label { color: var(--ink); overflow-wrap: anywhere; }
+
+/* Modal: read-only routine summary */
+.rem-summary { background: var(--bg-tint); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
+.rem-summary-row { font-size: 0.9rem; color: var(--ink-soft); padding: 3px 0; }

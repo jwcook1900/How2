@@ -112,9 +112,6 @@
     }
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
-    var remind = (sec.reminder && sec.reminder.times && sec.reminder.times.length)
-      ? '<button class="reminder-cal-btn no-print" data-remind="' + esc(sec.id) + '">📅 Add reminders to my calendar</button>'
-      : "";
     return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
           (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
@@ -123,7 +120,7 @@
         "</button>" +
         '<div class="acc-body"><div class="acc-body-inner">' +
           '<div class="acc-content">' + GotItStore.renderBody(sec.body) + "</div>" +
-          media + remind +
+          media +
         "</div></div>" +
       "</div>";
   }
@@ -136,6 +133,47 @@
           '<span class="contact-value">' + linkify(c.value) + "</span>" +
         "</div>";
     });
+    return s + "</div>";
+  }
+  function fmt12(t) {
+    var parts = String(t || "").split(":");
+    var h = parseInt(parts[0], 10), m = parts[1] || "00";
+    if (isNaN(h)) return t;
+    var ap = h < 12 ? "am" : "pm", h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ":" + m + ap;
+  }
+  // Daily Routine timeline (Morning / Afternoon / Evening) + one button to add
+  // the whole routine to the sitter's calendar.
+  function routineHtml() {
+    var r = guide.routine;
+    if (!r || !r.items || !r.items.length) return "";
+    var entries = [];
+    r.items.forEach(function (it) {
+      (it.times || []).forEach(function (t) { if (t) entries.push({ time: t, icon: it.icon || "", label: it.label || "" }); });
+    });
+    if (!entries.length) return "";
+    entries.sort(function (a, b) { return a.time.localeCompare(b.time); });
+    var groups = { morning: [], afternoon: [], evening: [] };
+    entries.forEach(function (e) {
+      var h = parseInt(e.time.split(":")[0], 10);
+      if (h < 12) groups.morning.push(e); else if (h < 17) groups.afternoon.push(e); else groups.evening.push(e);
+    });
+    var periods = [["morning", "🌅 Morning"], ["afternoon", "☀️ Afternoon"], ["evening", "🌙 Evening"]];
+    var s = '<div class="guide-routine"><div class="routine-head">⏰ Daily Routine</div>';
+    periods.forEach(function (p) {
+      var list = groups[p[0]];
+      if (!list.length) return;
+      s += '<div class="routine-period"><div class="routine-period-label">' + p[1] + "</div>";
+      list.forEach(function (e) {
+        s += '<div class="routine-entry">' +
+          '<span class="routine-time">' + esc(fmt12(e.time)) + "</span>" +
+          '<span class="routine-emoji">' + (e.icon ? esc(e.icon) : "•") + "</span>" +
+          '<span class="routine-label">' + esc(e.label) + "</span>" +
+          "</div>";
+      });
+      s += "</div>";
+    });
+    s += '<button class="reminder-cal-btn no-print" data-routine="1">📅 Add all reminders to my calendar</button>';
     return s + "</div>";
   }
   function logRowsHtml(log) {
@@ -176,6 +214,7 @@
   var done = {};
   order.forEach(function (tok) {
     if (tok === "e") { html += emergencyHtml(); done.e = true; }
+    else if (tok === "r") { html += routineHtml(); done.r = true; }
     else if (tok.indexOf("s:") === 0) {
       var sec = byId(guide.sections, tok.slice(2));
       if (sec) { html += sectionHtml(sec); done[tok] = true; }
@@ -187,6 +226,7 @@
   // Reconcile anything missing from the order
   (guide.sections || []).forEach(function (sec) { if (!done["s:" + sec.id]) html += sectionHtml(sec); });
   if (!done.e) html += emergencyHtml();
+  if (!done.r) html += routineHtml();
   (guide.logs || []).forEach(function (log) { if (!done["l:" + log.id]) html += logHtml(log); });
 
   doc.innerHTML = html;
@@ -226,12 +266,11 @@
     });
   });
 
-  // "Add to my calendar" buttons on sections that have a reminder schedule.
-  doc.querySelectorAll(".reminder-cal-btn").forEach(function (btn) {
+  // "Add all reminders to my calendar" on the Daily Routine widget.
+  doc.querySelectorAll(".reminder-cal-btn[data-routine]").forEach(function (btn) {
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
-      var sec = byId(guide.sections, btn.getAttribute("data-remind"));
-      if (sec) openReminderModal(sec, guide);
+      openRoutineModal(guide);
     });
   });
 
@@ -340,6 +379,8 @@
     return String(s == null ? "" : s)
       .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
   }
+  // opts.events: [{ summary, time }]. One daily-recurring VEVENT (with an alert)
+  // per event, from startDate to endDate.
   function buildICS(opts) {
     function dtLocal(dateStr, timeStr) {
       return dateStr.replace(/-/g, "") + "T" + (timeStr || "00:00").replace(/:/g, "") + "00";
@@ -351,12 +392,12 @@
     }
     var until = opts.endDate.replace(/-/g, "") + "T235959";
     var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GotIt Guides//Care Reminders//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
-    opts.times.forEach(function (t, i) {
+    opts.events.forEach(function (ev, i) {
       var uid = Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
-      L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(opts.startDate, t),
-        "DURATION:PT10M", "RRULE:FREQ=DAILY;UNTIL=" + until, "SUMMARY:" + escICS(opts.summary));
+      L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(opts.startDate, ev.time),
+        "DURATION:PT10M", "RRULE:FREQ=DAILY;UNTIL=" + until, "SUMMARY:" + escICS(ev.summary));
       if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
-      L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(opts.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
+      L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(ev.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
     });
     L.push("END:VCALENDAR");
     return L.join("\r\n");
@@ -376,9 +417,22 @@
     var m = document.getElementById("remModal");
     if (m && m.parentNode) m.parentNode.removeChild(m);
   }
-  function openReminderModal(sec, guide) {
+  function openRoutineModal(guide) {
     closeReminderModal();
-    var times = (sec.reminder.times || []).slice();
+    var r = guide.routine || { items: [] };
+    function f12(t) {
+      var pp = String(t || "").split(":"); var h = parseInt(pp[0], 10), m = pp[1] || "00";
+      if (isNaN(h)) return t; var ap = h < 12 ? "am" : "pm", h12 = h % 12 || 12; return h12 + ":" + m + ap;
+    }
+    function buildEvents() {
+      var events = [];
+      (r.items || []).forEach(function (it) {
+        (it.times || []).forEach(function (t) {
+          if (t) events.push({ summary: (it.icon ? it.icon + " " : "") + (it.label || "Reminder") + " · " + (guide.title || "GotIt guide"), time: t });
+        });
+      });
+      return events;
+    }
 
     var overlay = document.createElement("div");
     overlay.className = "rem-modal"; overlay.id = "remModal";
@@ -394,10 +448,20 @@
 
     var h = document.createElement("h3");
     h.className = "rem-title";
-    h.textContent = "Add " + (sec.title || "reminders") + " to your calendar";
+    h.textContent = "Add the daily routine to your calendar";
     var p = document.createElement("p");
     p.className = "rem-lead";
-    p.textContent = "Choose the days you're caring and we'll add a daily reminder at each time, with an alert.";
+    p.textContent = "Pick the days you're caring and we'll add every reminder, each with an alert.";
+
+    // Read-only summary of what's being added.
+    var summary = document.createElement("div");
+    summary.className = "rem-summary";
+    (r.items || []).forEach(function (it) {
+      if (!(it.times && it.times.length)) return;
+      var row = document.createElement("div"); row.className = "rem-summary-row";
+      row.textContent = (it.icon ? it.icon + " " : "") + (it.label || "") + " — " + it.times.map(f12).join(", ");
+      summary.appendChild(row);
+    });
 
     function field(labelText, input) {
       var w = document.createElement("div"); w.className = "rem-field";
@@ -412,25 +476,6 @@
     dates.appendChild(field("From", start));
     dates.appendChild(field("To", end));
 
-    var timesLabel = document.createElement("label");
-    timesLabel.className = "rem-sublabel"; timesLabel.textContent = "Times each day";
-    var timesWrap = document.createElement("div"); timesWrap.className = "rem-times";
-    function renderTimes() {
-      timesWrap.innerHTML = "";
-      times.forEach(function (t, i) {
-        var row = document.createElement("div"); row.className = "rem-time-row";
-        var inp = document.createElement("input"); inp.type = "time"; inp.className = "q-input"; inp.value = t;
-        inp.addEventListener("change", function () { times[i] = inp.value || "08:00"; });
-        var rm = document.createElement("button"); rm.type = "button"; rm.className = "rem-time-x"; rm.textContent = "✕";
-        rm.addEventListener("click", function () { times.splice(i, 1); renderTimes(); });
-        row.appendChild(inp); row.appendChild(rm); timesWrap.appendChild(row);
-      });
-    }
-    renderTimes();
-    var addT = document.createElement("button");
-    addT.type = "button"; addT.className = "rem-add-time"; addT.textContent = "＋ Add time";
-    addT.addEventListener("click", function () { times.push("12:00"); renderTimes(); });
-
     var note = document.createElement("p"); note.className = "rem-note"; note.hidden = true;
     var actions = document.createElement("div"); actions.className = "rem-actions";
     var cancel = document.createElement("button");
@@ -439,21 +484,19 @@
     var go = document.createElement("button");
     go.type = "button"; go.className = "btn btn-primary btn-sm"; go.textContent = "Add to my calendar";
     go.addEventListener("click", function () {
-      var ts = times.filter(Boolean);
-      if (!ts.length) { note.hidden = false; note.className = "rem-note err"; note.textContent = "Add at least one time."; return; }
+      var events = buildEvents();
+      if (!events.length) { note.hidden = false; note.className = "rem-note err"; note.textContent = "This routine has no times yet."; return; }
       if (start.value && end.value && end.value < start.value) {
         note.hidden = false; note.className = "rem-note err"; note.textContent = "The end date is before the start date."; return;
       }
       var liveUrl = slug ? (location.origin + "/g/" + encodeURIComponent(slug)) : location.href;
-      var summary = (sec.icon ? sec.icon + " " : "") + (sec.title || "Reminder") + " · " + (guide.title || "GotIt guide");
       var ics = buildICS({
-        summary: summary,
+        events: events,
         description: "From your GotIt guide: " + liveUrl,
-        times: ts.sort(),
         startDate: start.value || isoFromToday(0),
         endDate: end.value || start.value || isoFromToday(6)
       });
-      downloadICS(slugifyName(sec.title) + "-reminders.ics", ics);
+      downloadICS(slugifyName(guide.title) + "-routine.ics", ics);
       note.hidden = false; note.className = "rem-note ok";
       note.textContent = "Opening your calendar… confirm there to add the reminders.";
       go.disabled = true;
@@ -462,8 +505,8 @@
     actions.appendChild(cancel); actions.appendChild(go);
 
     card.appendChild(x); card.appendChild(h); card.appendChild(p);
+    if (summary.children.length) card.appendChild(summary);
     card.appendChild(dates);
-    card.appendChild(timesLabel); card.appendChild(timesWrap); card.appendChild(addT);
     card.appendChild(actions); card.appendChild(note);
     overlay.appendChild(backdrop); overlay.appendChild(card);
     document.body.appendChild(overlay);

@@ -247,6 +247,7 @@
       coverEl.classList.add("has-cover");
       coverEl.style.backgroundImage =
         "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + guide.cover + ")";
+      coverEl.style.backgroundPosition = guide.coverPos || "center";
     }
   } else if (guide.coverColor) {
     GotItStore.applyCoverAccent(coverEl, guide.coverColor);

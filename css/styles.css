@@ -1965,6 +1965,8 @@ ul { margin: 0; padding: 0; list-style: none; }
   background: var(--bg-tint);
 }
 .start-emoji { font-size: 2.2rem; line-height: 1; }
+/* Custom modern-mic icon (Talk it out) — brand-coloured, sized like an emoji */
+.start-emoji .mic-modern { display: block; width: 1em; height: 1em; color: var(--coral); }
 .start-name { font-weight: 700; font-size: 1.12rem; }
 .start-desc { font-size: 0.9rem; color: var(--ink-muted); line-height: 1.45; }
 

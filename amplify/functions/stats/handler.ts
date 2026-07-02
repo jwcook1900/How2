@@ -31,6 +31,10 @@ export const handler = async (event: any) => {
 
     let publishes = 0, views = 0, shares = 0;
     const viewsBySlug: Record<string, number> = {};
+    // How guides are started (totals) and which features they use (distinct
+    // guides — a Set of slugs per feature, so re-publishes don't double-count).
+    const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0 };
+    const featSlugs: Record<string, Set<string>> = {};
     let startKey: Record<string, any> | undefined = undefined;
     do {
       const res: any = await ddb.send(new ScanCommand({
@@ -40,13 +44,19 @@ export const handler = async (event: any) => {
         ExclusiveStartKey: startKey,
       }));
       for (const item of res.Items || []) {
-        const kind = item.kind && item.kind.S;
+        const kind = (item.kind && item.kind.S) || "";
         const slug = (item.slug && item.slug.S) || "";
         if (kind === "publish") publishes++;
         else if (kind === "share") shares++;
         else if (kind === "view") {
           views++;
           if (slug) viewsBySlug[slug] = (viewsBySlug[slug] || 0) + 1;
+        } else if (kind.indexOf("start_") === 0) {
+          const m = kind.slice(6);
+          if (m in startMethods) startMethods[m]++;
+        } else if (kind.indexOf("feat_") === 0) {
+          const f = kind.slice(5);
+          (featSlugs[f] || (featSlugs[f] = new Set())).add(slug || "?" + Math.random());
         }
       }
       startKey = res.LastEvaluatedKey;
@@ -57,7 +67,10 @@ export const handler = async (event: any) => {
       .sort((a, b) => b.views - a.views)
       .slice(0, 10);
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides }) };
+    const features: Record<string, number> = {};
+    for (const f of Object.keys(featSlugs)) features[f] = featSlugs[f].size;
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

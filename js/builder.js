@@ -361,6 +361,7 @@
   // (dictation fills the textarea), which works reliably on iOS + Android.
   function revealImport(mode) {
     var talk = mode === "talk";
+    GotItStore.event("start_" + (talk ? "talk" : "paste")); // analytics (best-effort)
     $("startTalk").classList.toggle("active", talk);
     $("startPaste").classList.toggle("active", !talk);
     $("startScratch").classList.remove("active");
@@ -381,6 +382,7 @@
   }
 
   function startFromScratch() {
+    GotItStore.event("start_scratch"); // analytics (best-effort)
     state.qIndex = 0;
     renderQuestion();
     showStep(2);
@@ -2059,6 +2061,7 @@
       var firstPublish = !state.created;
       state.created = true;
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
+      logFeatureUsage(g, locked); // which features this guide uses (deduped by slug)
       renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
       touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
@@ -2594,6 +2597,20 @@
   }
   // Count a "share" when the link is copied or a share channel is used (best-effort).
   function logShare() { if (state.guide) GotItStore.event("share", state.guide.slug); }
+
+  // Fires a "feat_<name>" analytics event (tagged with the guide slug) for each
+  // feature this guide uses, so the stats page can count distinct guides per
+  // feature. Best-effort; the stats Lambda dedupes by slug across re-publishes.
+  function logFeatureUsage(g, locked) {
+    var feats = [];
+    if (g.cover) feats.push("cover");
+    if ((g.sections || []).some(function (s) { return s.photo; })) feats.push("photo");
+    if ((g.sections || []).some(function (s) { return s.videoEmbed || s.videoId; })) feats.push("video");
+    if (g.routine && (g.routine.items || []).some(function (it) { return it.times && it.times.length; })) feats.push("routine");
+    if ((g.logs || []).length) feats.push("log");
+    if (locked) feats.push("lock");
+    feats.forEach(function (f) { GotItStore.event("feat_" + f, g.slug); });
+  }
   ["shareNative", "shareWhatsapp", "shareSms", "shareEmail"].forEach(function (id) {
     if ($(id)) $(id).addEventListener("click", logShare);
   });

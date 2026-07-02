@@ -938,21 +938,40 @@
     var doc = $("guideDoc");
     doc.innerHTML = "";
 
-    // Cover
+    // Cover. The emoji is shown unless the creator dismissed it (the "＋" add-
+    // icon hint won't nag once dismissed). Title + subtitle live in a .cover-text
+    // block that can be nudged up/down (g.coverTextY) while staying centred.
     var cover = document.createElement("div");
     cover.className = "guide-cover";
+    var emojiHtml = g.coverEmojiOff ? "" :
+      '<span class="cover-emoji" contenteditable="true" data-bind="emoji" role="textbox" aria-label="Cover icon — type an emoji, or backspace to remove it">' + esc(g.emoji || "") + "</span>";
     cover.innerHTML =
-      '<span class="cover-emoji" contenteditable="true" data-bind="emoji" role="textbox" aria-label="Cover icon — type an emoji, or backspace to remove it">' + esc(g.emoji || "") + "</span>" +
-      '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
-      '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>";
+      '<div class="cover-text">' + emojiHtml +
+        '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
+        '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
+      "</div>" +
+      '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>';
+    var textEl = cover.querySelector(".cover-text");
+    if (g.coverTextY) textEl.style.transform = "translateY(" + g.coverTextY + "px)";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
     bindEditable(cover.querySelector('[data-bind="subtitle"]'), function (v) { g.subtitle = v; });
-    // The cover icon is now editable: type/paste an emoji to change it, or
-    // backspace it away to remove it entirely (handy when you've set a photo).
-    bindEditable(cover.querySelector('[data-bind="emoji"]'), function (v) {
+    // The cover icon is editable: type/paste an emoji to change it, or backspace
+    // it away. The ✕ removes it outright and stops the "＋" add-icon hint.
+    var emojiEl = cover.querySelector('[data-bind="emoji"]');
+    if (emojiEl) bindEditable(emojiEl, function (v) {
       g.emoji = (v || "").replace(/\s+/g, "").slice(0, 16);
       cover.classList.toggle("no-emoji", !g.emoji); // re-flow the title to the top when removed
       scheduleHistory();
+    });
+    var emojiX = cover.querySelector(".cover-emoji-x");
+    if (g.coverEmojiOff) emojiX.hidden = true;
+    emojiX.addEventListener("click", function (e) {
+      e.stopPropagation();
+      g.emoji = ""; g.coverEmojiOff = true;
+      var sp = cover.querySelector(".cover-emoji"); if (sp) sp.remove();
+      cover.classList.add("no-emoji");
+      emojiX.hidden = true;
+      recordHistory();
     });
     applyCover(cover, g);
     doc.appendChild(cover);
@@ -1202,6 +1221,53 @@
     beginReposition(coverEl, g.coverPos,
       function (pos) { coverEl.style.backgroundPosition = pos; },
       function (pos) { g.coverPos = pos; });
+  }
+
+  // Drag the cover title/subtitle vertically (horizontal stays centred). Stored
+  // as a pixel offset on g.coverTextY and applied to the .cover-text block.
+  function startCoverTextMove(coverEl) {
+    var g = state.guide;
+    var textEl = coverEl.querySelector(".cover-text");
+    if (!textEl) return;
+    var MAX = 110; // clamp so the text can't be dragged off the cover
+    var y = Math.max(-MAX, Math.min(MAX, g.coverTextY || 0));
+
+    coverEl.classList.add("repositioning");
+    var hint = document.createElement("div");
+    hint.className = "cover-reposition-hint";
+    hint.innerHTML = '<span>Drag the title up or down</span>' +
+      '<button type="button" class="cover-reposition-done">Done</button>';
+    coverEl.appendChild(hint);
+
+    var startY = 0, base = y, dragging = false;
+    function apply() { textEl.style.transform = "translateY(" + y + "px)"; }
+    function onDown(e) {
+      if (e.target.closest(".cover-reposition-done")) return;
+      e.preventDefault();
+      dragging = true; startY = e.clientY; base = y;
+      coverEl.setPointerCapture && coverEl.setPointerCapture(e.pointerId);
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      y = Math.max(-MAX, Math.min(MAX, base + (e.clientY - startY)));
+      apply();
+    }
+    function onUp() { dragging = false; }
+    function finish() {
+      coverEl.removeEventListener("pointerdown", onDown);
+      coverEl.removeEventListener("pointermove", onMove);
+      coverEl.removeEventListener("pointerup", onUp);
+      coverEl.classList.remove("repositioning");
+      if (hint.parentNode) hint.parentNode.removeChild(hint);
+      g.coverTextY = y;
+      recordHistory();
+    }
+    coverEl.addEventListener("pointerdown", onDown);
+    coverEl.addEventListener("pointermove", onMove);
+    coverEl.addEventListener("pointerup", onUp);
+    hint.querySelector(".cover-reposition-done").addEventListener("click", function (e) {
+      e.stopPropagation(); finish();
+    });
   }
 
   // Repositions a section photo. Section photos normally show in full; choosing
@@ -2320,6 +2386,11 @@
       item("📸 " + (state.guide.cover ? "Change photo" : "Add a photo"), function () { pickCover(selectedEl); });
       if (state.guide.cover) item("↔ Reposition photo", function () { startCoverReposition(selectedEl); });
       if (state.guide.cover) item("🗑 Remove photo", function () { state.guide.cover = null; state.guide.coverPos = null; applyCover(selectedEl, state.guide); recordHistory(); });
+      item("↕ Move title up/down", function () { startCoverTextMove(selectedEl); });
+      if (state.guide.coverEmojiOff) item("😀 Add cover icon", function () {
+        state.guide.coverEmojiOff = false; renderGuideEditor();
+        var sp = $("guideDoc").querySelector(".cover-emoji"); if (sp) sp.focus();
+      });
       return;
     }
     var sec = selectedRef, el = selectedEl;

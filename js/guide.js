@@ -92,11 +92,15 @@
   var html = "";
 
   // Cover
+  var coverTextY = Math.max(-110, Math.min(110, Number(guide.coverTextY) || 0));
+  var coverTextStyle = coverTextY ? ' style="transform:translateY(' + coverTextY + 'px)"' : "";
   html +=
     '<div class="guide-cover">' +
-      (guide.emoji ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "") +
-      '<div class="cover-title">' + esc(guide.title) + "</div>" +
-      '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
+      '<div class="cover-text"' + coverTextStyle + ">" +
+        (guide.emoji ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "") +
+        '<div class="cover-title">' + esc(guide.title) + "</div>" +
+        '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
+      "</div>" +
     "</div>";
 
   // Subtle hint so sitters notice the routine + calendar option.

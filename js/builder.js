@@ -341,6 +341,7 @@
     renderPasteAttach();
     var panel = $("pastePanel");
     if (panel) panel.setAttribute("hidden", "");
+    $("startTalk").classList.remove("active");
     $("startPaste").classList.remove("active");
     $("startScratch").classList.remove("active");
     $("pasteText").value = "";
@@ -351,16 +352,29 @@
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
     if (autoPasteIntent) {
       autoPasteIntent = false;
-      revealPaste();
+      revealImport("paste");
     }
   }
 
-  function revealPaste() {
-    $("startPaste").classList.add("active");
+  // Opens the shared import panel. "talk" and "paste" feed the same AI-organise
+  // pipeline — "talk" just reframes the copy to invite the phone keyboard's mic
+  // (dictation fills the textarea), which works reliably on iOS + Android.
+  function revealImport(mode) {
+    var talk = mode === "talk";
+    $("startTalk").classList.toggle("active", talk);
+    $("startPaste").classList.toggle("active", !talk);
     $("startScratch").classList.remove("active");
+    var help = $("pasteHelp");
+    var ta = $("pasteText");
+    if (talk) {
+      help.textContent = "Tap the 🎙️ mic on your phone's keyboard and just talk — describe their day and the must-knows. GotIt Guides will turn it into a clean, organised guide.";
+      ta.placeholder = 'Tap the keyboard mic and talk… e.g. "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234, and he\'s scared of the vacuum…"';
+    } else {
+      help.textContent = "Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.";
+      ta.placeholder = "Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…";
+    }
     $("pastePanel").removeAttribute("hidden");
     setTimeout(function () {
-      var ta = $("pasteText");
       ta.focus();
       ta.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 60);
@@ -2436,7 +2450,8 @@
 
   // Start chooser: paste existing notes vs start from scratch
   $("startScratch").addEventListener("click", startFromScratch);
-  $("startPaste").addEventListener("click", revealPaste);
+  $("startPaste").addEventListener("click", function () { revealImport("paste"); });
+  $("startTalk").addEventListener("click", function () { revealImport("talk"); });
   $("startBack").addEventListener("click", function () { showStep(1); });
   // Either picker (photos or a file) appends to the import attachment list.
   var MAX_IMPORT_FILES = 10;

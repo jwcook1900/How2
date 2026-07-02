@@ -875,9 +875,31 @@ ul { margin: 0; padding: 0; list-style: none; }
 .guide-cover.has-cover .cover-sub {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
 }
-/* Drag-to-reposition the cover photo */
+/* Title + subtitle block — full width so text stays centred; nudged vertically
+   via an inline translateY (g.coverTextY). */
+.cover-text { width: 100%; }
+/* Editor-only ✕ to remove the cover icon (and stop the "＋" add-icon hint). */
+.cover-emoji-x {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 26px; height: 26px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  font-size: 0.8rem; line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.cover-emoji-x:hover { background: rgba(0, 0, 0, 0.52); }
+.cover-emoji-x[hidden] { display: none; }
+/* Drag-to-reposition the cover photo / move the title */
 .guide-cover.repositioning { cursor: grab; touch-action: none; user-select: none; }
 .guide-cover.repositioning:active { cursor: grabbing; }
+.guide-cover.repositioning .cover-emoji-x { display: none; }
 .guide-cover.repositioning .cover-emoji,
 .guide-cover.repositioning .cover-title,
 .guide-cover.repositioning .cover-sub { pointer-events: none; }

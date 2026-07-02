@@ -1,16 +1,9 @@
 import type { Schema } from "../../data/resource";
-import { SESClient, SendEmailCommand, SendRawEmailCommand } from "@aws-sdk/client-ses";
-
-const ses = new SESClient({});
+import { sendEmail } from "../shared/sendEmail";
 
 function esc(s: string): string {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// Wrap a base64 string to 76-char lines (RFC 2045) for the MIME body.
-function wrap76(b64: string): string {
-  return (b64.match(/.{1,76}/g) || []).join("\r\n");
 }
 
 /**
@@ -27,7 +20,7 @@ export const handler: Schema["sendFeedback"]["functionHandler"] = async (event) 
 
   if (!message) throw new Error("Empty feedback");
 
-  const from = process.env.SES_FROM;
+  const from = process.env.EMAIL_FROM || process.env.SES_FROM;
   const to = process.env.FEEDBACK_TO || "hello@gotitguides.com";
   if (!from) throw new Error("Email is not configured");
 
@@ -53,44 +46,19 @@ export const handler: Schema["sendFeedback"]["functionHandler"] = async (event) 
 
   const subject = "GotIt Guides feedback";
 
-  if (!hasImage) {
-    await ses.send(new SendEmailCommand({
-      Source: from,
-      Destination: { ToAddresses: [to] },
-      ReplyToAddresses: replyOk ? [email] : undefined,
-      Message: {
-        Subject: { Data: subject, Charset: "UTF-8" },
-        Body: { Text: { Data: text, Charset: "UTF-8" }, Html: { Data: html, Charset: "UTF-8" } },
-      },
-    }));
-    return { ok: true };
-  }
-
-  // Raw MIME: multipart/mixed [ multipart/alternative(text, html), image attachment ].
+  // Resend takes attachments natively (base64 content), so the screenshot is
+  // just another field — no hand-rolled MIME needed.
   const ext = imageType === "image/png" ? "png" : imageType === "image/webp" ? "webp" : "jpg";
-  const mixed = "mixed_" + Date.now();
-  const alt = "alt_" + Date.now();
-  const raw =
-    "From: " + from + "\r\n" +
-    "To: " + to + "\r\n" +
-    (replyOk ? "Reply-To: " + email + "\r\n" : "") +
-    "Subject: " + subject + "\r\n" +
-    "MIME-Version: 1.0\r\n" +
-    'Content-Type: multipart/mixed; boundary="' + mixed + '"\r\n\r\n' +
-    "--" + mixed + "\r\n" +
-    'Content-Type: multipart/alternative; boundary="' + alt + '"\r\n\r\n' +
-    "--" + alt + "\r\n" +
-    "Content-Type: text/plain; charset=UTF-8\r\n\r\n" + text + "\r\n\r\n" +
-    "--" + alt + "\r\n" +
-    "Content-Type: text/html; charset=UTF-8\r\n\r\n" + html + "\r\n\r\n" +
-    "--" + alt + "--\r\n\r\n" +
-    "--" + mixed + "\r\n" +
-    "Content-Type: " + imageType + '; name="screenshot.' + ext + '"\r\n' +
-    "Content-Transfer-Encoding: base64\r\n" +
-    'Content-Disposition: attachment; filename="screenshot.' + ext + '"\r\n\r\n' +
-    wrap76(image) + "\r\n\r\n" +
-    "--" + mixed + "--\r\n";
-
-  await ses.send(new SendRawEmailCommand({ RawMessage: { Data: Buffer.from(raw, "utf-8") } }));
+  await sendEmail({
+    from,
+    to,
+    subject,
+    text,
+    html,
+    replyTo: replyOk ? email : undefined,
+    attachments: hasImage
+      ? [{ filename: "screenshot." + ext, content: image, contentType: imageType }]
+      : undefined,
+  });
   return { ok: true };
 };

@@ -1,7 +1,5 @@
 import type { Schema } from "../../data/resource";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-
-const ses = new SESClient({});
+import { sendEmail } from "../shared/sendEmail";
 
 function esc(s: string): string {
   return String(s == null ? "" : s)
@@ -22,7 +20,7 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
   const emoji = (event.arguments.emoji || "📘").slice(0, 8);
   const password = (event.arguments.password || "").slice(0, 200);
 
-  const from = process.env.SES_FROM;
+  const from = process.env.EMAIL_FROM || process.env.SES_FROM;
   if (!from) throw new Error("Email is not configured");
 
   // Validate inputs (also guards against header injection via the address).
@@ -78,19 +76,13 @@ export const handler: Schema["sendLinks"]["functionHandler"] = async (event) => 
     '<p style="color:#999;font-size:13px;margin-top:28px">— GotIt Guides · guides people get</p>' +
     "</div>";
 
-  await ses.send(
-    new SendEmailCommand({
-      Source: from,
-      Destination: { ToAddresses: [email] },
-      Message: {
-        Subject: { Data: "Your GotIt Guides guide links — " + title, Charset: "UTF-8" },
-        Body: {
-          Text: { Data: text, Charset: "UTF-8" },
-          Html: { Data: html, Charset: "UTF-8" },
-        },
-      },
-    })
-  );
+  await sendEmail({
+    from,
+    to: email,
+    subject: "Your GotIt Guides guide links — " + title,
+    text,
+    html,
+  });
 
   return { ok: true };
 };

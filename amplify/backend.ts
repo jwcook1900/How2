@@ -1,5 +1,4 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Function as LambdaFunction, FunctionUrlAuthType, HttpMethod } from "aws-cdk-lib/aws-lambda";
 import { auth } from "./auth/resource";
 import { data } from "./data/resource";
@@ -10,8 +9,8 @@ import { statsFn } from "./functions/stats/resource";
 import { videoFn } from "./functions/video/resource";
 
 /**
- * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), an
- * SES-backed email sender (emailFn) for the "email me my links" option, a
+ * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), a
+ * Resend-backed email sender (emailFn) for the "email me my links" option, a
  * feedback emailer (feedbackFn), and a first-party analytics reader (statsFn).
  * Auth and image storage (S3) come in later phases.
  */
@@ -31,15 +30,8 @@ const backend = defineBackend({
 // After deploy, read the generated domain from the Cognito console and set the
 // Google OAuth client's authorised redirect URI to <domain>/oauth2/idpresponse.
 
-// Let the email + feedback functions send through SES.
-for (const fn of [backend.emailFn, backend.feedbackFn]) {
-  fn.resources.lambda.addToRolePolicy(
-    new PolicyStatement({
-      actions: ["ses:SendEmail", "ses:SendRawEmail"],
-      resources: ["*"],
-    })
-  );
-}
+// The email + feedback functions send via Resend's HTTPS API (key injected as
+// the RESEND_API_KEY secret), so they need no AWS SES/IAM permissions.
 
 // Stats reader: read the Event table and expose a passphrase-protected URL.
 // It's a standalone Lambda URL (not a GraphQL resolver) so the data <-> function

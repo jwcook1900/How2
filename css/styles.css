@@ -1935,7 +1935,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Start chooser — paste existing notes vs start from scratch */
 .start-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 18px;
   margin-bottom: 8px;
 }

@@ -131,6 +131,7 @@ ul { margin: 0; padding: 0; list-style: none; }
    that opens a dropdown of section links. */
 .nav-menu { position: relative; }
 .nav-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -144,6 +145,19 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .nav-toggle:hover { color: var(--coral); transform: translateY(-1px); }
 .nav-toggle svg { width: 20px; height: 20px; }
+/* Alert dot when there are new sitter suggestions to see. */
+.nav-toggle.has-alert::after {
+  content: "";
+  position: absolute; top: 7px; right: 7px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--coral); border: 2px solid #fff;
+}
+.nav-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px; margin-left: 6px;
+  font-size: 0.72rem; font-weight: 800; line-height: 1;
+  color: #fff; background: var(--coral); border-radius: 999px;
+}
 .nav-dropdown {
   position: absolute;
   top: calc(100% + 10px);
@@ -155,6 +169,13 @@ ul { margin: 0; padding: 0; list-style: none; }
   border-radius: 16px;
   z-index: 60;
   animation: navpop 0.16s var(--ease);
+}
+/* Near-solid (overrides the translucent .glass, which is defined later) so the
+   menu items stay readable over the hero behind them. */
+.nav-dropdown.glass {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(26, 26, 26, 0.18);
 }
 @keyframes navpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .nav-dropdown a {

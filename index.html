@@ -44,7 +44,7 @@
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <a href="#about">About</a>
-            <a href="dashboard.html">My guides</a>
+            <a href="dashboard.html">My guides <span class="nav-badge" id="myGuidesBadge" hidden></span></a>
           </div>
         </div>
         <a href="/" class="logo" aria-label="GotIt Guides home">
@@ -439,5 +439,25 @@
   </footer>
 
   <script src="js/app.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // If signed in, badge the "My guides" link with the count of new sitter
+    // suggestions (and a dot on the menu button, visible without opening it).
+    (function () {
+      if (!window.GotItAuth || !window.GotItStore || !GotItStore.listGuideFeedback) return;
+      GotItAuth.idToken().then(function (tok) {
+        if (!tok) return;
+        return GotItStore.listGuideFeedback(tok).then(function (items) {
+          var n = (items || []).length;
+          if (!n) return;
+          var badge = document.getElementById("myGuidesBadge");
+          if (badge) { badge.textContent = n; badge.hidden = false; }
+          var toggle = document.getElementById("navToggle");
+          if (toggle) toggle.classList.add("has-alert");
+        });
+      }).catch(function () {});
+    })();
+  </script>
 </body>
 </html>

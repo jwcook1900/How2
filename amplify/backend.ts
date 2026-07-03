@@ -8,6 +8,7 @@ import { feedbackFn } from "./functions/feedback/resource";
 import { statsFn } from "./functions/stats/resource";
 import { videoFn } from "./functions/video/resource";
 import { welcomeFn } from "./functions/welcome/resource";
+import { guideFeedbackFn } from "./functions/guide-feedback/resource";
 
 /**
  * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), a
@@ -24,6 +25,7 @@ const backend = defineBackend({
   statsFn,
   videoFn,
   welcomeFn,
+  guideFeedbackFn,
 });
 
 // Note: we do NOT add a Cognito user pool domain here. Amplify already
@@ -50,4 +52,22 @@ const statsUrl = statsLambda.addFunctionUrl({
     allowedHeaders: ["content-type"],
   },
 });
-backend.addOutput({ custom: { statsFunctionUrl: statsUrl.url } });
+// Guide feedback: reads the SavedGuide table to route a sitter's feedback to the
+// guide's owner (or the team inbox). Also a standalone Lambda URL, same reason.
+const savedGuideTable = backend.data.resources.tables["SavedGuide"];
+const guideFeedbackLambda = backend.guideFeedbackFn.resources.lambda as LambdaFunction;
+guideFeedbackLambda.addEnvironment("SAVEDGUIDE_TABLE", savedGuideTable.tableName);
+savedGuideTable.grantReadData(guideFeedbackLambda);
+const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE,
+  cors: {
+    allowedOrigins: ["*"],
+    allowedMethods: [HttpMethod.POST],
+    allowedHeaders: ["content-type"],
+  },
+});
+
+backend.addOutput({ custom: {
+  statsFunctionUrl: statsUrl.url,
+  guideFeedbackFunctionUrl: guideFeedbackUrl.url,
+} });

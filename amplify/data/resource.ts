@@ -42,6 +42,10 @@ const schema = a.schema({
       emoji: a.string(),
       status: a.string(),
       locked: a.boolean(),
+      // The owner's email, so sitter feedback on the published guide can be
+      // routed to its creator. Owner-scoped (never exposed in the public guide);
+      // read server-side by the guide-feedback function.
+      ownerEmail: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 

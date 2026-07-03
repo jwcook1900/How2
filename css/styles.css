@@ -1325,6 +1325,26 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 0.9rem;
 }
 .guide-footer a { color: var(--coral); font-weight: 700; }
+/* Viewer → creator CTA on every shared free-tier guide (the growth loop) */
+.guide-cta {
+  max-width: 460px;
+  margin: 8px auto 0;
+  padding: 26px 24px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--soft, #FFF3EC), #fff);
+  border: 1px solid var(--line, #eee);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.guide-cta-eyebrow {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--coral); margin: 0;
+}
+.guide-cta-title { font-size: 1.35rem; font-weight: 800; color: var(--ink); margin: 6px 0 0; line-height: 1.25; }
+.guide-cta-sub { font-size: 0.95rem; color: var(--ink-muted); margin: 10px 0 18px; line-height: 1.5; }
+/* Override .guide-footer a (coral) so the button keeps its white label */
+.guide-footer a.guide-cta-btn { display: inline-block; color: #fff; }
+.guide-foot-mini { margin: 18px 0 0; font-size: 0.85rem; color: var(--ink-muted); }
 
 /* ---- Step 4: share ---- */
 .share-card {

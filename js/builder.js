@@ -1525,12 +1525,22 @@
   function renderSectionMedia(el, sec) {
     var media = el.querySelector(".sec-media");
     media.innerHTML = "";
-    // Each media item gets a clear "×" so you can remove just the photo or
-    // just the video without deleting the whole section.
-    function addItem(inner, onRemove, label) {
+    // Each media item gets a "×" to remove it and (when there's somewhere to put
+    // it) a "⇄" to move it to another section.
+    function addItem(inner, kind, onRemove, label) {
       var item = document.createElement("div");
       item.className = "sec-media-item";
       item.appendChild(inner);
+      if (movableTargets(kind, sec).length) {
+        var mv = document.createElement("button");
+        mv.type = "button";
+        mv.className = "sec-media-move";
+        mv.textContent = "⇄";
+        mv.title = "Move to another section";
+        mv.setAttribute("aria-label", "Move to another section");
+        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(item, kind, sec, el); });
+        item.appendChild(mv);
+      }
       var x = document.createElement("button");
       x.type = "button";
       x.className = "sec-media-x";
@@ -1547,15 +1557,84 @@
       img.src = sec.photo;
       img.alt = "";
       if (sec.photoPos) { img.classList.add("is-cropped"); img.style.objectPosition = sec.photoPos; }
-      addItem(img, function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
+      addItem(img, "photo", function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
     }
     var vsrc = videoSrc(sec);
     if (vsrc) {
       var v = document.createElement("div");
       v.className = "sec-video";
       v.innerHTML = '<iframe src="' + vsrc + '" allowfullscreen loading="lazy"></iframe>';
-      addItem(v, function () { sec.videoEmbed = null; sec.videoId = null; }, "Remove video");
+      addItem(v, "video", function () { sec.videoEmbed = null; sec.videoId = null; }, "Remove video");
     }
+    // Empty section → a gentle prompt so people notice they can add a photo or
+    // (less obviously) a video, without hunting for the dock's camera icon.
+    if (!sec.photo && !vsrc) {
+      var prompt = document.createElement("div");
+      prompt.className = "sec-media-prompt no-print";
+      var pp = document.createElement("button");
+      pp.type = "button"; pp.className = "sec-media-prompt-btn"; pp.textContent = "📷 Add a photo";
+      pp.addEventListener("click", function (e) { e.stopPropagation(); pickPhoto(sec, el); });
+      var pv = document.createElement("button");
+      pv.type = "button"; pv.className = "sec-media-prompt-btn"; pv.textContent = "🎬 Add a video";
+      pv.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openVideoModal(function (embed) { sec.videoEmbed = embed; renderSectionMedia(el, sec); el.classList.add("open"); recordHistory(); });
+      });
+      prompt.appendChild(pp); prompt.appendChild(pv);
+      media.appendChild(prompt);
+    }
+  }
+
+  // Sections a photo/video could be moved into: any other section that doesn't
+  // already hold that kind of media.
+  function movableTargets(kind, sec) {
+    return (state.guide.sections || []).filter(function (t) {
+      if (t.id === sec.id) return false;
+      return kind === "photo" ? !t.photo : !videoSrc(t);
+    });
+  }
+  function closeMoveMenu() {
+    document.removeEventListener("click", closeMoveMenu);
+    var m = document.querySelector(".media-move-menu");
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+  }
+  function openMoveMenu(item, kind, sec, srcEl) {
+    closeMoveMenu();
+    var targets = movableTargets(kind, sec);
+    if (!targets.length) return;
+    var menu = document.createElement("div");
+    menu.className = "media-move-menu";
+    var head = document.createElement("div");
+    head.className = "media-move-head";
+    head.textContent = "Move " + kind + " to…";
+    menu.appendChild(head);
+    targets.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "media-move-item";
+      b.textContent = (t.icon ? t.icon + " " : "") + (t.title || "Untitled section");
+      b.addEventListener("click", function (e) {
+        e.stopPropagation();
+        moveMedia(kind, sec, t, srcEl);
+        closeMoveMenu();
+      });
+      menu.appendChild(b);
+    });
+    item.appendChild(menu);
+    setTimeout(function () { document.addEventListener("click", closeMoveMenu); }, 0);
+  }
+  function moveMedia(kind, sec, target, srcEl) {
+    if (kind === "photo") {
+      target.photo = sec.photo; target.photoPos = sec.photoPos || null;
+      sec.photo = null; sec.photoPos = null;
+    } else {
+      target.videoEmbed = sec.videoEmbed || null; target.videoId = sec.videoId || null;
+      sec.videoEmbed = null; sec.videoId = null;
+    }
+    renderSectionMedia(srcEl, sec);
+    var tEl = $("guideDoc").querySelector('.guide-section[data-id="' + target.id + '"]');
+    if (tEl) { tEl.classList.add("open"); renderSectionMedia(tEl, target); }
+    recordHistory();
+    showToast("Moved to “" + (target.title || "section") + "”");
   }
 
   function pickPhoto(sec, el) {

@@ -1737,21 +1737,9 @@
   }
 
   // Upload a chosen video to Cloudflare Stream and add it as a section video.
-  function startVideoUpload(file) {
-    if (!file) return;
-    $("videoErr").hidden = true;
-    if (file.size > 200 * 1024 * 1024) {
-      var e = $("videoErr");
-      e.textContent = "That video is too big (max about 200MB). Try a shorter clip.";
-      e.hidden = false;
-      return;
-    }
-    var cb = videoOnAdd;
-    videoUploading = true;
-    $("videoUploadBtn").disabled = true;
-    setVideoProgress(0, "Preparing…");
-
-    GotItStore.videoUploadUrl(150).then(function (res) {
+  // Upload one file to Cloudflare Stream; resolves with its embed URL.
+  function uploadOneVideo(file, onProgress) {
+    return GotItStore.videoUploadUrl(150).then(function (res) {
       if (!res || !res.uploadURL) {
         throw new Error((res && res.error) || "Video upload isn't available right now. You can paste a link instead.");
       }
@@ -1760,9 +1748,7 @@
         form.append("file", file);
         var xhr = new XMLHttpRequest();
         xhr.open("POST", res.uploadURL, true);
-        xhr.upload.onprogress = function (ev) {
-          if (ev.lengthComputable) setVideoProgress(ev.loaded / ev.total, "Uploading… " + Math.round(ev.loaded / ev.total * 100) + "%");
-        };
+        xhr.upload.onprogress = function (ev) { if (ev.lengthComputable && onProgress) onProgress(ev.loaded / ev.total); };
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) resolve("https://iframe.videodelivery.net/" + res.uid);
           else reject(new Error("Upload failed. Please try again."));
@@ -1770,21 +1756,59 @@
         xhr.onerror = function () { reject(new Error("Upload failed. Check your connection and try again.")); };
         xhr.send(form);
       });
-    }).then(function (embedUrl) {
-      setVideoProgress(1, "Done ✓");
-      videoUploading = false;
-      $("videoModal").hidden = true;
-      videoOnAdd = null;
-      if (cb) cb(embedUrl);
-      showToast("Video added — it'll be ready to play in a few seconds.");
-    }).catch(function (err) {
+    });
+  }
+
+  // Upload one or more chosen videos (sequentially) and add each as a clip.
+  function startVideoUpload(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    var LIMIT = 200 * 1024 * 1024;
+    var tooBig = files.some(function (f) { return f.size > LIMIT; });
+    files = files.filter(function (f) { return f.size <= LIMIT; });
+    if (!files.length) {
+      var e0 = $("videoErr");
+      e0.textContent = tooBig ? "That video is too big (max about 200MB). Try a shorter clip." : "No video selected.";
+      e0.hidden = false;
+      return;
+    }
+    $("videoErr").hidden = true;
+    var cb = videoOnAdd;
+    var total = files.length, added = 0;
+    videoUploading = true;
+    $("videoUploadBtn").disabled = true;
+    setVideoProgress(0, total > 1 ? "Uploading 1 of " + total + "…" : "Preparing…");
+
+    function fail(err) {
       videoUploading = false;
       $("videoUploadBtn").disabled = false;
       setVideoProgress(null);
       var e = $("videoErr");
-      e.textContent = (err && err.message) || "Something went wrong. Please try again.";
+      e.textContent = (added ? added + " added, but the next failed: " : "") + ((err && err.message) || "Something went wrong. Please try again.");
       e.hidden = false;
-    });
+    }
+    function next(i) {
+      if (i >= files.length) {
+        setVideoProgress(1, "Done ✓");
+        videoUploading = false;
+        $("videoModal").hidden = true;
+        videoOnAdd = null;
+        showToast(added > 1
+          ? added + " videos added — they'll be ready to play shortly."
+          : "Video added — it'll be ready to play in a few seconds.");
+        return;
+      }
+      uploadOneVideo(files[i], function (frac) {
+        var lbl = total > 1
+          ? "Uploading " + (i + 1) + " of " + total + "… " + Math.round(frac * 100) + "%"
+          : "Uploading… " + Math.round(frac * 100) + "%";
+        setVideoProgress((i + frac) / total, lbl);
+      }).then(function (embedUrl) {
+        added++;
+        if (cb) cb(embedUrl);
+        next(i + 1);
+      }).catch(fail);
+    }
+    next(0);
   }
 
   /* ---------- Per-step media (photo / video) in the question flow ---------- */
@@ -2831,7 +2855,7 @@
   $("videoAdd").addEventListener("click", submitVideo);
   $("videoUrl").addEventListener("keydown", function (e) { if (e.key === "Enter") submitVideo(); });
   $("videoUploadBtn").addEventListener("click", function () { $("videoFileInput").click(); });
-  $("videoFileInput").addEventListener("change", function () { startVideoUpload(this.files[0]); });
+  $("videoFileInput").addEventListener("change", function () { startVideoUpload(this.files); });
   document.querySelectorAll("[data-vid-close]").forEach(function (el) {
     el.addEventListener("click", closeVideoModal);
   });

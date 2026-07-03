@@ -1394,6 +1394,36 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 0.9rem;
 }
 .guide-footer a { color: var(--coral); font-weight: 700; }
+
+/* Suggestion box on a published guide (sitter → creator) */
+.guide-feedback {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+.gfb-title { font-size: 1.1rem; font-weight: 800; margin: 0 0 6px; }
+.gfb-lead { color: var(--ink-muted); font-size: 0.9rem; line-height: 1.5; margin: 0 0 14px; }
+.gfb-text, .gfb-email {
+  width: 100%; font-family: inherit; font-size: 0.95rem; color: var(--ink);
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  background: var(--bg);
+}
+.gfb-text { resize: vertical; min-height: 76px; margin-bottom: 10px; }
+.gfb-email { margin-bottom: 12px; }
+.gfb-text:focus, .gfb-email:focus { outline: none; border-color: var(--coral); }
+.gfb-send {
+  font-family: inherit; font-size: 0.95rem; font-weight: 700;
+  color: #fff; background: var(--coral); border: none; border-radius: 999px;
+  padding: 12px 22px; cursor: pointer;
+}
+.gfb-send:hover:not(:disabled) { background: var(--coral-dark, #E85A2A); }
+.gfb-send:disabled { opacity: 0.7; cursor: default; }
+.gfb-note { font-size: 0.88rem; margin: 12px 0 0; }
+.gfb-note.ok { color: #1B7A4F; }
+.gfb-note.err { color: #C0392B; }
 /* Viewer → creator CTA on every shared free-tier guide (the growth loop) */
 .guide-cta {
   max-width: 460px;

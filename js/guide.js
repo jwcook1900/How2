@@ -277,7 +277,22 @@
   if (guide.videos && !done.v) html += videosHtml();
   (guide.logs || []).forEach(function (log) { if (!done["l:" + log.id]) html += logHtml(log); });
 
+  // Suggestion box: lets a sitter using the guide flag anything unclear/missing.
+  // Routed server-side to the creator (if the guide is saved to their account)
+  // or the team inbox.
+  html +=
+    '<div class="guide-feedback no-print" id="guideFeedback">' +
+      '<h3 class="gfb-title">💬 Spot something missing?</h3>' +
+      '<p class="gfb-lead">Using this guide in real life? If anything is unclear, hard to find, or could be better, send a quick note to whoever made it.</p>' +
+      '<textarea class="gfb-text" id="gfbText" rows="3" placeholder="e.g. Couldn\'t find where the spare key is kept…"></textarea>' +
+      '<input type="email" class="gfb-email" id="gfbEmail" placeholder="Your email (optional — only if you\'d like a reply)" autocomplete="email" />' +
+      '<button class="gfb-send" id="gfbSend" type="button">Send feedback</button>' +
+      '<p class="gfb-note" id="gfbNote" hidden></p>' +
+    "</div>";
+
   doc.innerHTML = html;
+
+  wireGuideFeedback(doc, guide, slug);
 
   // Cover photo (set via JS to avoid escaping the data URL in an attribute).
   // A cover photo always wins; otherwise an optional accent colour recolours it.
@@ -390,6 +405,31 @@
   }
 
   setupPrint(guide);
+  }
+
+  // Wire the "spot something missing?" suggestion box.
+  function wireGuideFeedback(doc, guide, slug) {
+    var fb = doc.querySelector("#guideFeedback");
+    if (!fb) return;
+    var send = fb.querySelector("#gfbSend");
+    var note = fb.querySelector("#gfbNote");
+    function say(kind, msg) { note.className = "gfb-note " + kind; note.textContent = msg; note.hidden = false; }
+    send.addEventListener("click", function () {
+      var msg = (fb.querySelector("#gfbText").value || "").trim();
+      var email = (fb.querySelector("#gfbEmail").value || "").trim();
+      if (!msg) { say("err", "Type a quick note first."); return; }
+      send.disabled = true; send.textContent = "Sending…"; note.hidden = true;
+      GotItStore.sendGuideFeedback({ slug: slug, title: guide.title, message: msg, email: email }).then(function (res) {
+        if (res === null) { throw new Error("offline"); }
+        fb.querySelector("#gfbText").value = "";
+        fb.querySelector("#gfbEmail").value = "";
+        send.textContent = "Sent ✓";
+        say("ok", "Thanks — your note has been sent. 🙌");
+      }).catch(function () {
+        send.disabled = false; send.textContent = "Send feedback";
+        say("err", "Couldn't send just now — please try again.");
+      });
+    });
   }
 
   // ---- Print / Save-as-PDF (browser-native; a print stylesheet reflows the

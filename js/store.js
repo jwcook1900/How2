@@ -21,7 +21,8 @@ window.GotItStore = (function () {
           return {
             url: j.data.url,
             key: j.data.api_key,
-            statsUrl: j.custom && j.custom.statsFunctionUrl
+            statsUrl: j.custom && j.custom.statsFunctionUrl,
+            guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl
           };
         }
         return null;
@@ -57,6 +58,16 @@ window.GotItStore = (function () {
       }
       return res.data;
     });
+  }
+
+  // Pull the email claim out of a Cognito id token (JWT), best-effort.
+  function emailFromIdToken(t) {
+    try {
+      var p = JSON.parse(decodeURIComponent(escape(atob(
+        String(t).split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+      ))));
+      return (p && p.email) || null;
+    } catch (e) { return null; }
   }
 
   /* ---- optional password protection (AES-GCM, key from PBKDF2) ----
@@ -167,7 +178,8 @@ window.GotItStore = (function () {
           { input: {
             slug: g.slug, editToken: g.editToken,
             title: g.title || "Untitled guide", emoji: g.emoji || "📘",
-            status: g.status || "published", locked: !!g.locked
+            status: g.status || "published", locked: !!g.locked,
+            ownerEmail: emailFromIdToken(idToken) // so sitter feedback can reach them
           } },
           idToken
         ).then(function (d) { return d.createSavedGuide; });
@@ -182,6 +194,8 @@ window.GotItStore = (function () {
         ["title", "emoji", "status", "locked"].forEach(function (k) {
           if (fields[k] !== undefined) input[k] = fields[k];
         });
+        var oe = emailFromIdToken(idToken); // keep the owner email fresh for feedback routing
+        if (oe) input.ownerEmail = oe;
         return gqlAuth(cfg,
           "mutation($input: UpdateSavedGuideInput!) { updateSavedGuide(input: $input) { id updatedAt } }",
           { input: input }, idToken
@@ -486,6 +500,27 @@ window.GotItStore = (function () {
         return gql(cfg, q, { input: { kind: kind, slug: slug || null } })
           .then(function () { return true; }, function () { return false; });
       }, function () { return false; });
+    },
+
+    // Sitter feedback left on a published guide → routed server-side to the
+    // guide's owner (if it's saved to an account) or the team inbox. Resolves
+    // { ok:true }, or null if the backend isn't available (rejects on failure).
+    sendGuideFeedback: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideFeedbackUrl) return null;
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            slug: opts.slug || "", title: opts.title || "",
+            message: opts.message || "", email: opts.email || ""
+          })
+        }).then(function (r) {
+          if (r.status === 200) return r.json();
+          throw new Error("Couldn't send feedback");
+        });
+      });
     },
 
     // Read aggregate analytics (passphrase-protected Lambda URL). Resolves with

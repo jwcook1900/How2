@@ -1149,8 +1149,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 .sec-media-move:hover { background: var(--coral); }
 .sec-media-item.repositioning .sec-media-move { display: none; }
 .media-move-menu {
-  position: absolute; top: 44px; right: 8px; z-index: 5;
+  position: fixed; z-index: 60;
   min-width: 200px; max-width: 260px;
+  max-height: 60vh; overflow-y: auto;
   padding: 6px;
   background: var(--white); border: 1px solid var(--line);
   border-radius: 12px; box-shadow: var(--shadow-lg);

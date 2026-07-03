@@ -333,9 +333,17 @@
     noteInp.addEventListener("keydown", function (e) { if (e.key === "Enter") addEntry(); });
   });
 
-  // Footer (GotIt Guides branding for free tier)
+  // Footer. On the free tier, every shared guide invites its viewer — often a
+  // sitter/carer who's never heard of us — to create their own (the growth loop).
   if (guide.branding !== false) {
-    footer.innerHTML = 'Made with <a href="index.html">GotIt Guides</a> · guides people get';
+    footer.innerHTML =
+      '<div class="guide-cta no-print">' +
+        '<p class="guide-cta-eyebrow">Made with GotIt Guides</p>' +
+        '<h3 class="guide-cta-title">Make your own care guide — free</h3>' +
+        '<p class="guide-cta-sub">Pull your routine, contacts, medication and notes into one simple link to share with any sitter, carer or guest.</p>' +
+        '<a class="btn btn-primary guide-cta-btn" href="index.html">Create your free guide →</a>' +
+      "</div>" +
+      '<p class="guide-foot-mini"><a href="index.html">GotIt Guides</a> · guides people get</p>';
   } else {
     footer.innerHTML = "";
   }

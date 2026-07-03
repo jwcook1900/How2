@@ -1,4 +1,4 @@
-import { defineFunction } from "@aws-amplify/backend";
+import { defineFunction, secret } from "@aws-amplify/backend";
 
 /**
  * Issues a one-time Cloudflare Stream "direct creator upload" URL so a guide
@@ -7,10 +7,11 @@ import { defineFunction } from "@aws-amplify/backend";
  * iPhone HEVC/.mov → H.264) and serves an embeddable player, so uploaded
  * videos play on any device.
  *
- * Configure these as branch environment variables in the Amplify console
- * (App settings → Environment variables), then redeploy:
+ * The API token is stored as an Amplify secret (App settings → Secrets), so it
+ * lives encrypted rather than as a plaintext env var:
+ *   CF_STREAM_TOKEN  a Cloudflare API token scoped to Stream:Edit
+ * The (non-secret) account id stays a branch environment variable:
  *   CF_ACCOUNT_ID    your Cloudflare account id
- *   CF_STREAM_TOKEN  an API token scoped to Stream:Edit
  *
  * Until both are set, the function returns a friendly "not configured" error
  * and the builder keeps the paste-a-link option working.
@@ -21,6 +22,6 @@ export const videoFn = defineFunction({
   timeoutSeconds: 20,
   environment: {
     CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID || "",
-    CF_STREAM_TOKEN: process.env.CF_STREAM_TOKEN || "",
+    CF_STREAM_TOKEN: secret("CF_STREAM_TOKEN"),
   },
 });

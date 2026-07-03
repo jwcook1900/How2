@@ -1136,6 +1136,48 @@ ul { margin: 0; padding: 0; list-style: none; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 .sec-media-x:hover { background: #d64545; }
+/* Move media to another section */
+.sec-media-move {
+  position: absolute; top: 8px; right: 44px; z-index: 3;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(26, 26, 26, 0.66); color: #fff;
+  font-size: 1rem; line-height: 1; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.sec-media-move:hover { background: var(--coral); }
+.sec-media-item.repositioning .sec-media-move { display: none; }
+.media-move-menu {
+  position: absolute; top: 44px; right: 8px; z-index: 5;
+  min-width: 200px; max-width: 260px;
+  padding: 6px;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: var(--shadow-lg);
+}
+.media-move-head {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ink-muted); padding: 6px 8px 4px;
+}
+.media-move-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 10px; border: none; border-radius: 8px;
+  background: none; color: var(--ink); font-family: inherit;
+  font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.media-move-item:hover { background: var(--soft); }
+/* Empty-section prompt encouraging a photo or video */
+.sec-media-prompt { display: flex; gap: 8px; flex-wrap: wrap; }
+.sec-media-prompt-btn {
+  font-family: inherit; font-size: 0.85rem; font-weight: 600;
+  color: var(--ink-muted);
+  background: var(--bg);
+  border: 1px dashed var(--line); border-radius: 999px;
+  padding: 8px 14px; cursor: pointer;
+  transition: color 0.15s var(--ease), border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.sec-media-prompt-btn:hover { color: var(--coral); border-color: var(--coral); background: var(--soft); }
 
 
 /* Section media */

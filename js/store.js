@@ -241,6 +241,29 @@ window.GotItStore = (function () {
         });
       });
     },
+    /* ---- Sitter suggestions on the dashboard (owner-scoped GuideFeedback) ---- */
+    listGuideFeedback: function (idToken) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return [];
+        return gqlAuth(cfg,
+          "query { listGuideFeedback { items { id slug title message fromEmail createdAt } } }", {}, idToken
+        ).then(function (d) {
+          var items = (d.listGuideFeedback && d.listGuideFeedback.items) || [];
+          items.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || ""); });
+          return items;
+        }, function () { return []; });
+      }, function () { return []; });
+    },
+    dismissGuideFeedback: function (idToken, id) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        return gqlAuth(cfg,
+          "mutation($input: DeleteGuideFeedbackInput!) { deleteGuideFeedback(input: $input) { id } }",
+          { input: { id: id } }, idToken
+        );
+      });
+    },
+
     deleteProfile: function (idToken, id) {
       return loadConfig().then(function (cfg) {
         if (!cfg) return null;

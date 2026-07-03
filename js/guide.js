@@ -132,6 +132,12 @@
     return s + "</div>";
   }
 
+  // A section's videos: the array (sec.videos) or a legacy single video.
+  function sectionVideos(sec) {
+    if (Array.isArray(sec.videos)) return sec.videos;
+    if (sec.videoEmbed || sec.videoId) return [{ videoEmbed: sec.videoEmbed, videoId: sec.videoId, title: sec.videoTitle }];
+    return [];
+  }
   var firstSectionOpen = true;
   function sectionHtml(sec) {
     var media = "";
@@ -140,8 +146,14 @@
       var pStyle = sec.photoPos ? ' style="object-position:' + esc(sec.photoPos) + '"' : "";
       media += '<div class="sec-media"><img class="sec-photo' + pCls + '" src="' + sec.photo + '" alt=""' + pStyle + ' /></div>';
     }
-    var vsrc = videoSrcOf(sec);
-    if (vsrc) media += videoMediaHtml(vsrc, sec.videoTitle);
+    sectionVideos(sec).forEach(function (vid) {
+      var s = videoSrcOf(vid);
+      if (s) media += videoMediaHtml(s, vid.title);
+    });
+    // The unedited "Tap to add details…" default is an editor placeholder, not
+    // real content — never show it (or an empty body) in the published guide.
+    var textOnly = (sec.body || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    var bodyHtml = (textOnly === "" || textOnly === "Tap to add details…") ? "" : GotItStore.renderBody(sec.body);
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
     return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
@@ -151,7 +163,7 @@
           '<span class="acc-chevron">▾</span>' +
         "</button>" +
         '<div class="acc-body"><div class="acc-body-inner">' +
-          '<div class="acc-content">' + GotItStore.renderBody(sec.body) + "</div>" +
+          (bodyHtml ? '<div class="acc-content">' + bodyHtml + "</div>" : "") +
           media +
         "</div></div>" +
       "</div>";

@@ -55,9 +55,12 @@ const statsUrl = statsLambda.addFunctionUrl({
 // Guide feedback: reads the SavedGuide table to route a sitter's feedback to the
 // guide's owner (or the team inbox). Also a standalone Lambda URL, same reason.
 const savedGuideTable = backend.data.resources.tables["SavedGuide"];
+const guideFeedbackTable = backend.data.resources.tables["GuideFeedback"];
 const guideFeedbackLambda = backend.guideFeedbackFn.resources.lambda as LambdaFunction;
 guideFeedbackLambda.addEnvironment("SAVEDGUIDE_TABLE", savedGuideTable.tableName);
+guideFeedbackLambda.addEnvironment("GUIDEFEEDBACK_TABLE", guideFeedbackTable.tableName);
 savedGuideTable.grantReadData(guideFeedbackLambda);
+guideFeedbackTable.grantWriteData(guideFeedbackLambda);
 const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE,
   cors: {

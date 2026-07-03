@@ -1,4 +1,5 @@
-import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, ScanCommand, PutItemCommand } from "@aws-sdk/client-dynamodb";
+import { randomUUID } from "crypto";
 import { sendEmail } from "../shared/sendEmail";
 
 const ddb = new DynamoDBClient({});
@@ -34,9 +35,11 @@ export const handler = async (event: any) => {
     const fallback = process.env.FEEDBACK_TO || "hello@gotitguides.com";
     if (!from) return { statusCode: 503, headers: HEADERS, body: JSON.stringify({ error: "not configured" }) };
 
-    // Look up the guide's owner email (server-side; never exposed to the client).
+    // Look up the guide's owner (server-side; never exposed to the client): the
+    // email to notify, and the owner identity to attach a dashboard record to.
     let to = fallback;
     let toOwner = false;
+    let ownerId = "";
     const table = process.env.SAVEDGUIDE_TABLE;
     if (table && /^[a-z0-9-]{1,80}$/.test(slug)) {
       try {
@@ -46,12 +49,17 @@ export const handler = async (event: any) => {
             TableName: table,
             FilterExpression: "slug = :s",
             ExpressionAttributeValues: { ":s": { S: slug } },
-            ProjectionExpression: "ownerEmail",
+            ProjectionExpression: "ownerEmail, #o",
+            ExpressionAttributeNames: { "#o": "owner" },
             ExclusiveStartKey: startKey,
           }));
           for (const item of res.Items || []) {
             const oe = item.ownerEmail && item.ownerEmail.S;
-            if (oe && EMAIL_RE.test(oe)) { to = oe; toOwner = true; break; }
+            if (oe && EMAIL_RE.test(oe)) {
+              to = oe; toOwner = true;
+              ownerId = (item.owner && item.owner.S) || "";
+              break;
+            }
           }
           startKey = toOwner ? undefined : res.LastEvaluatedKey;
         } while (startKey);
@@ -59,6 +67,25 @@ export const handler = async (event: any) => {
     }
 
     const replyOk = !!fromEmail && EMAIL_RE.test(fromEmail) && !/[\r\n]/.test(fromEmail);
+
+    // Store it on the creator's dashboard (owner-scoped) when we know the owner.
+    const fbTable = process.env.GUIDEFEEDBACK_TABLE;
+    if (toOwner && ownerId && fbTable) {
+      const now = new Date().toISOString();
+      const item: Record<string, any> = {
+        id: { S: randomUUID() },
+        __typename: { S: "GuideFeedback" },
+        owner: { S: ownerId },
+        slug: { S: slug },
+        title: { S: title },
+        message: { S: message },
+        createdAt: { S: now },
+        updatedAt: { S: now },
+      };
+      if (replyOk) item.fromEmail = { S: fromEmail };
+      try { await ddb.send(new PutItemCommand({ TableName: fbTable, Item: item })); } catch (e) { /* email still sent */ }
+    }
+
     const base = (process.env.APP_BASE_URL || "https://www.gotitguides.com").replace(/\/+$/, "");
     const link = base + "/g/" + encodeURIComponent(slug);
 

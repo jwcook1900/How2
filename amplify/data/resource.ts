@@ -57,6 +57,19 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.owner()]),
 
+  // A suggestion a sitter left on a creator's published guide. Written by the
+  // guide-feedback function (which sets `owner` to the creator's identity copied
+  // from their SavedGuide), so the creator sees it on their dashboard via the
+  // same owner-auth as their guides. Owner can read/dismiss; no public access.
+  GuideFeedback: a
+    .model({
+      slug: a.string(),
+      title: a.string(),
+      message: a.string(),
+      fromEmail: a.string(),
+    })
+    .authorization((allow) => [allow.owner()]),
+
   // In-app feedback from the creation journey. Create-only for the public so
   // submissions can't be listed/read back by other visitors.
   Feedback: a

@@ -16,6 +16,7 @@
   var user = null;      // { sub, email, name } from the token
   var profile = null;   // { id, displayName }
   var guides = [];      // SavedGuide rows
+  var suggestions = []; // GuideFeedback rows (sitter suggestions)
   var isNewUser = false; // true on the first sign-in (no profile yet)
 
   /* ---------- helpers ---------- */
@@ -24,6 +25,10 @@
     return "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(token);
   }
   function firstName(name) { return String(name || "").trim().split(/\s+/)[0]; }
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
   function randSuffix() { return Math.random().toString(36).slice(2, 6); }
   function randToken() {
     var a = new Uint8Array(16); window.crypto.getRandomValues(a);
@@ -316,8 +321,49 @@
   }
 
   /* ---------- render ---------- */
+  // Sitter suggestions left on the creator's published guides.
+  function renderSuggestions() {
+    var box = $("dashSuggestions");
+    if (!box) return;
+    if (!suggestions.length) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    var html = '<h2 class="dash-sug-title">💬 Suggestions from sitters' +
+      ' <span class="dash-sug-count">' + suggestions.length + "</span></h2>" +
+      '<div class="dash-sug-list">';
+    suggestions.forEach(function (s) {
+      var reply = s.fromEmail
+        ? '<a class="dash-sug-reply" href="mailto:' + esc(s.fromEmail) +
+            "?subject=" + encodeURIComponent("Re: your note on " + (s.title || "my guide")) + '">Reply</a>'
+        : "";
+      html += '<div class="dash-sug-item" data-id="' + esc(s.id) + '">' +
+        '<div class="dash-sug-main">' +
+          '<div class="dash-sug-meta"><span class="dash-sug-guide">' + esc(s.title || "A guide") +
+            "</span> · " + esc(relTime(s.createdAt)) + "</div>" +
+          '<div class="dash-sug-msg">' + esc(s.message) + "</div>" +
+          (s.fromEmail ? '<div class="dash-sug-from">from ' + esc(s.fromEmail) + "</div>" : "") +
+        "</div>" +
+        '<div class="dash-sug-actions">' + reply +
+          '<button class="dash-sug-x" type="button" title="Dismiss" aria-label="Dismiss">✕</button>' +
+        "</div>" +
+      "</div>";
+    });
+    box.innerHTML = html + "</div>";
+    Array.prototype.forEach.call(box.querySelectorAll(".dash-sug-x"), function (btn) {
+      btn.addEventListener("click", function () {
+        var item = btn.closest(".dash-sug-item");
+        var id = item.getAttribute("data-id");
+        item.style.opacity = "0.5";
+        GotItStore.dismissGuideFeedback(idTok, id).then(function () {
+          suggestions = suggestions.filter(function (s) { return s.id !== id; });
+          renderSuggestions();
+        }).catch(function () { item.style.opacity = ""; });
+      });
+    });
+  }
+
   function render() {
     applyGreeting();
+    renderSuggestions();
     var grid = $("dashGrid");
     grid.innerHTML = "";
     guides.forEach(function (g) { grid.appendChild(card(g)); });
@@ -384,9 +430,11 @@
       user = GotItAuth.getUser();
       Promise.all([
         GotItStore.getProfile(tok).catch(function () { return null; }),
-        GotItStore.listSavedGuides(tok)
+        GotItStore.listSavedGuides(tok),
+        GotItStore.listGuideFeedback(tok).catch(function () { return []; })
       ]).then(function (res) {
         profile = res[0];
+        suggestions = res[2] || [];
         // No profile yet → brand-new account. Send the one-time welcome email
         // and create a profile so it's used as the "already welcomed" guard and
         // won't fire again. The backend emails the user's own verified address.

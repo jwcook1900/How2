@@ -1017,6 +1017,9 @@
       } else if (tok === "r") {
         doc.appendChild(buildRoutineEl());
         rendered.r = true;
+      } else if (tok === "v") {
+        doc.appendChild(buildVideosEl());
+        rendered.v = true;
       } else if (tok.indexOf("s:") === 0) {
         var sec = findSection(tok.slice(2));
         if (sec) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; rendered[tok] = true; }
@@ -1028,6 +1031,7 @@
     // Reconcile anything missing from blockOrder (e.g. legacy guides)
     if (!g.noEmergency && !rendered.e) doc.appendChild(buildEmergencyEl());
     if (!g.noRoutine && !rendered.r) doc.appendChild(buildRoutineEl());
+    if (g.videos && !rendered.v) doc.appendChild(buildVideosEl());
     g.sections.forEach(function (sec) {
       if (!rendered["s:" + sec.id]) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; }
     });
@@ -1302,13 +1306,14 @@
   }
 
   // Records the current DOM order of all blocks (sections / emergency / logs).
-  var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log, .guide-routine";
+  var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log, .guide-routine, .guide-videos";
   function syncBlockOrder() {
     var order = [];
     Array.prototype.forEach.call($("guideDoc").children, function (el) {
       if (el.classList.contains("guide-section")) order.push("s:" + el.dataset.id);
       else if (el.classList.contains("guide-emergency")) order.push("e");
       else if (el.classList.contains("guide-routine")) order.push("r");
+      else if (el.classList.contains("guide-videos")) order.push("v");
       else if (el.classList.contains("guide-log")) order.push("l:" + el.dataset.id);
     });
     state.guide.blockOrder = order;
@@ -1467,6 +1472,7 @@
     else if (type === "log") g.logs = g.logs.filter(function (l) { return l.id !== ref.id; });
     else if (type === "emergency") g.noEmergency = true;
     else if (type === "routine") g.noRoutine = true;
+    else if (type === "videos") g.videos = null;
     else return;
     if (selectedEl === el) deselect();
     if (el && el.parentNode) el.remove();
@@ -1480,6 +1486,7 @@
     var g = state.guide || {};
     var e = $("addEmergency"); if (e) e.hidden = !g.noEmergency;
     var r = $("addRoutine"); if (r) r.hidden = !g.noRoutine;
+    var v = $("addVideos"); if (v) v.hidden = !!g.videos;
   }
 
   function buildSectionEl(sec, openFirst) {
@@ -1561,10 +1568,8 @@
     }
     var vsrc = videoSrc(sec);
     if (vsrc) {
-      var v = document.createElement("div");
-      v.className = "sec-video";
-      v.innerHTML = '<iframe src="' + vsrc + '" allowfullscreen loading="lazy"></iframe>';
-      addItem(v, "video", function () { sec.videoEmbed = null; sec.videoId = null; }, "Remove video");
+      var v = makeVideoEl(vsrc, sec.videoTitle, function (val) { sec.videoTitle = val; });
+      addItem(v, "video", function () { sec.videoEmbed = null; sec.videoId = null; sec.videoTitle = null; }, "Remove video");
     }
     // Empty section → a gentle prompt so people notice they can add a photo or
     // (less obviously) a video, without hunting for the dock's camera icon.
@@ -1941,6 +1946,64 @@
     return el;
   }
 
+  // Dedicated Videos widget: a gallery of clips, each with its own title. Opt-in
+  // (added from the add-block row), stored on guide.videos, block token "v".
+  function buildVideosEl() {
+    var g = state.guide;
+    if (!g.videos) g.videos = { items: [] };
+    var el = document.createElement("div");
+    el.className = "guide-videos";
+    el.innerHTML =
+      '<div class="videos-head">' +
+        '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
+        "<span>🎬 Videos</span>" +
+      "</div>" +
+      '<p class="videos-hint">Short clips — a feeding demo, the walk route, how the alarm works. Give each one a title.</p>';
+    enableDrag(el.querySelector(".drag-handle"), el);
+    addBlockRemoveBtn(el.querySelector(".videos-head"), "Remove the videos widget", function () { removeWidget("videos", el); });
+    var list = document.createElement("div");
+    list.className = "videos-list";
+    el.appendChild(list);
+
+    function renderItems() {
+      list.innerHTML = "";
+      if (!g.videos.items.length) {
+        var empty = document.createElement("p");
+        empty.className = "routine-empty";
+        empty.textContent = "No videos yet — add one below.";
+        list.appendChild(empty);
+      }
+      g.videos.items.forEach(function (item) {
+        var wrap = document.createElement("div");
+        wrap.className = "videos-item";
+        var src = videoSrc(item);
+        if (src) wrap.appendChild(makeVideoEl(src, item.title, function (val) { item.title = val; }));
+        var rm = document.createElement("button");
+        rm.type = "button"; rm.className = "sec-media-x"; rm.textContent = "×";
+        rm.title = "Remove video"; rm.setAttribute("aria-label", "Remove video");
+        rm.addEventListener("click", function () {
+          g.videos.items = g.videos.items.filter(function (x) { return x.id !== item.id; });
+          renderItems(); recordHistory();
+        });
+        wrap.appendChild(rm);
+        list.appendChild(wrap);
+      });
+    }
+    renderItems();
+
+    var add = document.createElement("button");
+    add.className = "tool-btn"; add.type = "button"; add.textContent = "＋ Add a video";
+    add.style.marginTop = "12px";
+    add.addEventListener("click", function () {
+      openVideoModal(function (embed) {
+        g.videos.items.push({ id: uid(), videoEmbed: embed, title: "" });
+        renderItems(); recordHistory();
+      });
+    });
+    el.appendChild(add);
+    return el;
+  }
+
   function buildLogEl(log) {
     var el = document.createElement("div");
     el.className = "guide-log";
@@ -2059,6 +2122,23 @@
     if (sec.videoEmbed) return sec.videoEmbed;
     if (sec.videoId) return "https://www.youtube.com/embed/" + sec.videoId;
     return null;
+  }
+
+  // A video embed with an editable title bar over its top (readable over the
+  // black/poster area; doesn't block the player once published).
+  function makeVideoEl(src, title, onTitleChange) {
+    var v = document.createElement("div");
+    v.className = "sec-video";
+    v.innerHTML = '<iframe src="' + src + '" allowfullscreen loading="lazy"></iframe>';
+    var vt = document.createElement("div");
+    vt.className = "sec-video-title";
+    vt.setAttribute("contenteditable", "true");
+    vt.setAttribute("data-ph", "Add a title…");
+    vt.setAttribute("aria-label", "Video title");
+    vt.textContent = title || "";
+    bindEditable(vt, onTitleChange);
+    v.appendChild(vt);
+    return v;
   }
 
   /* ---------- Guide code (lock) controls (step 3) ---------- */
@@ -2565,6 +2645,16 @@
   });
   $("addRoutine").addEventListener("click", function () {
     state.guide.noRoutine = false; renderGuideEditor();
+  });
+  $("addVideos").addEventListener("click", function () {
+    var g = state.guide;
+    if (!g.videos) g.videos = { items: [] };
+    if (!g.blockOrder) g.blockOrder = [];
+    if (g.blockOrder.indexOf("v") === -1) {
+      var ei = g.blockOrder.indexOf("e");
+      if (ei >= 0) g.blockOrder.splice(ei, 0, "v"); else g.blockOrder.push("v");
+    }
+    renderGuideEditor();
   });
   $("publishBtn").addEventListener("click", publish);
   $("editAgain").addEventListener("click", function () { showStep(3); });

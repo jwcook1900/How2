@@ -292,6 +292,16 @@
     });
   });
 
+  // "Daily routine inside" chip: scroll to the routine. The page has <base
+  // href="/">, so a bare href="#routine" would navigate to the home page —
+  // handle it in JS instead.
+  var routineChip = doc.querySelector(".routine-chip");
+  if (routineChip) routineChip.addEventListener("click", function (e) {
+    e.preventDefault();
+    var target = document.getElementById("routine");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
   // Interactive logs: let a viewer (sitter, carer, guest) record entries that
   // save back into the guide so everyone sees the latest.
   doc.querySelectorAll(".guide-log").forEach(function (logEl) {
@@ -416,12 +426,20 @@
       return n.getUTCFullYear() + pad2(n.getUTCMonth() + 1) + pad2(n.getUTCDate()) + "T" +
         pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + "Z";
     }
-    var until = opts.endDate.replace(/-/g, "") + "T235959";
+    // Recur daily for N days using COUNT, not UNTIL. DTSTART is a floating local
+    // time, and Apple's parser silently drops an RRULE whose UNTIL is floating —
+    // leaving only the first day. COUNT sidesteps that and is honoured everywhere.
+    function daysInclusive(a, b) {
+      var da = new Date(a + "T00:00:00"), db = new Date(b + "T00:00:00");
+      var n = Math.round((db.getTime() - da.getTime()) / 86400000) + 1;
+      return n > 0 ? n : 1;
+    }
+    var count = daysInclusive(opts.startDate, opts.endDate);
     var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GotIt Guides//Care Reminders//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
     opts.events.forEach(function (ev, i) {
       var uid = Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
       L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(opts.startDate, ev.time),
-        "DURATION:PT10M", "RRULE:FREQ=DAILY;UNTIL=" + until, "SUMMARY:" + escICS(ev.summary));
+        "DURATION:PT10M", "RRULE:FREQ=DAILY;COUNT=" + count, "SUMMARY:" + escICS(ev.summary));
       if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
       L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(ev.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
     });

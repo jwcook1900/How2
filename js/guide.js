@@ -422,9 +422,9 @@
   }
 
   /* ---------- Add-to-calendar reminders (sitter side) ----------
-     Turns a section's reminder times into a downloadable .ics calendar file
-     with a daily-recurring event (plus an alert) at each time, across the days
-     the sitter is caring. Works on any phone, no login or backend. */
+     Turns the routine's reminder times into a downloadable .ics calendar file
+     with a dated, alerted event for each time on each day the sitter is caring.
+     Works on any phone, no login or backend. */
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function isoFromToday(off) {
     var d = new Date(); d.setDate(d.getDate() + (off || 0));
@@ -434,8 +434,11 @@
     return String(s == null ? "" : s)
       .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
   }
-  // opts.events: [{ summary, time }]. One daily-recurring VEVENT (with an alert)
-  // per event, from startDate to endDate.
+  // opts.events: [{ summary, time }]. Emits an explicit dated VEVENT (with an
+  // alert) for every event on every day from startDate to endDate. We expand the
+  // days ourselves instead of using an RRULE: Apple's parser is unreliable with
+  // floating-time recurrence (it often keeps only day one), and explicit events
+  // also show up per-day in the "Add All" preview — obviously multi-day.
   function buildICS(opts) {
     function dtLocal(dateStr, timeStr) {
       return dateStr.replace(/-/g, "") + "T" + (timeStr || "00:00").replace(/:/g, "") + "00";
@@ -445,23 +448,23 @@
       return n.getUTCFullYear() + pad2(n.getUTCMonth() + 1) + pad2(n.getUTCDate()) + "T" +
         pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + "Z";
     }
-    // Recur daily for N days using COUNT, not UNTIL. DTSTART is a floating local
-    // time, and Apple's parser silently drops an RRULE whose UNTIL is floating —
-    // leaving only the first day. COUNT sidesteps that and is honoured everywhere.
-    function daysInclusive(a, b) {
-      var da = new Date(a + "T00:00:00"), db = new Date(b + "T00:00:00");
-      var n = Math.round((db.getTime() - da.getTime()) / 86400000) + 1;
-      return n > 0 ? n : 1;
-    }
-    var count = daysInclusive(opts.startDate, opts.endDate);
+    var d0 = new Date(opts.startDate + "T00:00:00");
+    var d1 = new Date(opts.endDate + "T00:00:00");
+    var days = Math.round((d1.getTime() - d0.getTime()) / 86400000) + 1;
+    if (!(days >= 1)) days = 1;
+    if (days > 92) days = 92; // safety cap (~a quarter) on file size
     var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GotIt Guides//Care Reminders//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
-    opts.events.forEach(function (ev, i) {
-      var uid = Date.now().toString(36) + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
-      L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(opts.startDate, ev.time),
-        "DURATION:PT10M", "RRULE:FREQ=DAILY;COUNT=" + count, "SUMMARY:" + escICS(ev.summary));
-      if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
-      L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(ev.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
-    });
+    for (var day = 0; day < days; day++) {
+      var dt = new Date(d0.getTime() + day * 86400000);
+      var dateStr = dt.getFullYear() + "-" + pad2(dt.getMonth() + 1) + "-" + pad2(dt.getDate());
+      opts.events.forEach(function (ev, i) {
+        var uid = Date.now().toString(36) + "-" + day + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
+        L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(dateStr, ev.time),
+          "DURATION:PT10M", "SUMMARY:" + escICS(ev.summary));
+        if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
+        L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(ev.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
+      });
+    }
     L.push("END:VCALENDAR");
     return L.join("\r\n");
   }

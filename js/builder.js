@@ -1545,7 +1545,7 @@
         mv.textContent = "⇄";
         mv.title = "Move to another section";
         mv.setAttribute("aria-label", "Move to another section");
-        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(item, kind, sec, el); });
+        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(mv, kind, sec, el); });
         item.appendChild(mv);
       }
       var x = document.createElement("button");
@@ -1603,7 +1603,7 @@
     var m = document.querySelector(".media-move-menu");
     if (m && m.parentNode) m.parentNode.removeChild(m);
   }
-  function openMoveMenu(item, kind, sec, srcEl) {
+  function openMoveMenu(anchorBtn, kind, sec, srcEl) {
     closeMoveMenu();
     var targets = movableTargets(kind, sec);
     if (!targets.length) return;
@@ -1624,7 +1624,17 @@
       });
       menu.appendChild(b);
     });
-    item.appendChild(menu);
+    // Attach to <body> with fixed positioning so the video/accordion's
+    // overflow:hidden can't clip it. Place it under the button, flipping up or
+    // clamping to stay on-screen.
+    document.body.appendChild(menu);
+    var r = anchorBtn.getBoundingClientRect();
+    var mw = menu.offsetWidth, mh = menu.offsetHeight;
+    var left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8));
+    var top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    menu.style.left = left + "px";
+    menu.style.top = top + "px";
     setTimeout(function () { document.addEventListener("click", closeMoveMenu); }, 0);
   }
   function moveMedia(kind, sec, target, srcEl) {

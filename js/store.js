@@ -237,6 +237,19 @@ window.GotItStore = (function () {
       });
     },
 
+    // One-time welcome email for a new account. The backend emails the caller's
+    // own verified identity; `name` is just for the greeting. Best-effort.
+    sendWelcome: function (idToken, name) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return { ok: false };
+        return gqlAuth(cfg,
+          "query Sw($name: String) { sendWelcome(name: $name) }",
+          { name: name || null }, idToken
+        ).then(function (d) { return (d && d.sendWelcome) || { ok: true }; },
+          function () { return { ok: false }; });
+      }, function () { return { ok: false }; });
+    },
+
     /* ---- Per-block accent colours (shared by builder + published guide) ----
        Each block (section / log / emergency) can store a palette `color` key;
        the cover stores `coverColor`. Applied as a tasteful accent: a coloured

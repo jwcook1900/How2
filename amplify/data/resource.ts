@@ -3,6 +3,7 @@ import { aiFn } from "../functions/ai/resource";
 import { emailFn } from "../functions/email/resource";
 import { feedbackFn } from "../functions/feedback/resource";
 import { videoFn } from "../functions/video/resource";
+import { welcomeFn } from "../functions/welcome/resource";
 
 /**
  * GotIt Guides data model.
@@ -120,6 +121,18 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(feedbackFn)),
+
+  // Sends a one-time welcome email to a newly signed-up user. Authenticated
+  // only; the Lambda emails the caller's own verified identity (never a
+  // client-supplied address). The app calls it once per account.
+  sendWelcome: a
+    .query()
+    .arguments({
+      name: a.string(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(welcomeFn)),
 
   // Issues a one-time Cloudflare Stream upload URL so creators can upload a
   // video from their phone (Cloudflare transcodes it to play on any device).

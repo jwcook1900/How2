@@ -111,6 +111,27 @@
   }
 
   // ---- Block renderers ----
+  function videoSrcOf(o) {
+    return o.videoEmbed || (o.videoId ? "https://www.youtube.com/embed/" + o.videoId : null);
+  }
+  // A video embed with an optional title bar over its top (matches the editor).
+  function videoMediaHtml(src, title) {
+    var t = title ? '<div class="sec-video-title">' + esc(title) + "</div>" : "";
+    return '<div class="sec-media"><div class="sec-video"><iframe src="' + src +
+      '" allowfullscreen loading="lazy"></iframe>' + t + "</div>" +
+      '<p class="print-only video-note">▶ Video — scan the QR code at the top to watch online.</p></div>';
+  }
+  // Dedicated Videos widget (guide.videos.items), each clip with its own title.
+  function videosHtml() {
+    var v = guide.videos;
+    if (!v || !v.items || !v.items.length) return "";
+    var items = v.items.filter(function (it) { return videoSrcOf(it); });
+    if (!items.length) return "";
+    var s = '<div class="guide-videos" id="videos"><div class="videos-head">🎬 Videos</div>';
+    items.forEach(function (it) { s += videoMediaHtml(videoSrcOf(it), it.title); });
+    return s + "</div>";
+  }
+
   var firstSectionOpen = true;
   function sectionHtml(sec) {
     var media = "";
@@ -119,12 +140,8 @@
       var pStyle = sec.photoPos ? ' style="object-position:' + esc(sec.photoPos) + '"' : "";
       media += '<div class="sec-media"><img class="sec-photo' + pCls + '" src="' + sec.photo + '" alt=""' + pStyle + ' /></div>';
     }
-    var vsrc = sec.videoEmbed || (sec.videoId ? "https://www.youtube.com/embed/" + sec.videoId : null);
-    if (vsrc) {
-      media += '<div class="sec-media"><div class="sec-video"><iframe src="' + vsrc +
-        '" allowfullscreen loading="lazy"></iframe></div>' +
-        '<p class="print-only video-note">▶ Video — scan the QR code at the top to watch online.</p></div>';
-    }
+    var vsrc = videoSrcOf(sec);
+    if (vsrc) media += videoMediaHtml(vsrc, sec.videoTitle);
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
     return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
@@ -232,6 +249,7 @@
   order.forEach(function (tok) {
     if (tok === "e") { html += emergencyHtml(); done.e = true; }
     else if (tok === "r") { html += routineHtml(); done.r = true; }
+    else if (tok === "v") { html += videosHtml(); done.v = true; }
     else if (tok.indexOf("s:") === 0) {
       var sec = byId(guide.sections, tok.slice(2));
       if (sec) { html += sectionHtml(sec); done[tok] = true; }
@@ -244,6 +262,7 @@
   (guide.sections || []).forEach(function (sec) { if (!done["s:" + sec.id]) html += sectionHtml(sec); });
   if (!done.e) html += emergencyHtml();
   if (!done.r) html += routineHtml();
+  if (guide.videos && !done.v) html += videosHtml();
   (guide.logs || []).forEach(function (log) { if (!done["l:" + log.id]) html += logHtml(log); });
 
   doc.innerHTML = html;

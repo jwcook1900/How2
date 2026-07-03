@@ -1529,12 +1529,33 @@
     return el;
   }
 
+  // A section's videos as an array, migrating a legacy single video in place.
+  function sectionVideos(sec) {
+    if (!Array.isArray(sec.videos)) {
+      sec.videos = (sec.videoEmbed || sec.videoId)
+        ? [{ id: uid(), videoEmbed: sec.videoEmbed || null, videoId: sec.videoId || null, title: sec.videoTitle || "" }]
+        : [];
+      delete sec.videoEmbed; delete sec.videoId; delete sec.videoTitle;
+    }
+    return sec.videos;
+  }
+  // Adds a video to a section (from the dock or the empty-state prompt).
+  function addSectionVideo(sec, el) {
+    openVideoModal(function (embed) {
+      sectionVideos(sec).push({ id: uid(), videoEmbed: embed, title: "" });
+      renderSectionMedia(el, sec);
+      if (!el.classList.contains("open")) el.classList.add("open");
+      recordHistory();
+    });
+  }
+
   function renderSectionMedia(el, sec) {
     var media = el.querySelector(".sec-media");
     media.innerHTML = "";
     // Each media item gets a "×" to remove it and (when there's somewhere to put
-    // it) a "⇄" to move it to another section.
-    function addItem(inner, kind, onRemove, label) {
+    // it) a "⇄" to move it to another section. `vid` is the specific video for
+    // video items (sections can hold several), null for the photo.
+    function addItem(inner, kind, vid, onRemove, label) {
       var item = document.createElement("div");
       item.className = "sec-media-item";
       item.appendChild(inner);
@@ -1545,7 +1566,7 @@
         mv.textContent = "⇄";
         mv.title = "Move to another section";
         mv.setAttribute("aria-label", "Move to another section");
-        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(mv, kind, sec, el); });
+        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(mv, kind, vid, sec, el); });
         item.appendChild(mv);
       }
       var x = document.createElement("button");
@@ -1564,38 +1585,42 @@
       img.src = sec.photo;
       img.alt = "";
       if (sec.photoPos) { img.classList.add("is-cropped"); img.style.objectPosition = sec.photoPos; }
-      addItem(img, "photo", function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
+      addItem(img, "photo", null, function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
     }
-    var vsrc = videoSrc(sec);
-    if (vsrc) {
-      var v = makeVideoEl(vsrc, sec.videoTitle, function (val) { sec.videoTitle = val; });
-      addItem(v, "video", function () { sec.videoEmbed = null; sec.videoId = null; sec.videoTitle = null; }, "Remove video");
-    }
-    // Empty section → a gentle prompt so people notice they can add a photo or
-    // (less obviously) a video, without hunting for the dock's camera icon.
-    if (!sec.photo && !vsrc) {
-      var prompt = document.createElement("div");
-      prompt.className = "sec-media-prompt no-print";
+    var vids = sectionVideos(sec);
+    vids.forEach(function (vid) {
+      var src = videoSrc(vid);
+      if (!src) return;
+      var v = makeVideoEl(src, vid.title, function (val) { vid.title = val; });
+      addItem(v, "video", vid, function () {
+        sec.videos = sectionVideos(sec).filter(function (x) { return x !== vid; });
+      }, "Remove video");
+    });
+    // Add-media affordances so photos/videos are discoverable without hunting
+    // for the dock's camera icon: offer a photo (if there isn't one) and a video
+    // (sections can hold several).
+    var promptRow = document.createElement("div");
+    promptRow.className = "sec-media-prompt no-print";
+    if (!sec.photo) {
       var pp = document.createElement("button");
       pp.type = "button"; pp.className = "sec-media-prompt-btn"; pp.textContent = "📷 Add a photo";
       pp.addEventListener("click", function (e) { e.stopPropagation(); pickPhoto(sec, el); });
-      var pv = document.createElement("button");
-      pv.type = "button"; pv.className = "sec-media-prompt-btn"; pv.textContent = "🎬 Add a video";
-      pv.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openVideoModal(function (embed) { sec.videoEmbed = embed; renderSectionMedia(el, sec); el.classList.add("open"); recordHistory(); });
-      });
-      prompt.appendChild(pp); prompt.appendChild(pv);
-      media.appendChild(prompt);
+      promptRow.appendChild(pp);
     }
+    var pv = document.createElement("button");
+    pv.type = "button"; pv.className = "sec-media-prompt-btn";
+    pv.textContent = vids.length ? "🎬 Add another video" : "🎬 Add a video";
+    pv.addEventListener("click", function (e) { e.stopPropagation(); addSectionVideo(sec, el); });
+    promptRow.appendChild(pv);
+    media.appendChild(promptRow);
   }
 
-  // Sections a photo/video could be moved into: any other section that doesn't
-  // already hold that kind of media.
+  // Sections a photo/video could be moved into. Photos: sections without a photo
+  // (one photo each). Videos: any other section (a section can hold several).
   function movableTargets(kind, sec) {
     return (state.guide.sections || []).filter(function (t) {
       if (t.id === sec.id) return false;
-      return kind === "photo" ? !t.photo : !videoSrc(t);
+      return kind === "photo" ? !t.photo : true;
     });
   }
   function closeMoveMenu() {
@@ -1603,7 +1628,7 @@
     var m = document.querySelector(".media-move-menu");
     if (m && m.parentNode) m.parentNode.removeChild(m);
   }
-  function openMoveMenu(anchorBtn, kind, sec, srcEl) {
+  function openMoveMenu(anchorBtn, kind, vid, sec, srcEl) {
     closeMoveMenu();
     var targets = movableTargets(kind, sec);
     if (!targets.length) return;
@@ -1619,7 +1644,7 @@
       b.textContent = (t.icon ? t.icon + " " : "") + (t.title || "Untitled section");
       b.addEventListener("click", function (e) {
         e.stopPropagation();
-        moveMedia(kind, sec, t, srcEl);
+        moveMedia(kind, vid, sec, t, srcEl);
         closeMoveMenu();
       });
       menu.appendChild(b);
@@ -1637,13 +1662,13 @@
     menu.style.top = top + "px";
     setTimeout(function () { document.addEventListener("click", closeMoveMenu); }, 0);
   }
-  function moveMedia(kind, sec, target, srcEl) {
+  function moveMedia(kind, vid, sec, target, srcEl) {
     if (kind === "photo") {
       target.photo = sec.photo; target.photoPos = sec.photoPos || null;
       sec.photo = null; sec.photoPos = null;
     } else {
-      target.videoEmbed = sec.videoEmbed || null; target.videoId = sec.videoId || null;
-      sec.videoEmbed = null; sec.videoId = null;
+      sectionVideos(target).push(vid);
+      sec.videos = sectionVideos(sec).filter(function (x) { return x !== vid; });
     }
     renderSectionMedia(srcEl, sec);
     var tEl = $("guideDoc").querySelector('.guide-section[data-id="' + target.id + '"]');
@@ -2586,9 +2611,7 @@
     if (sec.photo && sec.photoPos) item("🖼 Show whole photo", function () {
       sec.photoPos = null; renderSectionMedia(el, sec); recordHistory();
     });
-    item("🎬 Video", function () {
-      openVideoModal(function (embed) { sec.videoEmbed = embed; renderSectionMedia(el, sec); el.classList.add("open"); recordHistory(); });
-    });
+    item("🎬 " + (sectionVideos(sec).length ? "Add another video" : "Video"), function () { addSectionVideo(sec, el); });
     item("📎 File", function () {
       var content = el.querySelector(".acc-content");
       readFileIntoField({ btn: $("dockMedia"), question: sec.title,

@@ -57,7 +57,8 @@ function importPriorities(category: string): string {
 
 export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   const mode = event.arguments.mode;
-  const text = (event.arguments.text || "").slice(0, 8000);
+  // The whole-guide polish sends every field at once, so give it more headroom.
+  const text = (event.arguments.text || "").slice(0, mode === "guide" ? 24000 : 8000);
   const category = event.arguments.category || "general";
   const question = event.arguments.question || "";
   const fileData = event.arguments.fileData || "";
@@ -133,6 +134,26 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
         "Write this field's content from the attached file" + (text ? ", merged with the notes above." : "."),
     });
     userContent = blocks;
+  } else if (mode === "guide") {
+    // Whole-guide polish: improve every field's wording/labels at once, without
+    // touching facts. Returns only the fields that actually changed.
+    maxTokens = 4096;
+    system =
+      "You are an editor for GotIt Guides, a tool for warm, clear, shareable care guides " +
+      "(pets, kids, homes, sitters, guests). You are given the guide's editable text fields as a JSON " +
+      'array: [{"id": string, "kind": string, "text": string}]. ' +
+      "kind is one of: title, subtitle, sectionTitle, body. " +
+      "Rewrite each field so the whole guide reads clearly, warmly and consistently: fix spelling and " +
+      "grammar, tighten wordy phrasing, and make titles and labels clear and consistent in style. " +
+      "CRITICAL: preserve every fact exactly — names, nicknames, numbers, times, doses, medication names, " +
+      "addresses, phone numbers — and keep any list structure. Never change, add, or invent any factual " +
+      "detail, and never add new sections or information. Keep the creator's meaning and voice; improve, " +
+      "don't rewrite from scratch. Body fields may contain simple HTML (<br>, <ul>, <li>, <b>, <a>); keep " +
+      "it valid and add no headings. " +
+      'Return ONLY a JSON array [{"id": string, "text": string}] containing ONLY the fields you actually ' +
+      "improved — omit any field you would leave unchanged. If nothing needs changing, return []. " +
+      'This guide is about: "' + category + '".';
+    userContent = text;
   } else {
     system =
       "You are an editor for GotIt Guides, a tool for friendly, shareable how-to guides. " +
@@ -175,6 +196,13 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
     } catch (e) {
       return { title: "", sections: [{ emoji: "📝", title: "Notes", body: text }], contacts: [] };
     }
+  }
+  if (mode === "guide") {
+    const m = out.match(/\[[\s\S]*\]/);
+    let changes: any[] = [];
+    try { changes = JSON.parse(m ? m[0] : out); } catch (e) { changes = []; }
+    if (!Array.isArray(changes)) changes = [];
+    return { changes };
   }
   return { text: out.replace(/^["'“”]|["'“”]$/g, "").trim() };
 };

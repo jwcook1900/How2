@@ -16,6 +16,7 @@
   var user = null;      // { sub, email, name } from the token
   var profile = null;   // { id, displayName }
   var guides = [];      // SavedGuide rows
+  var isNewUser = false; // true on the first sign-in (no profile yet)
 
   /* ---------- helpers ---------- */
   function viewUrl(slug) { return location.origin + "/g/" + encodeURIComponent(slug); }
@@ -91,7 +92,9 @@
       $("dashGreeting").textContent = "Hi " + firstName(name) + " 👋";
       $("namePrompt").hidden = true;
       // Persist a name we got from the IdP so it's stored + editable in settings.
-      if (!stored && tokenName) {
+      // Skipped for a brand-new user — load() already created their profile
+      // (avoids a duplicate-create race).
+      if (!stored && tokenName && !isNewUser) {
         GotItStore.saveProfile(idTok, tokenName).then(function (p) { profile = p; }).catch(function () {});
       }
     } else {
@@ -384,6 +387,15 @@
         GotItStore.listSavedGuides(tok)
       ]).then(function (res) {
         profile = res[0];
+        // No profile yet → brand-new account. Send the one-time welcome email
+        // and create a profile so it's used as the "already welcomed" guard and
+        // won't fire again. The backend emails the user's own verified address.
+        if (!profile && user && user.email) {
+          isNewUser = true;
+          var nm = (user.name && user.name !== user.email) ? user.name : "";
+          GotItStore.sendWelcome(idTok, nm).catch(function () {});
+          GotItStore.saveProfile(idTok, nm).then(function (p) { if (p) profile = p; }).catch(function () {});
+        }
         var items = res[1];
         var pending = getPending();
         if (pending && pending.slug && !items.some(function (g) { return g.slug === pending.slug; })) {

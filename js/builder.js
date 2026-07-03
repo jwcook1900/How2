@@ -804,6 +804,135 @@
     }, fallback);        // cloud errored
   }
 
+  /* ---------- Whole-guide "Polish" (AI review before publish) ----------
+     Sends every editable text field to the AI in one pass; the AI improves
+     wording/titles but preserves all facts. The creator reviews and approves
+     each suggested change before anything is applied. */
+  function stripHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/<br\s*\/?>/gi, " ").replace(/<\/(p|li|div)>/gi, " ")
+      .replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  }
+  function collectPolishItems(g) {
+    var items = [];
+    function add(id, kind, text) {
+      if ((text == null ? "" : String(text)).trim()) items.push({ id: id, kind: kind, text: text });
+    }
+    add("cover:title", "title", g.title);
+    add("cover:sub", "subtitle", g.subtitle);
+    (g.sections || []).forEach(function (s) {
+      if (s.title !== "New section") add("s:" + s.id + ":title", "sectionTitle", s.title);
+      if ((s.body || "").trim() !== "Tap to add details…") add("s:" + s.id + ":body", "body", s.body);
+    });
+    return items;
+  }
+  function polishFieldLabel(g, id) {
+    if (id === "cover:title") return "Guide title";
+    if (id === "cover:sub") return "Guide subtitle";
+    var m = /^s:(.+):(title|body)$/.exec(id);
+    if (m) {
+      var sec = findSection(m[1]);
+      return ((sec && sec.title) || "Section") + (m[2] === "title" ? " — title" : " — text");
+    }
+    return "Field";
+  }
+  function applyPolishChange(g, id, text) {
+    if (id === "cover:title") { g.title = text; return; }
+    if (id === "cover:sub") { g.subtitle = text; return; }
+    var m = /^s:(.+):(title|body)$/.exec(id);
+    if (m) {
+      var sec = findSection(m[1]);
+      if (sec) { if (m[2] === "title") sec.title = text; else sec.body = text; }
+    }
+  }
+  function masterPolish() {
+    var g = state.guide;
+    var items = collectPolishItems(g);
+    if (!items.length) { showToast("Add some text first, then polish."); return; }
+    var btn = $("masterPolishBtn");
+    var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = "✨ Polishing your guide…";
+    function done() { btn.disabled = false; btn.textContent = orig; }
+    GotItStore.ai("guide", { text: JSON.stringify(items), category: g.category || "general" }).then(function (res) {
+      done();
+      if (res === null) { showToast("Polishing needs the live (online) site."); return; }
+      var byId = {}; items.forEach(function (it) { byId[it.id] = String(it.text); });
+      var real = ((res && res.changes) || []).filter(function (c) {
+        return c && c.id && byId.hasOwnProperty(c.id) && typeof c.text === "string" &&
+          c.text.trim() && c.text.trim() !== byId[c.id].trim();
+      }).map(function (c) { c.before = byId[c.id]; return c; });
+      if (!real.length) { showToast("Your guide already reads well ✨"); return; }
+      openPolishReview(real);
+    }, function () { done(); showToast("Couldn't polish just now — try again."); });
+  }
+  function closePolishReview() {
+    var m = $("polishModal");
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+  }
+  function openPolishReview(changes) {
+    var g = state.guide;
+    closePolishReview();
+    var overlay = document.createElement("div");
+    overlay.className = "polish-modal"; overlay.id = "polishModal";
+    var backdrop = document.createElement("div");
+    backdrop.className = "polish-backdrop";
+    backdrop.addEventListener("click", closePolishReview);
+    var card = document.createElement("div");
+    card.className = "polish-card";
+    var x = document.createElement("button");
+    x.type = "button"; x.className = "polish-x"; x.textContent = "×";
+    x.setAttribute("aria-label", "Close"); x.addEventListener("click", closePolishReview);
+    var h = document.createElement("h3");
+    h.className = "polish-title"; h.textContent = "Suggested improvements";
+    var lead = document.createElement("p");
+    lead.className = "polish-lead";
+    lead.textContent = "Tick the ones to apply. Facts are unchanged — this only tidies wording and titles.";
+    var list = document.createElement("div");
+    list.className = "polish-list";
+    var checks = [];
+    changes.forEach(function (c) {
+      var row = document.createElement("label");
+      row.className = "polish-row";
+      var cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = true; cb.className = "polish-check";
+      checks.push({ cb: cb, change: c });
+      var bodyWrap = document.createElement("div");
+      bodyWrap.className = "polish-row-body";
+      var field = document.createElement("div");
+      field.className = "polish-field"; field.textContent = polishFieldLabel(g, c.id);
+      var before = document.createElement("div");
+      before.className = "polish-before"; before.textContent = stripHtml(c.before);
+      var after = document.createElement("div");
+      after.className = "polish-after"; after.textContent = stripHtml(c.text);
+      bodyWrap.appendChild(field); bodyWrap.appendChild(before); bodyWrap.appendChild(after);
+      row.appendChild(cb); row.appendChild(bodyWrap);
+      list.appendChild(row);
+    });
+    var actions = document.createElement("div");
+    actions.className = "polish-actions";
+    var cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "btn btn-ghost btn-sm"; cancel.textContent = "Cancel";
+    cancel.addEventListener("click", closePolishReview);
+    var apply = document.createElement("button");
+    apply.type = "button"; apply.className = "btn btn-primary btn-sm"; apply.textContent = "Apply selected";
+    apply.addEventListener("click", function () {
+      var n = 0;
+      checks.forEach(function (row) {
+        if (row.cb.checked) { applyPolishChange(g, row.change.id, row.change.text); n++; }
+      });
+      closePolishReview();
+      if (n) {
+        renderGuideEditor();
+        recordHistory();
+        showToast(n === 1 ? "Applied 1 improvement ✨" : "Applied " + n + " improvements ✨");
+      }
+    });
+    actions.appendChild(cancel); actions.appendChild(apply);
+    card.appendChild(x); card.appendChild(h); card.appendChild(lead); card.appendChild(list); card.appendChild(actions);
+    overlay.appendChild(backdrop); overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
   // Wires a Polish button to read/replace a piece of text with a loading state.
   // `ctx` ({ category, question }) gives the AI context about what it's editing.
   function showPolishOverlay(on) {
@@ -2714,6 +2843,7 @@
     renderGuideEditor();
   });
   $("publishBtn").addEventListener("click", publish);
+  $("masterPolishBtn").addEventListener("click", masterPolish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
 
   // History: snapshot on edits (typing debounced; structural clicks too).

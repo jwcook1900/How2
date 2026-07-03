@@ -2636,6 +2636,41 @@ ul { margin: 0; padding: 0; list-style: none; }
   .rem-actions .btn { width: 100%; }
 }
 
+/* Whole-guide "Polish" button + review modal */
+.polish-all-row { margin-bottom: 16px; }
+.btn-polish {
+  background: linear-gradient(135deg, #FFF1E8, #FFE7D3);
+  color: var(--coral-dark, #C0491F);
+  border: 1px solid #FFD3B8;
+  font-weight: 700;
+}
+.btn-polish:hover:not(:disabled) { background: linear-gradient(135deg, #FFE7D3, #FFDABF); }
+.btn-polish:disabled { opacity: 0.7; cursor: default; }
+.polish-all-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 8px 4px 0; line-height: 1.45; text-align: center; }
+
+.polish-modal { position: fixed; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.polish-backdrop { position: absolute; inset: 0; background: rgba(26, 26, 26, 0.45); }
+.polish-card {
+  position: relative; z-index: 1; width: 100%; max-width: 460px;
+  background: var(--white); border-radius: var(--radius-lg); padding: 26px 24px;
+  box-shadow: var(--shadow-lg); max-height: 90vh; display: flex; flex-direction: column;
+}
+.polish-x { position: absolute; top: 12px; right: 14px; width: 30px; height: 30px; border: none; background: transparent; font-size: 1.4rem; color: var(--ink-muted); cursor: pointer; line-height: 1; }
+.polish-title { font-size: 1.2rem; font-weight: 800; margin: 0 8px 6px 0; }
+.polish-lead { color: var(--ink-soft); font-size: 0.92rem; line-height: 1.5; margin: 0 0 16px; }
+.polish-list { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.polish-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.polish-check { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--coral); }
+.polish-row-body { flex: 1; min-width: 0; }
+.polish-field { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); margin-bottom: 6px; }
+.polish-before { font-size: 0.9rem; color: var(--ink-muted); text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, 0.28); margin-bottom: 5px; line-height: 1.4; }
+.polish-after { font-size: 0.96rem; color: var(--ink); font-weight: 600; line-height: 1.45; }
+.polish-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+@media (max-width: 480px) {
+  .polish-actions { flex-direction: column-reverse; }
+  .polish-actions .btn { width: 100%; }
+}
+
 /* ============================================================
    Daily Routine widget — editor + sitter timeline
    ============================================================ */

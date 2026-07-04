@@ -250,9 +250,13 @@
 
     var head = document.createElement("div");
     head.className = "dash-fb-head";
+    var gname = (g.title || "").trim();
+    var titleText = gname
+      ? 'Feedback on your guide “' + esc(gname) + '”'
+      : "Feedback on your guide";
     head.innerHTML = '<div class="dash-fb-title">' +
         '<span class="dash-fb-emoji">' + esc(g.emoji || "📘") + "</span>" +
-        '<span>Feedback on “' + esc(g.title || "Untitled guide") + '”</span>' +
+        "<span>" + titleText + "</span>" +
       "</div>";
     var close = document.createElement("button");
     close.type = "button"; close.className = "dash-fb-close";

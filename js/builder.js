@@ -1095,7 +1095,8 @@
         '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
         '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
       "</div>" +
-      '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>';
+      '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>' +
+      '<button class="cover-reposition-btn no-print" type="button" title="Reposition photo" aria-label="Reposition photo">' + MOVE_ICON_SVG + "</button>";
     var textEl = cover.querySelector(".cover-text");
     if (g.coverTextY) textEl.style.transform = "translateY(" + g.coverTextY + "px)";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
@@ -1108,6 +1109,10 @@
       cover.classList.toggle("no-emoji", !g.emoji); // re-flow the title to the top when removed
       scheduleHistory();
     });
+    var coverRepos = cover.querySelector(".cover-reposition-btn");
+    if (coverRepos) {
+      coverRepos.addEventListener("click", function (e) { e.stopPropagation(); startCoverReposition(cover); });
+    }
     var emojiX = cover.querySelector(".cover-emoji-x");
     if (g.coverEmojiOff) emojiX.hidden = true;
     emojiX.addEventListener("click", function (e) {
@@ -1195,6 +1200,9 @@
     }
     // With no icon, sit the title near the top so it clears the photo's subject.
     coverEl.classList.toggle("no-emoji", !g.emoji);
+    // The reposition handle only makes sense once there's a photo to pan.
+    var rb = coverEl.querySelector(".cover-reposition-btn");
+    if (rb) rb.hidden = !g.cover;
   }
 
   // ---- Image helpers: downscale + re-encode so guides fit the store limit ----
@@ -1434,6 +1442,9 @@
       function (pos) { sec.photoPos = pos; });
   }
 
+  // A four-directional "move" glyph, used on photos to enter reposition mode.
+  var MOVE_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><path d="M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg>';
+
   // Records the current DOM order of all blocks (sections / emergency / logs).
   var DRAG_SELECTOR = ".guide-section, .guide-emergency, .guide-log, .guide-routine, .guide-videos";
   function syncBlockOrder() {
@@ -1449,18 +1460,33 @@
     recordHistory(); // covers drag-reorder (not a click) and add/remove
   }
 
-  // Drag-to-reorder via a grip handle. Pointer events → works on mouse + touch.
-  // Works for any block: content sections, emergency contacts, and logs.
+  // Drag-to-reorder. On a mouse, grab the ⠿ grip and drag straight away. On a
+  // touch screen, press and hold anywhere on the block's header for a moment —
+  // the block lifts to show "move mode" is on — then drag up/down to reorder.
+  // The hold means a normal tap still edits the title and a quick swipe still
+  // scrolls the page; only a deliberate hold starts a move (no more accidental
+  // text-selection when you meant to drag).
   function enableDrag(handle, blockEl) {
     if (!handle) return;
+    var header = handle.parentNode; // .acc-header / .em-head / .routine-head / …
+    var HOLD_MS = 300, CANCEL_PX = 12;
+    var dragging = false;
+
     handle.addEventListener("click", function (e) { e.stopPropagation(); });
-    handle.addEventListener("pointerdown", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
+    function preventTouch(e) { if (dragging && e.cancelable) e.preventDefault(); }
+    function swallowClick(e) { e.stopPropagation(); e.preventDefault(); blockEl.removeEventListener("click", swallowClick, true); }
+
+    function startDrag() {
+      if (dragging) return;
+      dragging = true;
       var doc = $("guideDoc");
       blockEl.classList.add("dragging");
+      document.body.classList.add("dragging-active");
+      try { window.getSelection().removeAllRanges(); } catch (_) {}
+      document.addEventListener("touchmove", preventTouch, { passive: false });
 
       function onMove(ev) {
+        if (ev.cancelable) ev.preventDefault();
         var y = ev.clientY;
         var blocks = Array.prototype.slice.call(doc.querySelectorAll(DRAG_SELECTOR));
         var placed = false;
@@ -1473,13 +1499,46 @@
         if (!placed) doc.appendChild(blockEl); // below everything
       }
       function onUp() {
+        dragging = false;
         blockEl.classList.remove("dragging");
+        document.body.classList.remove("dragging-active");
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        document.removeEventListener("touchmove", preventTouch, { passive: false });
+        // Swallow the click that trails a drag so the accordion doesn't toggle.
+        blockEl.addEventListener("click", swallowClick, true);
+        setTimeout(function () { blockEl.removeEventListener("click", swallowClick, true); }, 350);
         syncBlockOrder();
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    }
+
+    // Mouse: immediate drag from the grip (desktop).
+    handle.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse") { e.preventDefault(); e.stopPropagation(); startDrag(); }
+    });
+
+    // Touch / pen: press-and-hold anywhere on the header enters move mode.
+    header.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse") return; // grip handles the mouse case
+      if (e.target.closest("button:not(.acc-header), a, input, textarea, .block-x")) return;
+      var sx = e.clientX, sy = e.clientY, timer = setTimeout(fire, HOLD_MS);
+      function fire() { timer = null; cleanup(); startDrag(); }
+      function cleanup() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        header.removeEventListener("pointermove", onWait);
+        header.removeEventListener("pointerup", cleanup);
+        header.removeEventListener("pointercancel", cleanup);
+      }
+      function onWait(ev) {
+        if (Math.abs(ev.clientY - sy) > CANCEL_PX || Math.abs(ev.clientX - sx) > CANCEL_PX) cleanup();
+      }
+      header.addEventListener("pointermove", onWait);
+      header.addEventListener("pointerup", cleanup);
+      header.addEventListener("pointercancel", cleanup);
     });
   }
 
@@ -1688,6 +1747,18 @@
       var item = document.createElement("div");
       item.className = "sec-media-item";
       item.appendChild(inner);
+      // Photos get a four-way "move" handle to enter reposition (pan/crop) mode
+      // right on the image — no digging through a menu.
+      if (kind === "photo") {
+        var rp = document.createElement("button");
+        rp.type = "button";
+        rp.className = "sec-media-repos no-print";
+        rp.innerHTML = MOVE_ICON_SVG;
+        rp.title = "Reposition photo";
+        rp.setAttribute("aria-label", "Reposition photo");
+        rp.addEventListener("click", function (e) { e.stopPropagation(); startPhotoReposition(sec, el); });
+        item.appendChild(rp);
+      }
       if (movableTargets(kind, sec).length) {
         var mv = document.createElement("button");
         mv.type = "button";

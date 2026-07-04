@@ -34,6 +34,9 @@
     var a = new Uint8Array(16); window.crypto.getRandomValues(a);
     return Array.prototype.map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
   }
+  function feedbackFor(slug) {
+    return suggestions.filter(function (s) { return s.slug === slug; });
+  }
   function relTime(iso) {
     if (!iso) return "";
     var then = new Date(iso).getTime();
@@ -214,7 +217,114 @@
     el.appendChild(meta);
     el.appendChild(updated);
     el.appendChild(actions);
+
+    // Sitter feedback (persistent, per guide). Only shown when there's at least
+    // one note; opens a list you can read/reply-to/delete without it vanishing.
+    var fb = feedbackFor(g.slug);
+    if (fb.length) {
+      var fbBtn = document.createElement("button");
+      fbBtn.type = "button";
+      fbBtn.className = "dash-card-feedback";
+      fbBtn.innerHTML = '💬 <span class="dcf-label">Feedback</span> ' +
+        '<span class="dcf-count">' + fb.length + "</span>";
+      fbBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openFeedbackModal(g);
+      });
+      el.appendChild(fbBtn);
+    }
     return el;
+  }
+
+  /* ---------- per-guide feedback ---------- */
+  function openFeedbackModal(g) {
+    closeFeedbackModal();
+    var overlay = document.createElement("div");
+    overlay.className = "dash-fb-overlay";
+    overlay.id = "dashFbOverlay";
+
+    var modal = document.createElement("div");
+    modal.className = "dash-fb-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    var head = document.createElement("div");
+    head.className = "dash-fb-head";
+    head.innerHTML = '<div class="dash-fb-title">' +
+        '<span class="dash-fb-emoji">' + esc(g.emoji || "📘") + "</span>" +
+        '<span>Feedback on “' + esc(g.title || "Untitled guide") + '”</span>' +
+      "</div>";
+    var close = document.createElement("button");
+    close.type = "button"; close.className = "dash-fb-close";
+    close.setAttribute("aria-label", "Close"); close.textContent = "✕";
+    close.addEventListener("click", closeFeedbackModal);
+    head.appendChild(close);
+
+    var list = document.createElement("div");
+    list.className = "dash-fb-list";
+
+    function renderList() {
+      var items = feedbackFor(g.slug);
+      list.innerHTML = "";
+      if (!items.length) {
+        list.innerHTML = '<div class="dash-fb-empty">No feedback yet. ' +
+          "When a sitter leaves a suggestion on this guide, it’ll show up here.</div>";
+        var chip = document.querySelector('.dash-card[data-id="' + g.id + '"] .dash-card-feedback');
+        if (chip && chip.parentNode) chip.parentNode.removeChild(chip);
+        return;
+      }
+      items.forEach(function (s) {
+        var row = document.createElement("div");
+        row.className = "dash-fb-item";
+        var reply = s.fromEmail
+          ? '<a class="dash-fb-reply" href="mailto:' + esc(s.fromEmail) +
+              "?subject=" + encodeURIComponent("Re: your note on " + (g.title || "my guide")) +
+              '">Reply</a>'
+          : "";
+        row.innerHTML =
+          '<div class="dash-fb-item-main">' +
+            '<div class="dash-fb-msg">' + esc(s.message) + "</div>" +
+            '<div class="dash-fb-meta">' +
+              (s.fromEmail ? 'from ' + esc(s.fromEmail) + " · " : "") +
+              esc(relTime(s.createdAt)) +
+            "</div>" +
+          "</div>" +
+          '<div class="dash-fb-item-actions">' + reply +
+            '<button class="dash-fb-del" type="button" title="Delete" aria-label="Delete">✕</button>' +
+          "</div>";
+        row.querySelector(".dash-fb-del").addEventListener("click", function () {
+          if (!window.confirm("Delete this note? This can't be undone.")) return;
+          row.style.opacity = "0.5";
+          GotItStore.dismissGuideFeedback(s.id).then(function () {
+            suggestions = suggestions.filter(function (x) { return x.id !== s.id; });
+            renderList();
+            refreshCardChip(g);
+          }).catch(function () { row.style.opacity = ""; toast("Couldn't delete that just now."); });
+        });
+        list.appendChild(row);
+      });
+    }
+    renderList();
+
+    modal.appendChild(head);
+    modal.appendChild(list);
+    overlay.appendChild(modal);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeFeedbackModal(); });
+    document.body.appendChild(overlay);
+  }
+  function closeFeedbackModal() {
+    var o = $("dashFbOverlay");
+    if (o && o.parentNode) o.parentNode.removeChild(o);
+  }
+  // Keep a card's feedback chip count in step after a delete (removes it at 0).
+  function refreshCardChip(g) {
+    var cardEl = document.querySelector('.dash-card[data-id="' + g.id + '"]');
+    if (!cardEl) return;
+    var n = feedbackFor(g.slug).length;
+    var chip = cardEl.querySelector(".dash-card-feedback");
+    if (!n) { if (chip && chip.parentNode) chip.parentNode.removeChild(chip); return; }
+    var cnt = chip && chip.querySelector(".dcf-count");
+    if (cnt) cnt.textContent = n;
   }
 
   function closeMenus() {
@@ -321,49 +431,8 @@
   }
 
   /* ---------- render ---------- */
-  // Sitter suggestions left on the creator's published guides.
-  function renderSuggestions() {
-    var box = $("dashSuggestions");
-    if (!box) return;
-    if (!suggestions.length) { box.hidden = true; box.innerHTML = ""; return; }
-    box.hidden = false;
-    var html = '<h2 class="dash-sug-title">💬 Suggestions from sitters' +
-      ' <span class="dash-sug-count">' + suggestions.length + "</span></h2>" +
-      '<div class="dash-sug-list">';
-    suggestions.forEach(function (s) {
-      var reply = s.fromEmail
-        ? '<a class="dash-sug-reply" href="mailto:' + esc(s.fromEmail) +
-            "?subject=" + encodeURIComponent("Re: your note on " + (s.title || "my guide")) + '">Reply</a>'
-        : "";
-      html += '<div class="dash-sug-item" data-id="' + esc(s.id) + '">' +
-        '<div class="dash-sug-main">' +
-          '<div class="dash-sug-meta"><span class="dash-sug-guide">' + esc(s.title || "A guide") +
-            "</span> · " + esc(relTime(s.createdAt)) + "</div>" +
-          '<div class="dash-sug-msg">' + esc(s.message) + "</div>" +
-          (s.fromEmail ? '<div class="dash-sug-from">from ' + esc(s.fromEmail) + "</div>" : "") +
-        "</div>" +
-        '<div class="dash-sug-actions">' + reply +
-          '<button class="dash-sug-x" type="button" title="Dismiss" aria-label="Dismiss">✕</button>' +
-        "</div>" +
-      "</div>";
-    });
-    box.innerHTML = html + "</div>";
-    Array.prototype.forEach.call(box.querySelectorAll(".dash-sug-x"), function (btn) {
-      btn.addEventListener("click", function () {
-        var item = btn.closest(".dash-sug-item");
-        var id = item.getAttribute("data-id");
-        item.style.opacity = "0.5";
-        GotItStore.dismissGuideFeedback(id).then(function () {
-          suggestions = suggestions.filter(function (s) { return s.id !== id; });
-          renderSuggestions();
-        }).catch(function () { item.style.opacity = ""; });
-      });
-    });
-  }
-
   function render() {
     applyGreeting();
-    renderSuggestions();
     var grid = $("dashGrid");
     grid.innerHTML = "";
     guides.forEach(function (g) { grid.appendChild(card(g)); });
@@ -496,7 +565,7 @@
     if (!e.target.closest(".dash-card-more-wrap")) closeMenus();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { closeMenus(); closeSettings(); }
+    if (e.key === "Escape") { closeMenus(); closeSettings(); closeFeedbackModal(); }
   });
 
   /* ---------- boot ---------- */

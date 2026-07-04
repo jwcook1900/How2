@@ -42,10 +42,12 @@ const schema = a.schema({
       emoji: a.string(),
       status: a.string(),
       locked: a.boolean(),
-      // The owner's email, so sitter feedback on the published guide can be
-      // routed to its creator. Owner-scoped (never exposed in the public guide);
+      // The owner's email + Cognito sub, so sitter feedback on the published
+      // guide can be routed to its creator (email) and shown on their dashboard
+      // (matched by sub). Owner-scoped (never exposed in the public guide);
       // read server-side by the guide-feedback function.
       ownerEmail: a.string(),
+      ownerSub: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 
@@ -58,15 +60,18 @@ const schema = a.schema({
     .authorization((allow) => [allow.owner()]),
 
   // A suggestion a sitter left on a creator's published guide. Written by the
-  // guide-feedback function (which sets `owner` to the creator's identity copied
-  // from their SavedGuide), so the creator sees it on their dashboard via the
-  // same owner-auth as their guides. Owner can read/dismiss; no public access.
+  // guide-feedback function with `ownerSub` = the creator's Cognito sub (copied
+  // from their SavedGuide). The dashboard reads/dismisses these through that same
+  // function, scoped by the caller's verified identity — not via AppSync — so we
+  // don't depend on Amplify's owner-field format. The model just defines the
+  // table; all access is server-side (IAM), so no client auth path is needed.
   GuideFeedback: a
     .model({
       slug: a.string(),
       title: a.string(),
       message: a.string(),
       fromEmail: a.string(),
+      ownerSub: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 

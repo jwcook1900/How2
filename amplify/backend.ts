@@ -59,8 +59,9 @@ const guideFeedbackTable = backend.data.resources.tables["GuideFeedback"];
 const guideFeedbackLambda = backend.guideFeedbackFn.resources.lambda as LambdaFunction;
 guideFeedbackLambda.addEnvironment("SAVEDGUIDE_TABLE", savedGuideTable.tableName);
 guideFeedbackLambda.addEnvironment("GUIDEFEEDBACK_TABLE", guideFeedbackTable.tableName);
+guideFeedbackLambda.addEnvironment("USER_POOL_ID", backend.auth.resources.userPool.userPoolId);
 savedGuideTable.grantReadData(guideFeedbackLambda);
-guideFeedbackTable.grantWriteData(guideFeedbackLambda);
+guideFeedbackTable.grantReadWriteData(guideFeedbackLambda); // write on submit, read/delete for the dashboard
 const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE,
   cors: {

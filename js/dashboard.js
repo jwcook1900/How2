@@ -353,7 +353,7 @@
         var item = btn.closest(".dash-sug-item");
         var id = item.getAttribute("data-id");
         item.style.opacity = "0.5";
-        GotItStore.dismissGuideFeedback(idTok, id).then(function () {
+        GotItStore.dismissGuideFeedback(id).then(function () {
           suggestions = suggestions.filter(function (s) { return s.id !== id; });
           renderSuggestions();
         }).catch(function () { item.style.opacity = ""; });
@@ -431,7 +431,7 @@
       Promise.all([
         GotItStore.getProfile(tok).catch(function () { return null; }),
         GotItStore.listSavedGuides(tok),
-        GotItStore.listGuideFeedback(tok).catch(function () { return []; })
+        GotItStore.listGuideFeedback().catch(function () { return []; })
       ]).then(function (res) {
         profile = res[0];
         suggestions = res[2] || [];

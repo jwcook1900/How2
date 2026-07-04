@@ -448,7 +448,7 @@
       if (!window.GotItAuth || !window.GotItStore || !GotItStore.listGuideFeedback) return;
       GotItAuth.idToken().then(function (tok) {
         if (!tok) return;
-        return GotItStore.listGuideFeedback(tok).then(function (items) {
+        return GotItStore.listGuideFeedback().then(function (items) {
           var n = (items || []).length;
           if (!n) return;
           var badge = document.getElementById("myGuidesBadge");

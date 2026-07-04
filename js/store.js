@@ -60,15 +60,16 @@ window.GotItStore = (function () {
     });
   }
 
-  // Pull the email claim out of a Cognito id token (JWT), best-effort.
-  function emailFromIdToken(t) {
+  // Decode a Cognito id token (JWT) payload, best-effort.
+  function decodeJwt(t) {
     try {
-      var p = JSON.parse(decodeURIComponent(escape(atob(
+      return JSON.parse(decodeURIComponent(escape(atob(
         String(t).split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
       ))));
-      return (p && p.email) || null;
     } catch (e) { return null; }
   }
+  function emailFromIdToken(t) { var p = decodeJwt(t); return (p && p.email) || null; }
+  function subFromIdToken(t) { var p = decodeJwt(t); return (p && p.sub) || null; }
 
   /* ---- optional password protection (AES-GCM, key from PBKDF2) ----
      A locked guide is stored as an envelope { enc:1, slug, salt, iv, ct }.
@@ -179,7 +180,8 @@ window.GotItStore = (function () {
             slug: g.slug, editToken: g.editToken,
             title: g.title || "Untitled guide", emoji: g.emoji || "📘",
             status: g.status || "published", locked: !!g.locked,
-            ownerEmail: emailFromIdToken(idToken) // so sitter feedback can reach them
+            ownerEmail: emailFromIdToken(idToken), // so sitter feedback can reach them
+            ownerSub: subFromIdToken(idToken)      // ...and show on their dashboard
           } },
           idToken
         ).then(function (d) { return d.createSavedGuide; });
@@ -196,6 +198,8 @@ window.GotItStore = (function () {
         });
         var oe = emailFromIdToken(idToken); // keep the owner email fresh for feedback routing
         if (oe) input.ownerEmail = oe;
+        var os = subFromIdToken(idToken);
+        if (os) input.ownerSub = os;
         return gqlAuth(cfg,
           "mutation($input: UpdateSavedGuideInput!) { updateSavedGuide(input: $input) { id updatedAt } }",
           { input: input }, idToken
@@ -241,26 +245,28 @@ window.GotItStore = (function () {
         });
       });
     },
-    /* ---- Sitter suggestions on the dashboard (owner-scoped GuideFeedback) ---- */
-    listGuideFeedback: function (idToken) {
-      return loadConfig().then(function (cfg) {
-        if (!cfg) return [];
-        return gqlAuth(cfg,
-          "query { listGuideFeedback { items { id slug title message fromEmail createdAt } } }", {}, idToken
-        ).then(function (d) {
-          var items = (d.listGuideFeedback && d.listGuideFeedback.items) || [];
-          items.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || ""); });
-          return items;
-        }, function () { return []; });
+    /* ---- Sitter suggestions on the dashboard ----
+       Read/dismissed through the guide-feedback function, scoped by the caller's
+       verified Cognito identity (access token), not AppSync owner-auth. */
+    listGuideFeedback: function () {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return [];
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "list", idToken: idToken })
+        }).then(function (res) { return res.ok ? res.json() : { items: [] }; })
+          .then(function (d) { return (d && d.items) || []; }, function () { return []; });
       }, function () { return []; });
     },
-    dismissGuideFeedback: function (idToken, id) {
-      return loadConfig().then(function (cfg) {
-        if (!cfg) return null;
-        return gqlAuth(cfg,
-          "mutation($input: DeleteGuideFeedbackInput!) { deleteGuideFeedback(input: $input) { id } }",
-          { input: { id: id } }, idToken
-        );
+    dismissGuideFeedback: function (id) {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return null;
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "dismiss", idToken: idToken, id: id })
+        }).then(function (res) { return res.ok ? res.json() : null; });
       });
     },
 

@@ -2253,6 +2253,16 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 0.85rem;
   margin: 10px 0 0;
 }
+.collab-note {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  background: var(--soft, #FBF8F5);
+  border-radius: 10px;
+}
+.collab-note strong { color: var(--ink); }
 .email-links-note.ok { color: var(--coral-dark); }
 .email-links-note.err { color: var(--coral-dark); }
 
@@ -2550,6 +2560,17 @@ ul { margin: 0; padding: 0; list-style: none; }
 .dash-fb-reply:hover { text-decoration: underline; }
 .dash-fb-del { width: 26px; height: 26px; border: none; border-radius: 50%; background: rgba(0,0,0,0.06); color: var(--ink-muted); font-size: 0.8rem; cursor: pointer; line-height: 1; }
 .dash-fb-del:hover { background: #e2503e; color: #fff; }
+
+/* Collaborate (share edit link) modal — reuses the .dash-fb modal shell */
+.dash-collab-body { padding: 16px 20px 20px; }
+.dash-collab-lead { color: var(--ink); font-size: 0.95rem; line-height: 1.5; margin: 0 0 14px; }
+.dash-collab-label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.dash-collab-link input {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px;
+  font-size: 0.9rem; color: var(--ink); background: var(--soft, #FBF8F5); font-family: inherit;
+}
+.dash-collab-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.dash-collab-warn { margin: 14px 0 0; font-size: 0.82rem; color: var(--ink-muted); line-height: 1.45; }
 
 .dash-search { margin-bottom: 20px; }
 .dash-search .q-input { width: 100%; }

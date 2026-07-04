@@ -211,6 +211,12 @@
       share.addEventListener("click", function () { shareGuide(g); });
       actions.appendChild(share);
     }
+    // Collaborate: share the edit link so a partner/co-carer can co-edit.
+    var collab = document.createElement("button");
+    collab.className = "btn btn-ghost btn-sm"; collab.type = "button";
+    collab.innerHTML = "👥 Collaborate";
+    collab.addEventListener("click", function () { openCollaborateModal(g); });
+    actions.appendChild(collab);
 
     el.appendChild(moreWrap);
     el.appendChild(main);
@@ -329,6 +335,81 @@
     if (!n) { if (chip && chip.parentNode) chip.parentNode.removeChild(chip); return; }
     var cnt = chip && chip.querySelector(".dcf-count");
     if (cnt) cnt.textContent = n;
+  }
+
+  /* ---------- collaborate (share edit access) ---------- */
+  // The edit link is itself the edit credential — anyone with it can edit the
+  // guide. Sharing it is the lightweight way for a couple/co-carers to co-edit.
+  function collabEditUrl(g) { return location.origin + "/" + editUrl(g.slug, g.editToken); }
+
+  function openCollaborateModal(g) {
+    closeCollaborateModal();
+    var link = collabEditUrl(g);
+    var gname = (g.title || "").trim();
+
+    var overlay = document.createElement("div");
+    overlay.className = "dash-fb-overlay";
+    overlay.id = "dashCollabOverlay";
+
+    var modal = document.createElement("div");
+    modal.className = "dash-fb-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    var head = document.createElement("div");
+    head.className = "dash-fb-head";
+    head.innerHTML = '<div class="dash-fb-title">' +
+        '<span class="dash-fb-emoji">👥</span>' +
+        "<span>" + (gname ? 'Collaborate on “' + esc(gname) + '”' : "Collaborate on this guide") + "</span>" +
+      "</div>";
+    var close = document.createElement("button");
+    close.type = "button"; close.className = "dash-fb-close";
+    close.setAttribute("aria-label", "Close"); close.textContent = "✕";
+    close.addEventListener("click", closeCollaborateModal);
+    head.appendChild(close);
+
+    var body = document.createElement("div");
+    body.className = "dash-collab-body";
+    body.innerHTML =
+      '<p class="dash-collab-lead">Send this edit link to your partner or co-carer so you can build ' +
+        "and update this guide together.</p>" +
+      '<label class="dash-collab-label">Edit link</label>' +
+      '<div class="dash-collab-link"><input type="text" id="collabLinkInput" readonly value="' + esc(link) + '" /></div>' +
+      '<div class="dash-collab-actions"></div>' +
+      '<p class="dash-collab-warn">🔒 Anyone with this link can edit this guide — only share it with people you trust.</p>';
+
+    var actions = body.querySelector(".dash-collab-actions");
+    var copyBtn = document.createElement("button");
+    copyBtn.type = "button"; copyBtn.className = "btn btn-primary btn-sm";
+    copyBtn.textContent = "Copy edit link";
+    copyBtn.addEventListener("click", function () { copyText(link, "Edit link copied!"); });
+    actions.appendChild(copyBtn);
+    if (navigator.share) {
+      var shareBtn = document.createElement("button");
+      shareBtn.type = "button"; shareBtn.className = "btn btn-ghost btn-sm";
+      shareBtn.textContent = "Share…";
+      shareBtn.addEventListener("click", function () {
+        navigator.share({
+          title: gname ? "Edit “" + gname + "” with me" : "Edit my guide with me",
+          text: "Here's the edit link to our guide on GotIt Guides:",
+          url: link
+        }).catch(function () {});
+      });
+      actions.appendChild(shareBtn);
+    }
+
+    modal.appendChild(head);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeCollaborateModal(); });
+    document.body.appendChild(overlay);
+    // Preselect the link so it's easy to copy manually too.
+    var inp = body.querySelector("#collabLinkInput");
+    if (inp) { inp.focus(); inp.setSelectionRange(0, inp.value.length); }
+  }
+  function closeCollaborateModal() {
+    var o = $("dashCollabOverlay");
+    if (o && o.parentNode) o.parentNode.removeChild(o);
   }
 
   function closeMenus() {
@@ -569,7 +650,7 @@
     if (!e.target.closest(".dash-card-more-wrap")) closeMenus();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { closeMenus(); closeSettings(); closeFeedbackModal(); }
+    if (e.key === "Escape") { closeMenus(); closeSettings(); closeFeedbackModal(); closeCollaborateModal(); }
   });
 
   /* ---------- boot ---------- */

@@ -937,6 +937,25 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .cover-emoji-x:hover { background: rgba(0, 0, 0, 0.52); }
 .cover-emoji-x[hidden] { display: none; }
+/* Editor-only reposition handle on the cover photo (top-left, clears the ✕). */
+.cover-reposition-btn {
+  position: absolute;
+  top: 10px; left: 10px;
+  width: 30px; height: 30px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.cover-reposition-btn svg { width: 17px; height: 17px; }
+.cover-reposition-btn:hover { background: rgba(0, 0, 0, 0.52); }
+.cover-reposition-btn[hidden] { display: none; }
+.guide-cover.repositioning .cover-reposition-btn { display: none; }
 /* Drag-to-reposition the cover photo / move the title */
 .guide-cover.repositioning { cursor: grab; touch-action: none; user-select: none; }
 .guide-cover.repositioning:active { cursor: grabbing; }
@@ -1189,6 +1208,18 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .sec-media-move:hover { background: var(--coral); }
 .sec-media-item.repositioning .sec-media-move { display: none; }
+/* Reposition (pan/crop) handle — top-left so it clears the ✕ / ⇄ controls */
+.sec-media-repos {
+  position: absolute; top: 8px; left: 8px; z-index: 3;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(26, 26, 26, 0.66); color: #fff;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.sec-media-repos svg { width: 17px; height: 17px; }
+.sec-media-repos:hover { background: var(--coral); }
+.sec-media-item.repositioning .sec-media-repos { display: none; }
 .media-move-menu {
   position: fixed; z-index: 60;
   min-width: 200px; max-width: 260px;
@@ -1416,14 +1447,36 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .drag-handle:hover { color: var(--coral); }
 .drag-handle:active { cursor: grabbing; }
+/* Blocks ease into the "lifted" move-mode state (and settle back after). */
+.guide-section, .guide-emergency, .guide-log, .guide-routine, .guide-videos {
+  transition: transform 0.16s var(--ease), box-shadow 0.16s var(--ease);
+}
 .guide-section.dragging,
 .guide-emergency.dragging,
-.guide-log.dragging {
-  opacity: 0.9;
-  box-shadow: var(--shadow-lg);
-  transform: scale(1.01);
-  outline: 2px dashed var(--coral);
+.guide-log.dragging,
+.guide-routine.dragging,
+.guide-videos.dragging {
+  opacity: 0.97;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+  transform: scale(1.04) translateY(-3px);
+  outline: 2px solid var(--coral);
   outline-offset: 3px;
+  cursor: grabbing;
+  position: relative;
+  z-index: 20;
+}
+/* While a block is being dragged, don't let anything on the page get selected
+   (stops the browser highlighting the title/dots when you meant to move). */
+body.dragging-active { cursor: grabbing; }
+body.dragging-active,
+body.dragging-active * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+/* Headers are the press-and-hold "move" zone: suppress the iOS long-press
+   callout so holding lifts the block instead of selecting text. */
+.acc-header, .em-head, .log-head, .routine-head, .videos-head {
+  -webkit-touch-callout: none;
 }
 /* Drag handle also shown on emergency/log headers */
 .em-head .drag-handle, .log-head .drag-handle { margin-right: 2px; }

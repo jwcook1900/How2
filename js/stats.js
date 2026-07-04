@@ -50,19 +50,74 @@
         "</div>"
       : "";
 
-    var top = (s.topGuides || []).filter(function (g) { return g.views; });
-    var topHtml = top.length
-      ? '<h2 class="stat-h2">Most viewed guides</h2><ol class="stat-list">' +
-          top.map(function (g) {
-            return '<li><a href="/g/' + encodeURIComponent(g.slug) + '" target="_blank" rel="noopener">' +
-              esc(g.slug) + "</a><span>" + g.views + " views</span></li>";
-          }).join("") +
-        "</ol>"
-      : '<p class="stat-empty">No guide views yet — share a guide link to see it here.</p>';
+    // Per-guide breakdown: each guide's own views / shares / publishes / features.
+    var guides = s.guides || [];
+    var guidesHtml;
+    if (guides.length) {
+      var filter = guides.length > 6
+        ? '<input type="search" id="sgFilter" class="stat-filter" placeholder="Filter guides by name…" autocomplete="off" />'
+        : "";
+      guidesHtml = '<h2 class="stat-h2">Per-guide breakdown <span class="stat-sub">(' + guides.length + ')</span></h2>' +
+        filter + '<div class="stat-guides" id="statGuides">' +
+        guides.map(guideCard).join("") + "</div>";
+    } else {
+      guidesHtml = '<h2 class="stat-h2">Per-guide breakdown</h2>' +
+        '<p class="stat-empty">No guide activity yet — publish or share a guide to see it here.</p>';
+    }
 
-    out.innerHTML = cards + startHtml + featHtml + topHtml +
+    out.innerHTML = cards + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected. ' +
       "Start-method and feature stats only include activity after this update.</p>";
+
+    var fEl = $("sgFilter");
+    if (fEl) fEl.addEventListener("input", function () {
+      var q = this.value.trim().toLowerCase();
+      Array.prototype.forEach.call($("statGuides").children, function (c) {
+        var slug = (c.getAttribute("data-slug") || "").toLowerCase();
+        c.style.display = (!q || slug.indexOf(q) >= 0) ? "" : "none";
+      });
+    });
+  }
+
+  var FEAT_META = {
+    photo: ["📸", "Photos"], video: ["🎬", "Videos"], cover: ["🖼️", "Cover photo"],
+    routine: ["⏰", "Routine"], log: ["📓", "Logs"], lock: ["🔒", "Locked"],
+  };
+  function guideCard(g) {
+    var feats = (g.features || []).map(function (f) {
+      var m = FEAT_META[f] || ["•", f];
+      return '<span class="sg-feat">' + m[0] + " " + esc(m[1]) + "</span>";
+    }).join("");
+    var metric = function (emoji, n, label) {
+      return '<span class="sg-metric">' + emoji + " <b>" + (n || 0) + "</b> " + label + "</span>";
+    };
+    var when = relTime(g.lastActive);
+    return '<div class="sg-card" data-slug="' + esc(g.slug) + '">' +
+      '<div class="sg-top">' +
+        '<a class="sg-name" href="/g/' + encodeURIComponent(g.slug) + '" target="_blank" rel="noopener">' + esc(g.slug) + "</a>" +
+        (when ? '<span class="sg-when">' + esc(when) + "</span>" : "") +
+      "</div>" +
+      '<div class="sg-metrics">' +
+        metric("👀", g.views, "views") + metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
+      "</div>" +
+      (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +
+    "</div>";
+  }
+
+  // Compact "3 days ago" from an ISO timestamp.
+  function relTime(iso) {
+    if (!iso) return "";
+    var then = new Date(iso).getTime();
+    if (isNaN(then)) return "";
+    var d = Math.floor((Date.now() - then) / 86400000);
+    if (d <= 0) return "today";
+    if (d === 1) return "yesterday";
+    if (d < 7) return d + " days ago";
+    if (d < 14) return "last week";
+    if (d < 30) return Math.floor(d / 7) + " weeks ago";
+    if (d < 60) return "last month";
+    if (d < 365) return Math.floor(d / 30) + " months ago";
+    return Math.floor(d / 365) + "y ago";
   }
 
   // "  (42%)" — a small share label; empty when there's nothing to divide by.

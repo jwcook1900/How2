@@ -30,7 +30,12 @@ export const handler = async (event: any) => {
     if (!table) return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "table not set" }) };
 
     let publishes = 0, views = 0, shares = 0;
+    // Per-guide tallies (keyed by slug) so we can break analytics down by guide.
     const viewsBySlug: Record<string, number> = {};
+    const sharesBySlug: Record<string, number> = {};
+    const publishesBySlug: Record<string, number> = {};
+    const featsBySlug: Record<string, Set<string>> = {}; // slug -> set of feature names
+    const lastBySlug: Record<string, string> = {};       // slug -> latest ISO timestamp
     // How guides are started (totals) and which features they use (distinct
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
     const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0 };
@@ -39,16 +44,22 @@ export const handler = async (event: any) => {
     do {
       const res: any = await ddb.send(new ScanCommand({
         TableName: table,
-        ProjectionExpression: "#k, slug",
+        ProjectionExpression: "#k, slug, createdAt",
         ExpressionAttributeNames: { "#k": "kind" },
         ExclusiveStartKey: startKey,
       }));
       for (const item of res.Items || []) {
         const kind = (item.kind && item.kind.S) || "";
         const slug = (item.slug && item.slug.S) || "";
-        if (kind === "publish") publishes++;
-        else if (kind === "share") shares++;
-        else if (kind === "view") {
+        const ca = (item.createdAt && item.createdAt.S) || "";
+        if (slug && ca && ca > (lastBySlug[slug] || "")) lastBySlug[slug] = ca;
+        if (kind === "publish") {
+          publishes++;
+          if (slug) publishesBySlug[slug] = (publishesBySlug[slug] || 0) + 1;
+        } else if (kind === "share") {
+          shares++;
+          if (slug) sharesBySlug[slug] = (sharesBySlug[slug] || 0) + 1;
+        } else if (kind === "view") {
           views++;
           if (slug) viewsBySlug[slug] = (viewsBySlug[slug] || 0) + 1;
         } else if (kind.indexOf("start_") === 0) {
@@ -57,6 +68,7 @@ export const handler = async (event: any) => {
         } else if (kind.indexOf("feat_") === 0) {
           const f = kind.slice(5);
           (featSlugs[f] || (featSlugs[f] = new Set())).add(slug || "?" + Math.random());
+          if (slug) (featsBySlug[slug] || (featsBySlug[slug] = new Set())).add(f);
         }
       }
       startKey = res.LastEvaluatedKey;
@@ -70,7 +82,25 @@ export const handler = async (event: any) => {
     const features: Record<string, number> = {};
     for (const f of Object.keys(featSlugs)) features[f] = featSlugs[f].size;
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features }) };
+    // Per-guide breakdown: every slug we've seen any event for, with its own
+    // views / shares / publishes / features / last activity. Sorted by views.
+    const slugSet = new Set<string>([
+      ...Object.keys(viewsBySlug), ...Object.keys(sharesBySlug),
+      ...Object.keys(publishesBySlug), ...Object.keys(featsBySlug),
+    ]);
+    const guides = Array.from(slugSet)
+      .map((slug) => ({
+        slug,
+        views: viewsBySlug[slug] || 0,
+        shares: sharesBySlug[slug] || 0,
+        publishes: publishesBySlug[slug] || 0,
+        features: featsBySlug[slug] ? Array.from(featsBySlug[slug]) : [],
+        lastActive: lastBySlug[slug] || "",
+      }))
+      .sort((a, b) => b.views - a.views || b.shares - a.shares || b.publishes - a.publishes)
+      .slice(0, 100);
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features, guides }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

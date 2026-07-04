@@ -2286,6 +2286,32 @@ body.dragging-active * {
 .stat-foot { color: var(--ink-muted); font-size: 0.8rem; margin-top: 22px; }
 @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr; } }
 
+/* Per-guide breakdown */
+.stat-filter {
+  width: 100%; box-sizing: border-box; margin: 0 0 12px;
+  border: 1.5px solid var(--line); border-radius: 999px;
+  padding: 10px 16px; font-family: inherit; font-size: 0.92rem; color: var(--ink);
+}
+.stat-filter:focus { outline: none; border-color: var(--coral); }
+.stat-guides { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+.sg-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px;
+}
+.sg-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sg-name { font-weight: 700; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.sg-name:hover { color: var(--coral); text-decoration: underline; }
+.sg-when { color: var(--ink-muted); font-size: 0.78rem; white-space: nowrap; flex-shrink: 0; }
+.sg-metrics { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
+.sg-metric { color: var(--ink-muted); font-size: 0.88rem; }
+.sg-metric b { color: var(--ink); font-weight: 800; }
+.sg-feats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.sg-feat {
+  font-size: 0.76rem; font-weight: 600; color: var(--ink-soft);
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px;
+}
+
 /* Custom link name (builder) */
 .slug-row {
   border: 1px solid var(--line);

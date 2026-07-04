@@ -1552,6 +1552,26 @@ ul { margin: 0; padding: 0; list-style: none; }
 .chip:hover { border-color: var(--coral); transform: translateY(-2px); }
 .chip-ico { width: 18px; height: 18px; flex: none; }
 .share-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* "Download QR" as a quiet text link tucked under the QR image */
+.share-qr-dl-row { margin: -12px 0 22px; }
+.share-qr-dl { font-size: 0.85rem; font-weight: 700; color: var(--ink-soft); }
+
+/* Labelled divider between the "share it" and "save/edit" halves of step 4 */
+.share-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 30px 0 20px;
+  color: var(--ink-muted); font-size: 0.72rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.share-divider::before, .share-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* No-account fallback: visible but visually secondary to the dashboard hero */
+.save-fallback { margin-top: 20px; }
+.save-fallback-head {
+  text-align: left; font-size: 0.88rem; font-weight: 700;
+  color: var(--ink); margin: 0 2px 14px; line-height: 1.45;
+}
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
   background: var(--ink); color: var(--white); padding: 12px 22px;

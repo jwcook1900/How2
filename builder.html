@@ -174,7 +174,11 @@
           <div class="share-title" id="shareTitle">Your guide</div>
           <p class="share-sub">Anyone with this link can view it.</p>
 
+          <!-- ① SHARE IT — everything here is the view-only link -->
           <div class="qr-box" id="qrBox"></div>
+          <div class="share-qr-dl-row">
+            <button class="btn-link share-qr-dl" id="downloadQr" type="button">⬇ Download QR</button>
+          </div>
 
           <label class="share-label">Share this link (view only)</label>
           <div class="share-link">
@@ -182,15 +186,8 @@
             <button class="btn btn-primary btn-sm" id="copyBtn" type="button">Copy</button>
           </div>
 
-          <label class="share-label">Your private edit link — keep it safe 🔒</label>
-          <div class="share-link">
-            <input type="text" id="editUrl" readonly />
-            <button class="btn btn-ghost btn-sm" id="copyEditBtn" type="button">Copy</button>
-          </div>
-          <p class="collab-note">👥 <strong>Editing together?</strong> You can send this edit link to a partner or co-carer — anyone with it can edit this guide, so only share it with people you trust.</p>
-
           <label class="share-label">Send the view link to someone</label>
-          <p class="email-links-hint">These send the view-only link — they can read the guide but not edit it. (To let someone edit, use the edit link above.)</p>
+          <p class="email-links-hint">These send the view-only link — they can read the guide but not edit it.</p>
           <div class="share-channels">
             <button class="chip" id="shareNative" type="button" hidden>
               <svg class="chip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share…
@@ -206,6 +203,9 @@
             </a>
           </div>
 
+          <!-- ② SAVE IT & COME BACK TO EDIT -->
+          <div class="share-divider"><span>Save it &amp; edit later</span></div>
+
           <div class="save-dash save-dash-hero" id="saveDash">
             <label class="share-label">⭐ Keep it in your dashboard <span class="save-dash-rec">Recommended</span></label>
             <p class="email-links-hint">Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. You'll sign in with Google.</p>
@@ -214,16 +214,27 @@
             <p class="email-links-note" id="saveToDashNote" hidden></p>
           </div>
 
-          <label class="share-label">Prefer not to sign up? Email yourself these links</label>
-          <p class="email-links-hint" id="emailLinksHint">So you don't lose them — includes your view and edit links.</p>
-          <div class="share-link">
-            <input type="email" id="emailLinksInput" placeholder="you@email.com" autocomplete="email" />
-            <button class="btn btn-primary btn-sm" id="emailLinksBtn" type="button">Send</button>
+          <!-- No-account fallback: keep your own edit link (copy it, or email it) -->
+          <div class="save-fallback">
+            <p class="save-fallback-head">Prefer not to make an account? Keep your edit link so you can come back to it:</p>
+
+            <label class="share-label">Your private edit link 🔒</label>
+            <div class="share-link">
+              <input type="text" id="editUrl" readonly />
+              <button class="btn btn-ghost btn-sm" id="copyEditBtn" type="button">Copy</button>
+            </div>
+            <p class="collab-note">👥 <strong>Editing together?</strong> You can send this edit link to a partner or co-carer — anyone with it can edit this guide, so only share it with people you trust.</p>
+
+            <label class="share-label">Or email these links to yourself</label>
+            <p class="email-links-hint" id="emailLinksHint">So you don't lose them — includes your view and edit links.</p>
+            <div class="share-link">
+              <input type="email" id="emailLinksInput" placeholder="you@email.com" autocomplete="email" />
+              <button class="btn btn-primary btn-sm" id="emailLinksBtn" type="button">Send</button>
+            </div>
+            <p class="email-links-note" id="emailLinksNote" hidden></p>
           </div>
-          <p class="email-links-note" id="emailLinksNote" hidden></p>
 
           <div class="share-actions">
-            <button class="btn btn-ghost btn-sm" id="downloadQr" type="button">Download QR</button>
             <a class="btn btn-ghost btn-sm" id="printGuide" target="_blank" rel="noopener">🖨️ Printable version</a>
             <a class="btn btn-ghost btn-sm" id="openGuide" target="_blank" rel="noopener">Open guide ↗</a>
           </div>

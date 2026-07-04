@@ -2425,8 +2425,24 @@
     });
   }
 
-  // Optional: email the creator their links (and password, if the guide is
-  // locked) so a lost edit link doesn't orphan the guide.
+  // Core: email the creator their links (and password, if the guide is locked)
+  // so a lost edit link doesn't orphan the guide. Shared by the manual "email
+  // me" field and the dashboard-save flow (which emails them by default).
+  function doSendLinks(email) {
+    var g = state.guide;
+    if (!g) return Promise.resolve(null);
+    return GotItStore.sendLinks({
+      email: email,
+      slug: g.slug,
+      editToken: state.editToken,
+      origin: window.location.origin,
+      title: g.title,
+      emoji: g.emoji,
+      password: state.password || ""
+    });
+  }
+
+  // Optional field: for people who'd rather not create an account.
   function emailMyLinks() {
     var input = $("emailLinksInput");
     var note = $("emailLinksNote");
@@ -2439,19 +2455,10 @@
       input.focus();
       return;
     }
-    var g = state.guide;
     btn.disabled = true; btn.textContent = "Sending…";
     note.hidden = true;
 
-    GotItStore.sendLinks({
-      email: email,
-      slug: g.slug,
-      editToken: state.editToken,
-      origin: window.location.origin,
-      title: g.title,
-      emoji: g.emoji,
-      password: state.password || ""
-    }).then(function (res) {
+    doSendLinks(email).then(function (res) {
       if (res === null) {
         say("err", "Emailing links needs the published (online) site.");
       } else {
@@ -2935,6 +2942,13 @@
           saveDashNote("Saved to your dashboard ✓", true);
           if ($("myGuidesLink")) $("myGuidesLink").hidden = false;
           btn.textContent = "Saved ✓";
+          // Also email their links as a backup, by default (best-effort).
+          var u = GotItAuth.getUser && GotItAuth.getUser();
+          if (u && u.email) {
+            doSendLinks(u.email).then(function (res) {
+              if (res !== null) saveDashNote("Saved to your dashboard ✓ — links emailed to you too", true);
+            }).catch(function () {});
+          }
         }).catch(function (e) {
           btn.disabled = false;
           saveDashNote(e.message || "Couldn't save just now — please try again.", false);

@@ -347,7 +347,7 @@
     $("pasteText").value = "";
     if ($("pasteFile")) $("pasteFile").value = "";
     if ($("pastePhoto")) $("pastePhoto").value = "";
-    $("startHeading").textContent = "How would you like to start your " + state.category.name + " guide?";
+    $("startHeading").textContent = "How would you like to create your guide?";
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
     if (autoPasteIntent) {

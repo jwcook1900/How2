@@ -52,7 +52,8 @@
         </a>
       </div>
       <div class="header-right">
-        <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
+        <a href="dashboard.html" class="btn btn-ghost btn-sm nav-myguides" id="navMyGuides">My guides</a>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create</a>
       </div>
     </div>
   </header>
@@ -453,6 +454,9 @@
           if (!n) return;
           var badge = document.getElementById("myGuidesBadge");
           if (badge) { badge.textContent = n; badge.hidden = false; }
+          // Compact alert dot on the visible "My guides" pill (count stays in the menu).
+          var pill = document.getElementById("navMyGuides");
+          if (pill) pill.classList.add("has-alert");
           var toggle = document.getElementById("navToggle");
           if (toggle) toggle.classList.add("has-alert");
         });

@@ -158,6 +158,14 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 0.72rem; font-weight: 800; line-height: 1;
   color: #fff; background: var(--coral); border-radius: 999px;
 }
+/* Compact alert dot on the visible "My guides" header pill (new sitter feedback). */
+.nav-myguides { position: relative; }
+.nav-myguides.has-alert::after {
+  content: "";
+  position: absolute; top: -3px; right: -3px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--coral); border: 2px solid #fff;
+}
 .nav-dropdown {
   position: absolute;
   top: calc(100% + 10px);
@@ -641,19 +649,31 @@ ul { margin: 0; padding: 0; list-style: none; }
   .section { padding: 64px 0; }
   .hero { padding: 32px 0 56px; }
   .container { padding: 0 20px; }
-  /* Keep the header on one line: smaller logo + menu bubble so the hamburger,
-     wordmark and "Create a guide" button all fit without wrapping. */
+  /* Keep the header on one line: smaller logo + menu bubble + tighter pills so
+     the hamburger, wordmark, "My guides" and "Create" all fit without wrapping. */
   .header-inner { height: 60px; }
   .header-left { gap: 9px; }
-  .logo-mark { font-size: 1.12rem; white-space: nowrap; }
+  .logo-mark { font-size: 1.08rem; white-space: nowrap; }
   .nav-toggle { width: 38px; height: 38px; }
   .nav-toggle svg { width: 18px; height: 18px; }
+  .header-right { gap: 7px; }
+  .header-right .btn-sm { padding: 8px 14px; font-size: 0.88rem; white-space: nowrap; }
   .features { grid-template-columns: 1fr; }
   .cards { grid-template-columns: 1fr; }
   .hero-cta .btn { width: 100%; }
   .waitlist { flex-direction: column; border-radius: var(--radius); background: transparent; box-shadow: none; padding: 0; gap: 12px; }
   .waitlist-input { background: var(--white); border-radius: 999px; padding: 15px 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
   .footer-inner { flex-direction: column; text-align: center; }
+}
+
+/* Small phones (≈360px Androids): tighten the header just enough to keep the
+   hamburger, wordmark, "My guides" and "Create" pills all on one line. */
+@media (max-width: 400px) {
+  .site-header .header-inner { padding-left: 14px; padding-right: 14px; }
+  .header-left { gap: 7px; }
+  .logo-mark { font-size: 1rem; }
+  .header-right { gap: 6px; }
+  .header-right .btn-sm { padding: 8px 11px; font-size: 0.84rem; }
 }
 
 /* Reduced motion */

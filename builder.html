@@ -205,21 +205,21 @@
             </a>
           </div>
 
-          <label class="share-label">Email yourself these links (optional)</label>
+          <div class="save-dash save-dash-hero" id="saveDash">
+            <label class="share-label">⭐ Keep it in your dashboard <span class="save-dash-rec">Recommended</span></label>
+            <p class="email-links-hint">Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. You'll sign in with Google.</p>
+            <button class="btn btn-primary btn-block" id="saveToDash" type="button">⭐ Save to my guides</button>
+            <a class="btn btn-ghost btn-sm" id="myGuidesLink" href="dashboard.html" hidden>My guides ↗</a>
+            <p class="email-links-note" id="saveToDashNote" hidden></p>
+          </div>
+
+          <label class="share-label">Prefer not to sign up? Email yourself these links</label>
           <p class="email-links-hint" id="emailLinksHint">So you don't lose them — includes your view and edit links.</p>
           <div class="share-link">
             <input type="email" id="emailLinksInput" placeholder="you@email.com" autocomplete="email" />
             <button class="btn btn-primary btn-sm" id="emailLinksBtn" type="button">Send</button>
           </div>
           <p class="email-links-note" id="emailLinksNote" hidden></p>
-
-          <div class="save-dash" id="saveDash">
-            <label class="share-label">Keep it in your dashboard (optional)</label>
-            <p class="email-links-hint">Save this guide to a free account so you can find and update it any time. You'll sign in with Google.</p>
-            <button class="btn btn-primary btn-sm" id="saveToDash" type="button">⭐ Save to my guides</button>
-            <a class="btn btn-ghost btn-sm" id="myGuidesLink" href="dashboard.html" hidden>My guides ↗</a>
-            <p class="email-links-note" id="saveToDashNote" hidden></p>
-          </div>
 
           <div class="share-actions">
             <button class="btn btn-ghost btn-sm" id="downloadQr" type="button">Download QR</button>

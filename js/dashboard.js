@@ -603,6 +603,14 @@
         if (pending && pending.slug && !items.some(function (g) { return g.slug === pending.slug; })) {
           clearPending();
           return GotItStore.saveGuide(tok, pending).then(function () {
+            // They chose "Save to my guides" on the share screen (then signed
+            // in). Email their links too, by default, as a backup (best-effort).
+            if (user && user.email && GotItStore.sendLinks) {
+              GotItStore.sendLinks({
+                email: user.email, slug: pending.slug, editToken: pending.editToken,
+                origin: location.origin, title: pending.title, emoji: pending.emoji, password: ""
+              }).catch(function () {});
+            }
             return GotItStore.listSavedGuides(tok);
           });
         }

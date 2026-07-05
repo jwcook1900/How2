@@ -2643,6 +2643,20 @@
     } else {
       box.innerHTML = '<p style="font-size:.85rem;color:var(--ink-muted)">QR unavailable offline</p>';
     }
+    // Dashboard-save block: signed-in creators get it auto-saved on publish
+    // (touchDashboard, running right after this); everyone else sees the CTA.
+    var saveBtn = $("saveToDash");
+    if (saveBtn) {
+      if (window.GotItAuth && GotItAuth.isSignedIn()) {
+        saveBtn.disabled = true; saveBtn.textContent = "Saving…";
+        saveDashNote("Saving to your dashboard…", true);
+      } else {
+        saveBtn.disabled = false; saveBtn.textContent = "⭐ Save to my guides";
+        if ($("myGuidesLink")) $("myGuidesLink").hidden = true;
+        if ($("saveToDashNote")) $("saveToDashNote").hidden = true;
+      }
+    }
+
     if (!isCloud) {
       showToast("Saved on this device. (Cloud sharing activates once the backend is live.)");
     }
@@ -3003,6 +3017,17 @@
   initDockDrag(); // let users drag the floating toolbar to reposition it
   // Exit returns a signed-in user to their dashboard (account-less users go home).
   if ($("exitBtn") && window.GotItAuth && GotItAuth.isSignedIn()) $("exitBtn").href = "dashboard.html";
+  // Warn before leaving with work that isn't safely saved. A published guide by
+  // a signed-in user is auto-saved to their dashboard, so they're never nagged.
+  if ($("exitBtn")) $("exitBtn").addEventListener("click", function (e) {
+    if (currentStepKey === 1 || !state.guide) return;
+    var signedIn = !!(window.GotItAuth && GotItAuth.isSignedIn());
+    if (state.created && signedIn) return; // published + signed in = on the dashboard
+    var msg = !state.created
+      ? "You haven't hit “Save & publish” yet, so this guide isn't saved anywhere. If you leave now you'll lose it.\n\nLeave anyway?"
+      : "This guide is published, but it isn't saved to a dashboard (you're not signed in). To edit it again later you'll need the edit link from the share screen.\n\nLeave anyway?";
+    if (!window.confirm(msg)) e.preventDefault();
+  });
   // Close the popover when clicking away from the dock.
   document.addEventListener("click", function (e) {
     if (!e.target.closest("#editDock")) closeDockPop();
@@ -3025,17 +3050,31 @@
       locked: !!state.password
     };
   }
-  // Best-effort: if this guide is already in the signed-in user's dashboard,
-  // refresh its title/emoji/lock state (and bump "updated") after a re-publish.
+  // On publish (signed in), make sure the guide is on the user's dashboard:
+  // update the existing row, or auto-create one so newly published guides always
+  // show up there (no more "I published it but can't find it"). Best-effort.
   function touchDashboard(g, locked) {
     if (!window.GotItAuth || !GotItAuth.isSignedIn()) return;
     GotItAuth.idToken().then(function (tok) {
       if (!tok) return;
-      GotItStore.listSavedGuides(tok).then(function (items) {
+      return GotItStore.listSavedGuides(tok).then(function (items) {
         var row = items.filter(function (x) { return x.slug === g.slug; })[0];
-        if (row) GotItStore.updateSavedGuide(tok, row.id, { title: g.title, emoji: g.emoji, locked: !!locked });
+        if (row) {
+          return GotItStore.updateSavedGuide(tok, row.id, { title: g.title, emoji: g.emoji, locked: !!locked })
+            .then(reflectSavedToDash);
+        }
+        var payload = currentSavePayload();
+        if (!payload) return;
+        return GotItStore.saveGuide(tok, payload).then(reflectSavedToDash);
       });
     }).catch(function () {});
+  }
+  // Reflect "this guide is on your dashboard" on the share screen.
+  function reflectSavedToDash() {
+    var btn = $("saveToDash");
+    if (btn) { btn.disabled = true; btn.textContent = "Saved ✓"; }
+    if ($("myGuidesLink")) $("myGuidesLink").hidden = false;
+    saveDashNote("✓ In your dashboard — find it any time under “My guides”.", true);
   }
   function saveDashNote(msg, ok) {
     var n = $("saveToDashNote");

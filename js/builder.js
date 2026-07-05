@@ -2514,7 +2514,7 @@
 
     var btn = $("publishBtn");
     btn.disabled = true;
-    btn.textContent = "Publishing…";
+    btn.textContent = "Saving…";
 
     // Resolve the optional custom link name, then resize/encrypt and store.
     resolveSlug().then(function () {
@@ -2542,7 +2542,7 @@
       }
     }).then(function () {
       btn.disabled = false;
-      btn.textContent = "Publish & share →";
+      btn.textContent = "Save & publish →";
     });
   }
 

@@ -2922,6 +2922,9 @@ body.dragging-active * {
 .polish-all-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 8px 4px 0; line-height: 1.45; text-align: center; }
 .publish-save-note { font-size: 0.82rem; color: var(--ink-muted); margin: 0 4px 10px; line-height: 1.45; text-align: center; }
 .publish-save-note strong { color: var(--ink); }
+/* Exit is a quiet secondary action, not a primary-looking button. */
+.btn-exit { background: transparent; color: var(--ink-muted); border: 1px solid transparent; box-shadow: none; font-weight: 600; }
+.btn-exit:hover { background: var(--soft); color: var(--ink); }
 
 .polish-modal { position: fixed; inset: 0; z-index: 160; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .polish-backdrop { position: absolute; inset: 0; background: rgba(26, 26, 26, 0.45); }

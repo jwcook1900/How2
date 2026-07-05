@@ -1262,7 +1262,13 @@
     var refs = [];
     if (g.cover) refs.push({ get: function () { return g.cover; }, set: function (v) { g.cover = v; } });
     (g.sections || []).forEach(function (s) {
-      if (s.photo) refs.push({ get: function () { return s.photo; }, set: function (v) { s.photo = v; } });
+      if (Array.isArray(s.photos)) {
+        s.photos.forEach(function (p) {
+          if (p && p.src) refs.push({ get: function () { return p.src; }, set: function (v) { p.src = v; } });
+        });
+      } else if (s.photo) {
+        refs.push({ get: function () { return s.photo; }, set: function (v) { s.photo = v; } });
+      }
     });
     return refs;
   }
@@ -1430,16 +1436,16 @@
   // Repositions a section photo. Section photos normally show in full; choosing
   // "reposition" crops them into a banner frame the user can pan (object-fit:
   // cover + object-position), stored on sec.photoPos.
-  function startPhotoReposition(sec, el) {
-    if (!sec.photo) return;
-    if (!sec.photoPos) sec.photoPos = "50% 50%"; // enter banner/crop mode
-    renderSectionMedia(el, sec);
-    var img = el.querySelector(".sec-photo");
-    var frame = img && img.closest(".sec-media-item");
-    if (!frame) return;
-    beginReposition(frame, sec.photoPos,
+  function startPhotoReposition(sec, photo, item) {
+    if (!photo || !item) return;
+    if (!photo.pos) photo.pos = "50% 50%"; // enter banner/crop mode
+    var img = item.querySelector(".sec-photo");
+    if (!img) return;
+    img.classList.add("is-cropped");
+    img.style.objectPosition = photo.pos;
+    beginReposition(item, photo.pos,
       function (pos) { img.style.objectPosition = pos; },
-      function (pos) { sec.photoPos = pos; });
+      function (pos) { photo.pos = pos; });
   }
 
   // A four-directional "move" glyph, used on photos to enter reposition mode.
@@ -1741,14 +1747,14 @@
     var media = el.querySelector(".sec-media");
     media.innerHTML = "";
     // Each media item gets a "×" to remove it and (when there's somewhere to put
-    // it) a "⇄" to move it to another section. `vid` is the specific video for
-    // video items (sections can hold several), null for the photo.
-    function addItem(inner, kind, vid, onRemove, label) {
+    // it) a "⇄" to move it to another section. `ref` is the specific media object
+    // (a photo or a video) — sections can hold several of each.
+    function addItem(inner, kind, ref, onRemove, label) {
       var item = document.createElement("div");
       item.className = "sec-media-item";
       item.appendChild(inner);
       // Photos get a four-way "move" handle to enter reposition (pan/crop) mode
-      // right on the image — no digging through a menu.
+      // right on the image — plus, once cropped, a "show whole photo" toggle.
       if (kind === "photo") {
         var rp = document.createElement("button");
         rp.type = "button";
@@ -1756,8 +1762,20 @@
         rp.innerHTML = MOVE_ICON_SVG;
         rp.title = "Reposition photo";
         rp.setAttribute("aria-label", "Reposition photo");
-        rp.addEventListener("click", function (e) { e.stopPropagation(); startPhotoReposition(sec, el); });
+        rp.addEventListener("click", function (e) { e.stopPropagation(); startPhotoReposition(sec, ref, item); });
         item.appendChild(rp);
+        if (ref && ref.pos) {
+          var whole = document.createElement("button");
+          whole.type = "button";
+          whole.className = "sec-media-whole no-print";
+          whole.textContent = "🖼";
+          whole.title = "Show whole photo";
+          whole.setAttribute("aria-label", "Show whole photo");
+          whole.addEventListener("click", function (e) {
+            e.stopPropagation(); ref.pos = null; renderSectionMedia(el, sec); recordHistory();
+          });
+          item.appendChild(whole);
+        }
       }
       if (movableTargets(kind, sec).length) {
         var mv = document.createElement("button");
@@ -1766,7 +1784,7 @@
         mv.textContent = "⇄";
         mv.title = "Move to another section";
         mv.setAttribute("aria-label", "Move to another section");
-        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(mv, kind, vid, sec, el); });
+        mv.addEventListener("click", function (e) { e.stopPropagation(); openMoveMenu(mv, kind, ref, sec, el); });
         item.appendChild(mv);
       }
       var x = document.createElement("button");
@@ -1779,14 +1797,13 @@
       item.appendChild(x);
       media.appendChild(item);
     }
-    if (sec.photo) {
-      var img = document.createElement("img");
-      img.className = "sec-photo";
-      img.src = sec.photo;
-      img.alt = "";
-      if (sec.photoPos) { img.classList.add("is-cropped"); img.style.objectPosition = sec.photoPos; }
-      addItem(img, "photo", null, function () { sec.photo = null; sec.photoPos = null; }, "Remove photo");
-    }
+    var photos = sectionPhotos(sec);
+    photos.forEach(function (photo) {
+      var pEl = makePhotoEl(photo, function (val) { photo.title = val; });
+      addItem(pEl, "photo", photo, function () {
+        sec.photos = sectionPhotos(sec).filter(function (x) { return x !== photo; });
+      }, "Remove photo");
+    });
     var vids = sectionVideos(sec);
     vids.forEach(function (vid) {
       var src = videoSrc(vid);
@@ -1796,17 +1813,15 @@
         sec.videos = sectionVideos(sec).filter(function (x) { return x !== vid; });
       }, "Remove video");
     });
-    // Add-media affordances so photos/videos are discoverable without hunting
-    // for the dock's camera icon: offer a photo (if there isn't one) and a video
-    // (sections can hold several).
+    // Add-media affordances so photos/videos are discoverable without hunting for
+    // the dock's camera icon. Both can hold several, so they always offer "add".
     var promptRow = document.createElement("div");
     promptRow.className = "sec-media-prompt no-print";
-    if (!sec.photo) {
-      var pp = document.createElement("button");
-      pp.type = "button"; pp.className = "sec-media-prompt-btn"; pp.textContent = "📷 Add a photo";
-      pp.addEventListener("click", function (e) { e.stopPropagation(); pickPhoto(sec, el); });
-      promptRow.appendChild(pp);
-    }
+    var pp = document.createElement("button");
+    pp.type = "button"; pp.className = "sec-media-prompt-btn";
+    pp.textContent = photos.length ? "📷 Add another photo" : "📷 Add a photo";
+    pp.addEventListener("click", function (e) { e.stopPropagation(); pickPhoto(sec, el); });
+    promptRow.appendChild(pp);
     var pv = document.createElement("button");
     pv.type = "button"; pv.className = "sec-media-prompt-btn";
     pv.textContent = vids.length ? "🎬 Add another video" : "🎬 Add a video";
@@ -1815,20 +1830,49 @@
     media.appendChild(promptRow);
   }
 
-  // Sections a photo/video could be moved into. Photos: sections without a photo
-  // (one photo each). Videos: any other section (a section can hold several).
+  // A section's photos as an array, migrating a legacy single photo in place.
+  // Each photo: { id, src (data URL), pos (object-position crop, or null), title }.
+  function sectionPhotos(sec) {
+    if (!Array.isArray(sec.photos)) {
+      sec.photos = sec.photo
+        ? [{ id: uid(), src: sec.photo, pos: sec.photoPos || null, title: sec.photoTitle || "" }]
+        : [];
+      delete sec.photo; delete sec.photoPos; delete sec.photoTitle;
+    }
+    return sec.photos;
+  }
+  // A photo tile: the image plus an editable caption bar (mirrors makeVideoEl).
+  function makePhotoEl(photo, onTitleChange) {
+    var wrap = document.createElement("div");
+    wrap.className = "sec-photo-wrap";
+    var img = document.createElement("img");
+    img.className = "sec-photo";
+    img.src = photo.src;
+    img.alt = "";
+    if (photo.pos) { img.classList.add("is-cropped"); img.style.objectPosition = photo.pos; }
+    wrap.appendChild(img);
+    var ct = document.createElement("div");
+    ct.className = "sec-photo-title";
+    ct.setAttribute("contenteditable", "true");
+    ct.setAttribute("data-ph", "Add a caption…");
+    ct.setAttribute("aria-label", "Photo caption");
+    ct.textContent = photo.title || "";
+    bindEditable(ct, onTitleChange);
+    wrap.appendChild(ct);
+    return wrap;
+  }
+
+  // Sections a photo/video could be moved into: any other section (sections can
+  // now hold several photos and videos).
   function movableTargets(kind, sec) {
-    return (state.guide.sections || []).filter(function (t) {
-      if (t.id === sec.id) return false;
-      return kind === "photo" ? !t.photo : true;
-    });
+    return (state.guide.sections || []).filter(function (t) { return t.id !== sec.id; });
   }
   function closeMoveMenu() {
     document.removeEventListener("click", closeMoveMenu);
     var m = document.querySelector(".media-move-menu");
     if (m && m.parentNode) m.parentNode.removeChild(m);
   }
-  function openMoveMenu(anchorBtn, kind, vid, sec, srcEl) {
+  function openMoveMenu(anchorBtn, kind, ref, sec, srcEl) {
     closeMoveMenu();
     var targets = movableTargets(kind, sec);
     if (!targets.length) return;
@@ -1844,7 +1888,7 @@
       b.textContent = (t.icon ? t.icon + " " : "") + (t.title || "Untitled section");
       b.addEventListener("click", function (e) {
         e.stopPropagation();
-        moveMedia(kind, vid, sec, t, srcEl);
+        moveMedia(kind, ref, sec, t, srcEl);
         closeMoveMenu();
       });
       menu.appendChild(b);
@@ -1862,13 +1906,13 @@
     menu.style.top = top + "px";
     setTimeout(function () { document.addEventListener("click", closeMoveMenu); }, 0);
   }
-  function moveMedia(kind, vid, sec, target, srcEl) {
+  function moveMedia(kind, ref, sec, target, srcEl) {
     if (kind === "photo") {
-      target.photo = sec.photo; target.photoPos = sec.photoPos || null;
-      sec.photo = null; sec.photoPos = null;
+      sectionPhotos(target).push(ref);
+      sec.photos = sectionPhotos(sec).filter(function (x) { return x !== ref; });
     } else {
-      sectionVideos(target).push(vid);
-      sec.videos = sectionVideos(sec).filter(function (x) { return x !== vid; });
+      sectionVideos(target).push(ref);
+      sec.videos = sectionVideos(sec).filter(function (x) { return x !== ref; });
     }
     renderSectionMedia(srcEl, sec);
     var tEl = $("guideDoc").querySelector('.guide-section[data-id="' + target.id + '"]');
@@ -1881,16 +1925,22 @@
     var input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    input.multiple = true; // add several photos to a section at once
     input.addEventListener("change", function () {
-      var file = input.files[0];
-      if (!file) return;
-      compressImage(file, 1200, 0.72, 220000).then(function (dataUrl) {
-        sec.photo = dataUrl;
-        sec.photoPos = null; // a fresh photo starts uncropped
-        renderSectionMedia(el, sec);
-        if (!el.classList.contains("open")) el.classList.add("open");
-        recordHistory();
+      var files = Array.prototype.slice.call(input.files || []);
+      if (!files.length) return;
+      if (!el.classList.contains("open")) el.classList.add("open");
+      // Compress + add sequentially so they keep their picked order.
+      var chain = Promise.resolve();
+      files.forEach(function (file) {
+        chain = chain.then(function () {
+          return compressImage(file, 1200, 0.72, 220000).then(function (dataUrl) {
+            sectionPhotos(sec).push({ id: uid(), src: dataUrl, pos: null, title: "" });
+            renderSectionMedia(el, sec);
+          });
+        });
       });
+      chain.then(function () { recordHistory(); });
     });
     input.click();
   }
@@ -2837,11 +2887,7 @@
     }
     var sec = selectedRef, el = selectedEl;
     if (!el.classList.contains("open")) el.classList.add("open");
-    item("📷 " + (sec.photo ? "Change photo" : "Photo"), function () { pickPhoto(sec, el); });
-    if (sec.photo) item("↔ Reposition photo", function () { startPhotoReposition(sec, el); });
-    if (sec.photo && sec.photoPos) item("🖼 Show whole photo", function () {
-      sec.photoPos = null; renderSectionMedia(el, sec); recordHistory();
-    });
+    item("📷 " + (sectionPhotos(sec).length ? "Add another photo" : "Photo"), function () { pickPhoto(sec, el); });
     item("🎬 " + (sectionVideos(sec).length ? "Add another video" : "Video"), function () { addSectionVideo(sec, el); });
     item("📎 File", function () {
       var content = el.querySelector(".acc-content");
@@ -3045,7 +3091,7 @@
   function logFeatureUsage(g, locked) {
     var feats = [];
     if (g.cover) feats.push("cover");
-    if ((g.sections || []).some(function (s) { return s.photo; })) feats.push("photo");
+    if ((g.sections || []).some(function (s) { return (Array.isArray(s.photos) ? s.photos.length : s.photo); })) feats.push("photo");
     if ((g.sections || []).some(function (s) { return s.videoEmbed || s.videoId; })) feats.push("video");
     if (g.routine && (g.routine.items || []).some(function (it) { return it.times && it.times.length; })) feats.push("routine");
     if ((g.logs || []).length) feats.push("log");

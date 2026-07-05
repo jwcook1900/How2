@@ -1256,11 +1256,29 @@ ul { margin: 0; padding: 0; list-style: none; }
 /* Section media */
 .sec-media { padding: 0 22px 18px; }
 .sec-photo { width: 100%; border-radius: var(--radius-sm); margin-bottom: 12px; }
+.sec-photo-wrap { position: relative; margin-bottom: 12px; }
+.sec-photo-wrap .sec-photo { margin-bottom: 0; display: block; }
 /* A repositioned section photo is cropped into a banner the creator has panned. */
 .sec-photo.is-cropped { height: 220px; object-fit: cover; object-position: 50% 50%; }
+/* Photo caption — a figcaption under the image; editable in the builder. */
+.sec-photo-title { font-size: 0.86rem; color: var(--ink-soft); line-height: 1.4; padding: 7px 2px 2px; text-align: left; }
+.sec-photo-title[contenteditable] { cursor: text; outline: none; border-radius: 6px; padding: 7px 6px 4px; }
+.sec-photo-title[contenteditable]:focus { background: var(--soft); }
+.sec-photo-title[contenteditable]:empty::before { content: attr(data-ph); color: var(--ink-muted); opacity: 0.85; }
+/* Show-whole-photo toggle (appears once a photo is cropped, beside reposition) */
+.sec-media-whole {
+  position: absolute; top: 8px; left: 44px; z-index: 3;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(26, 26, 26, 0.66); color: #fff; font-size: 0.95rem;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+.sec-media-whole:hover { background: var(--coral); }
 .sec-media-item.repositioning { cursor: grab; touch-action: none; user-select: none; }
 .sec-media-item.repositioning:active { cursor: grabbing; }
-.sec-media-item.repositioning .sec-media-x { display: none; }
+.sec-media-item.repositioning .sec-media-x,
+.sec-media-item.repositioning .sec-media-whole { display: none; }
 .sec-video {
   position: relative;
   width: 100%;

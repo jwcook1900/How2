@@ -138,14 +138,25 @@
     if (sec.videoEmbed || sec.videoId) return [{ videoEmbed: sec.videoEmbed, videoId: sec.videoId, title: sec.videoTitle }];
     return [];
   }
+  // A section's photos: the array (sec.photos) or a legacy single photo.
+  function sectionPhotos(sec) {
+    if (Array.isArray(sec.photos)) return sec.photos;
+    if (sec.photo) return [{ src: sec.photo, pos: sec.photoPos, title: sec.photoTitle }];
+    return [];
+  }
+  // A photo (optionally cropped) with an optional caption bar under it.
+  function photoMediaHtml(photo) {
+    if (!photo || !photo.src) return "";
+    var cls = photo.pos ? " is-cropped" : "";
+    var style = photo.pos ? ' style="object-position:' + esc(photo.pos) + '"' : "";
+    var cap = photo.title ? '<div class="sec-photo-title">' + esc(photo.title) + "</div>" : "";
+    return '<div class="sec-media"><div class="sec-photo-wrap"><img class="sec-photo' + cls +
+      '" src="' + photo.src + '" alt=""' + style + " />" + cap + "</div></div>";
+  }
   var firstSectionOpen = true;
   function sectionHtml(sec) {
     var media = "";
-    if (sec.photo) {
-      var pCls = sec.photoPos ? " is-cropped" : "";
-      var pStyle = sec.photoPos ? ' style="object-position:' + esc(sec.photoPos) + '"' : "";
-      media += '<div class="sec-media"><img class="sec-photo' + pCls + '" src="' + sec.photo + '" alt=""' + pStyle + ' /></div>';
-    }
+    sectionPhotos(sec).forEach(function (photo) { media += photoMediaHtml(photo); });
     sectionVideos(sec).forEach(function (vid) {
       var s = videoSrcOf(vid);
       if (s) media += videoMediaHtml(s, vid.title);

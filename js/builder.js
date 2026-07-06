@@ -359,6 +359,8 @@
     $("pasteText").value = "";
     if ($("pasteFile")) $("pasteFile").value = "";
     if ($("pastePhoto")) $("pastePhoto").value = "";
+    if ($("pasteUrl")) $("pasteUrl").value = "";
+    if ($("pasteUrlNote")) $("pasteUrlNote").hidden = true;
     $("startHeading").textContent = "How would you like to create your guide?";
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
@@ -2989,6 +2991,33 @@
   $("pastePhoto").addEventListener("change", function () { onPasteAttach($("pastePhoto")); });
   $("pasteGo").addEventListener("click", function () {
     runImport($("pasteText").value.trim(), importFiles);
+  });
+  // "Or paste a link": read a public page / Google Doc server-side and drop its
+  // text into the notes box, ready to turn into a guide.
+  function readLinkIntoPaste() {
+    var input = $("pasteUrl"), note = $("pasteUrlNote"), btn = $("pasteUrlGo");
+    if (!input) return;
+    var url = (input.value || "").trim();
+    function say(kind, msg) { note.className = "import-link-note " + kind; note.textContent = msg; note.hidden = false; }
+    if (!/^https?:\/\/\S+\.\S+/i.test(url)) { say("err", "Enter a full link starting with http:// or https://"); input.focus(); return; }
+    var old = btn.textContent;
+    btn.disabled = true; btn.textContent = "Reading…"; note.hidden = true;
+    GotItStore.readUrl(url).then(function (res) {
+      if (!res) { say("err", "Reading links needs the published site."); return; }
+      if (!res.ok) { say("err", res.error || "Couldn't read that link."); return; }
+      var ta = $("pasteText");
+      var add = (res.title ? res.title + "\n\n" : "") + (res.text || "");
+      ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + add) : add;
+      say("ok", "✓ Added the text from that link — give it a read, then create your guide.");
+      input.value = "";
+      setTimeout(function () { ta.scrollIntoView({ block: "center", behavior: "smooth" }); }, 40);
+    }).catch(function () {
+      say("err", "Couldn't read that link — try copying the text and pasting it instead.");
+    }).then(function () { btn.disabled = false; btn.textContent = old; });
+  }
+  if ($("pasteUrlGo")) $("pasteUrlGo").addEventListener("click", readLinkIntoPaste);
+  if ($("pasteUrl")) $("pasteUrl").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); readLinkIntoPaste(); }
   });
   $("previewBack").addEventListener("click", function () {
     state.qIndex = state.category.questions.length - 1;

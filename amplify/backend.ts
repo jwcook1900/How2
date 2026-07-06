@@ -9,6 +9,7 @@ import { statsFn } from "./functions/stats/resource";
 import { videoFn } from "./functions/video/resource";
 import { welcomeFn } from "./functions/welcome/resource";
 import { guideFeedbackFn } from "./functions/guide-feedback/resource";
+import { urlFn } from "./functions/url/resource";
 
 /**
  * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), a
@@ -26,6 +27,7 @@ const backend = defineBackend({
   videoFn,
   welcomeFn,
   guideFeedbackFn,
+  urlFn,
 });
 
 // Note: we do NOT add a Cognito user pool domain here. Amplify already

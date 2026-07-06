@@ -354,6 +354,7 @@
     if (panel) panel.setAttribute("hidden", "");
     $("startTalk").classList.remove("active");
     $("startPaste").classList.remove("active");
+    if ($("startPhoto")) $("startPhoto").classList.remove("active");
     $("startScratch").classList.remove("active");
     $("pasteText").value = "";
     if ($("pasteFile")) $("pasteFile").value = "";
@@ -372,13 +373,18 @@
   // (dictation fills the textarea), which works reliably on iOS + Android.
   function revealImport(mode) {
     var talk = mode === "talk";
-    GotItStore.event("start_" + (talk ? "talk" : "paste")); // analytics (best-effort)
+    var photo = mode === "photo";
+    GotItStore.event("start_" + (photo ? "photo" : talk ? "talk" : "paste")); // analytics (best-effort)
     $("startTalk").classList.toggle("active", talk);
-    $("startPaste").classList.toggle("active", !talk);
+    $("startPaste").classList.toggle("active", mode === "paste");
+    if ($("startPhoto")) $("startPhoto").classList.toggle("active", photo);
     $("startScratch").classList.remove("active");
     var help = $("pasteHelp");
     var ta = $("pasteText");
-    if (talk) {
+    if (photo) {
+      help.textContent = "Take a clear photo of each page of your existing guide — paper, a printout or a screenshot — and we'll read them in and build a clean digital guide.";
+      ta.placeholder = "Optional: anything the photos don't cover…";
+    } else if (talk) {
       help.textContent = "Tap the 🎙️ mic on your phone's keyboard and just talk — describe their day and the must-knows. GotIt Guides will turn it into a clean, organised guide.";
       ta.placeholder = 'Tap the keyboard mic and talk… e.g. "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234, and he\'s scared of the vacuum…"';
     } else {
@@ -386,10 +392,15 @@
       ta.placeholder = "Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…";
     }
     $("pastePanel").removeAttribute("hidden");
-    setTimeout(function () {
-      ta.focus();
-      ta.scrollIntoView({ block: "center", behavior: "smooth" });
-    }, 60);
+    // Photo mode jumps straight to the camera / photo library.
+    if (photo && $("pastePhoto")) {
+      setTimeout(function () { $("pastePhoto").click(); }, 80);
+    } else {
+      setTimeout(function () {
+        ta.focus();
+        ta.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 60);
+    }
   }
 
   function startFromScratch() {
@@ -2959,6 +2970,7 @@
   $("startScratch").addEventListener("click", startFromScratch);
   $("startPaste").addEventListener("click", function () { revealImport("paste"); });
   $("startTalk").addEventListener("click", function () { revealImport("talk"); });
+  if ($("startPhoto")) $("startPhoto").addEventListener("click", function () { revealImport("photo"); });
   $("startBack").addEventListener("click", function () { showStep(1); });
   // Either picker (photos or a file) appends to the import attachment list.
   var MAX_IMPORT_FILES = 10;

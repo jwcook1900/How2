@@ -38,7 +38,7 @@ export const handler = async (event: any) => {
     const lastBySlug: Record<string, string> = {};       // slug -> latest ISO timestamp
     // How guides are started (totals) and which features they use (distinct
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
-    const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0 };
+    const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0, photo: 0 };
     const featSlugs: Record<string, Set<string>> = {};
     let startKey: Record<string, any> | undefined = undefined;
     do {

@@ -24,12 +24,13 @@
 
     // How guides are started (Talk / Paste / Scratch)
     var sm = s.startMethods || {};
-    var startTotal = (sm.talk || 0) + (sm.paste || 0) + (sm.scratch || 0);
+    var startTotal = (sm.talk || 0) + (sm.paste || 0) + (sm.scratch || 0) + (sm.photo || 0);
     var startHtml = startTotal
       ? '<h2 class="stat-h2">How guides are started</h2><div class="stat-grid">' +
           statCard("🎙️", sm.talk || 0, "Talk it out" + pct(sm.talk, startTotal)) +
           statCard("📋", sm.paste || 0, "Paste notes" + pct(sm.paste, startTotal)) +
           statCard("✍️", sm.scratch || 0, "From scratch" + pct(sm.scratch, startTotal)) +
+          statCard("📸", sm.photo || 0, "Photo of a guide" + pct(sm.photo, startTotal)) +
         "</div>"
       : "";
 

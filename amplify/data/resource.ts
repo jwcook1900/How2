@@ -4,6 +4,7 @@ import { emailFn } from "../functions/email/resource";
 import { feedbackFn } from "../functions/feedback/resource";
 import { videoFn } from "../functions/video/resource";
 import { welcomeFn } from "../functions/welcome/resource";
+import { urlFn } from "../functions/url/resource";
 
 /**
  * GotIt Guides data model.
@@ -166,6 +167,18 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.publicApiKey()])
     .handler(a.handler.function(videoFn)),
+
+  // Reads a public web page / Google Doc the creator links to and returns its
+  // visible text, so "paste a link" can feed the AI import. SSRF-guarded in the
+  // handler (public hosts only).
+  readUrl: a
+    .query()
+    .arguments({
+      url: a.string().required(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.publicApiKey()])
+    .handler(a.handler.function(urlFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

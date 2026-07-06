@@ -439,6 +439,20 @@ window.GotItStore = (function () {
       });
     },
 
+    // Read a public web page / Google Doc link server-side and return its text.
+    // Resolves with { ok, title, text } or { ok:false, error }, or null offline.
+    readUrl: function (url) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query R($url: String!){ readUrl(url: $url) }";
+        return gql(cfg, q, { url: url }).then(function (d) {
+          var r = d.readUrl;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return null; } }
+          return r;
+        });
+      });
+    },
+
     // Request a one-time Cloudflare Stream direct-upload URL. Resolves with
     // { uploadURL, uid } (or { error }), or null when there's no cloud backend.
     videoUploadUrl: function (maxDurationSeconds) {

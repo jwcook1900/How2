@@ -56,7 +56,7 @@
         { id: "wifi", q: "Wi-Fi & essentials?", hint: "Network, password, thermostat, TV.", ph: "Wi-Fi: BeachHouse / pass: …", type: "textarea", target: "section", icon: "📶", sectionTitle: "Wi-Fi & Essentials" },
         { id: "house", q: "Any house rules or quirks?", hint: "Bins, quiet hours, that tricky tap.", ph: "Bins out Tuesday, no shoes inside…", type: "textarea", target: "section", icon: "📋", sectionTitle: "House Rules & Quirks" },
         { id: "local", q: "Local recommendations?", hint: "Coffee, food, things to do.", ph: "Best coffee: …\nDinner: …", type: "textarea", target: "section", icon: "📍", sectionTitle: "Local Favourites" },
-        { id: "emergency", q: "Who do they call if something breaks?", hint: "You or a manager, plus emergency.", ph: "Host: 0400 000 000\nEmergency: 000", type: "textarea", target: "emergency" }
+        { id: "help", q: "Who do they call if something breaks?", hint: "Host or manager, plus local emergency.", ph: "Host: 0400 000 000\nEmergency: 000", type: "textarea", target: "section", icon: "🆘", sectionTitle: "Help & Contacts" }
       ]
     },
     {
@@ -166,6 +166,17 @@
       ]
     }
   ];
+
+  // Which auto-blocks a new guide starts with, by category. Daily Routine only
+  // suits recurring-care guides (pets, kids, aged care); Emergency Contacts is
+  // dropped for short-term rentals (its "who to call" answer goes into a normal
+  // section instead, so nothing is lost). Everyone can add either block back
+  // from the "add block" row.
+  var ROUTINE_CATS = { pet: 1, kids: 1, care: 1 };
+  var NO_EMERGENCY_CATS = { home: 1 };
+  function guideBlockDefaults(catId) {
+    return { noRoutine: !ROUTINE_CATS[catId], noEmergency: !!NO_EMERGENCY_CATS[catId] };
+  }
 
   /* ---------- App state ---------- */
   var state = {
@@ -624,6 +635,7 @@
       .filter(function (c) { return c && (c.label || c.value); })
       .map(function (c) { return { id: uid(), label: c.label || "Contact", value: c.value || "" }; });
 
+    var bd = guideBlockDefaults(cat.id);
     state.guide = {
       slug: makeSlug(),
       category: cat.id,
@@ -635,6 +647,10 @@
       contacts: contacts,
       logs: [],
       blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
+      // Category defaults — but if the import found contacts, keep the emergency
+      // block so they're not hidden.
+      noRoutine: bd.noRoutine,
+      noEmergency: bd.noEmergency && !contacts.length,
       branding: true,
       createdAt: Date.now()
     };
@@ -1041,6 +1057,7 @@
       }
     });
 
+    var bd = guideBlockDefaults(cat.id);
     state.guide = {
       slug: makeSlug(),
       category: cat.id,
@@ -1052,6 +1069,10 @@
       contacts: contacts,
       logs: [],
       blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
+      // Category defaults — but keep the emergency block if the flow gathered
+      // any contacts (so they're never hidden).
+      noRoutine: bd.noRoutine,
+      noEmergency: bd.noEmergency && !contacts.length,
       branding: true,
       createdAt: Date.now()
     };

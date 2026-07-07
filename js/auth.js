@@ -14,6 +14,12 @@ window.GotItAuth = (function () {
   var PKCE_KEY = "gotit_pkce";  // sessionStorage: PKCE code_verifier
   var cfgPromise = null;
 
+  // Custom Cognito hosted-UI domain: the app runs all OAuth (authorize / token /
+  // logout) through this so the Google sign-in screen shows our domain instead of
+  // the generated "…amazoncognito.com" one. Set to "" to fall back to the
+  // Amplify-provisioned domain from amplify_outputs.json (instant rollback).
+  var CUSTOM_AUTH_DOMAIN = "auth.gotitguides.com";
+
   /* ---- config from amplify_outputs.json ---- */
   function loadCfg() {
     if (cfgPromise) return cfgPromise;
@@ -22,7 +28,7 @@ window.GotItAuth = (function () {
       .then(function (j) {
         if (!j || !j.auth || !j.auth.oauth || !j.auth.oauth.domain) return null;
         var a = j.auth, o = a.oauth;
-        var domain = o.domain;
+        var domain = CUSTOM_AUTH_DOMAIN || o.domain;
         if (domain.indexOf("http") !== 0) domain = "https://" + domain;
         return {
           region: a.aws_region,

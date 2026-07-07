@@ -10,6 +10,7 @@ import { videoFn } from "./functions/video/resource";
 import { welcomeFn } from "./functions/welcome/resource";
 import { guideFeedbackFn } from "./functions/guide-feedback/resource";
 import { urlFn } from "./functions/url/resource";
+import { CfnUserPoolDomain } from "aws-cdk-lib/aws-cognito";
 
 /**
  * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), a
@@ -30,11 +31,26 @@ const backend = defineBackend({
   urlFn,
 });
 
-// Note: we do NOT add a Cognito user pool domain here. Amplify already
-// provisions one automatically for the hosted Managed Login + Google sign-in
-// (a user pool can only have one domain, so adding a second fails the deploy).
-// After deploy, read the generated domain from the Cognito console and set the
-// Google OAuth client's authorised redirect URI to <domain>/oauth2/idpresponse.
+// Custom hosted-UI domain so the Google sign-in screen shows
+// "auth.gotitguides.com" instead of the generated Cognito domain. It's added
+// ALONGSIDE the Amplify-managed prefix domain — the app keeps signing people in
+// on the prefix domain until we point it at this one client-side, so deploying
+// this can't interrupt live sign-in. (If this pool won't accept a second domain,
+// the stack simply rolls back with no effect on sign-in.) The ACM cert it
+// references must be in us-east-1 — Cognito requires that region for custom
+// domains, even though the pool is in ap-southeast-2.
+const authCustomDomain = new CfnUserPoolDomain(
+  backend.auth.resources.userPool.stack,
+  "GotItAuthCustomDomain",
+  {
+    userPoolId: backend.auth.resources.userPool.userPoolId,
+    domain: "auth.gotitguides.com",
+    customDomainConfig: {
+      certificateArn:
+        "arn:aws:acm:us-east-1:485215543116:certificate/fd7963c2-72ba-44d7-87e4-b2b2815e0822",
+    },
+  }
+);
 
 // The email + feedback functions send via Resend's HTTPS API (key injected as
 // the RESEND_API_KEY secret), so they need no AWS SES/IAM permissions.
@@ -76,4 +92,6 @@ const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
 backend.addOutput({ custom: {
   statsFunctionUrl: statsUrl.url,
   guideFeedbackFunctionUrl: guideFeedbackUrl.url,
+  // The CloudFront target to point the auth.gotitguides.com Route 53 alias at.
+  authCustomDomainCloudFront: authCustomDomain.attrCloudFrontDistribution,
 } });

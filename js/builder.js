@@ -361,6 +361,7 @@
     if ($("pastePhoto")) $("pastePhoto").value = "";
     if ($("pasteUrl")) $("pasteUrl").value = "";
     if ($("pasteUrlNote")) $("pasteUrlNote").hidden = true;
+    if (typeof resetRecorder === "function") resetRecorder();
     $("startHeading").textContent = "How would you like to create your guide?";
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
@@ -383,12 +384,14 @@
     $("startScratch").classList.remove("active");
     var help = $("pasteHelp");
     var ta = $("pasteText");
+    if ($("recordRow")) $("recordRow").hidden = !talk;
+    if (talk) resetRecorder();
     if (photo) {
       help.textContent = "Take a clear photo of each page of your existing guide — paper, a printout or a screenshot — and we'll read them in and build a clean digital guide.";
       ta.placeholder = "Optional: anything the photos don't cover…";
     } else if (talk) {
-      help.textContent = "Tap the 🎙️ mic on your phone's keyboard and just talk — describe their day and the must-knows. GotIt Guides will turn it into a clean, organised guide.";
-      ta.placeholder = 'Tap the keyboard mic and talk… e.g. "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234, and he\'s scared of the vacuum…"';
+      help.textContent = "Tap record and just talk — describe their day and the must-knows. We'll transcribe it and shape it into a clean guide. (You can also type or tap your keyboard's mic below.)";
+      ta.placeholder = 'Your transcript appears here to review… or type / dictate: "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234…"';
     } else {
       help.textContent = "Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.";
       ta.placeholder = "Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…";
@@ -397,6 +400,9 @@
     // Photo mode jumps straight to the camera / photo library.
     if (photo && $("pastePhoto")) {
       setTimeout(function () { $("pastePhoto").click(); }, 80);
+    } else if (talk) {
+      // Don't pop the keyboard — the record button is the primary action.
+      setTimeout(function () { $("recordRow").scrollIntoView({ block: "center", behavior: "smooth" }); }, 60);
     } else {
       setTimeout(function () {
         ta.focus();
@@ -3018,6 +3024,90 @@
   if ($("pasteUrlGo")) $("pasteUrlGo").addEventListener("click", readLinkIntoPaste);
   if ($("pasteUrl")) $("pasteUrl").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); readLinkIntoPaste(); }
+  });
+
+  /* ---- "Talk it out": record audio → Whisper transcript → notes box ---- */
+  var mediaRec = null, mediaChunks = [], recStream = null, recTimer = null, recSeconds = 0, recMime = "";
+  var MAX_REC_SECONDS = 120;
+  function recStatus(msg, show) {
+    var s = $("recordStatus"); if (!s) return;
+    if (show === false) { s.hidden = true; return; }
+    s.textContent = msg; s.hidden = false;
+  }
+  function fmtTime(s) { return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+  function pickAudioMime() {
+    var opts = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/mpeg"];
+    for (var i = 0; i < opts.length; i++) {
+      try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(opts[i])) return opts[i]; } catch (e) {}
+    }
+    return "";
+  }
+  function stopRecStream() {
+    if (recStream) { recStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} }); recStream = null; }
+  }
+  function resetRecorder() {
+    if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    try { if (mediaRec && mediaRec.state !== "inactive") { mediaRec.onstop = null; mediaRec.stop(); } } catch (e) {}
+    mediaRec = null; mediaChunks = []; stopRecStream();
+    var btn = $("recordBtn");
+    if (btn) { btn.classList.remove("recording"); btn.disabled = false; btn.innerHTML = "🎙️ Tap to record"; }
+    recStatus("", false);
+  }
+  function stopRecording() {
+    if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    try { if (mediaRec && mediaRec.state !== "inactive") mediaRec.stop(); } catch (e) {}
+  }
+  function onRecStop() {
+    stopRecStream();
+    var btn = $("recordBtn");
+    if (btn) { btn.classList.remove("recording"); btn.disabled = true; btn.innerHTML = "🎙️ Tap to record"; }
+    var blob = new Blob(mediaChunks, { type: recMime || "audio/webm" });
+    mediaChunks = [];
+    if (!blob.size) { recStatus("That recording came out empty — give it another go.", true); if (btn) btn.disabled = false; return; }
+    recStatus("Transcribing your recording…", true);
+    GotItStore.transcribe(blob, recMime).then(function (res) {
+      if (btn) btn.disabled = false;
+      if (!res) { recStatus("Transcription needs the published site.", true); return; }
+      if (!res.ok) { recStatus(res.error || "Couldn't transcribe that — try again, or type your notes.", true); return; }
+      var ta = $("pasteText");
+      ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + res.text) : res.text;
+      recStatus("✓ Added — read it over and tweak anything, then create your guide.", true);
+      setTimeout(function () { ta.scrollIntoView({ block: "center", behavior: "smooth" }); }, 40);
+    }).catch(function () {
+      if (btn) btn.disabled = false;
+      recStatus("Couldn't transcribe that — try again, or type your notes.", true);
+    });
+  }
+  function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) {
+      recStatus("Recording isn't supported on this browser — tap your keyboard's 🎙️ mic in the box below, or just type.", true);
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      recStream = stream; mediaChunks = []; recMime = pickAudioMime();
+      try { mediaRec = recMime ? new MediaRecorder(stream, { mimeType: recMime }) : new MediaRecorder(stream); }
+      catch (e) { mediaRec = new MediaRecorder(stream); }
+      recMime = (mediaRec && mediaRec.mimeType) || recMime || "audio/webm";
+      mediaRec.ondataavailable = function (e) { if (e.data && e.data.size) mediaChunks.push(e.data); };
+      mediaRec.onstop = onRecStop;
+      mediaRec.start();
+      recSeconds = 0;
+      var btn = $("recordBtn");
+      btn.classList.add("recording");
+      btn.innerHTML = '⏹ Stop &amp; transcribe · <span id="recTime">0:00</span>';
+      recStatus("Recording… just talk naturally.", true);
+      recTimer = setInterval(function () {
+        recSeconds++;
+        var t = $("recTime"); if (t) t.textContent = fmtTime(recSeconds);
+        if (recSeconds >= MAX_REC_SECONDS) stopRecording();
+      }, 1000);
+    }).catch(function () {
+      recStatus("We couldn't reach your microphone — check the mic permission for this site, or just type your notes below.", true);
+    });
+  }
+  if ($("recordBtn")) $("recordBtn").addEventListener("click", function () {
+    if (mediaRec && mediaRec.state === "recording") stopRecording();
+    else startRecording();
   });
   $("previewBack").addEventListener("click", function () {
     state.qIndex = state.category.questions.length - 1;

@@ -1180,11 +1180,54 @@ ul { margin: 0; padding: 0; list-style: none; }
   outline-offset: 3px;
 }
 
-/* Stays a vertical dock on the right on mobile too, just a touch smaller. */
+/* Desktop keeps the always-open vertical dock; the collapsed-pill row is a
+   mobile-only affordance. */
+.dock-collapsed-row { display: none; }
+
+/* Mobile: the dock was hovering mid-screen over the content column, which
+   testers found obstructive. It now lives in the bottom-right corner and
+   collapses to a single "✏️ Edit" pill; tapping expands the full toolbar
+   (growing upward), and tapping anywhere else collapses it again. A small ↶
+   bubble sits beside the pill whenever there's something to undo, so a slip
+   never costs an expand-and-hunt. */
 @media (max-width: 720px) {
-  .edit-dock { right: 10px; gap: 5px; padding: 7px; }
+  .edit-dock { top: auto; bottom: 18px; transform: none; right: 12px; gap: 5px; padding: 7px; }
   .dock-btn { width: 42px; height: 42px; font-size: 1.1rem; }
   .dock-pop-swatches { width: 150px; }
+
+  .dock-collapsed-row { display: flex; align-items: center; gap: 8px; }
+  .dock-toggle {
+    border: none; border-radius: 999px;
+    padding: 12px 18px;
+    background: var(--coral); color: #fff;
+    font-family: inherit; font-size: 0.95rem; font-weight: 800; line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(232, 82, 28, 0.35);
+  }
+  /* Expanded: the pill turns into a quiet ✕ close control at the dock's foot. */
+  .edit-dock:not(.dock-collapsed) .dock-toggle {
+    background: rgba(26, 26, 26, 0.08); color: var(--ink);
+    box-shadow: none; padding: 10px 15px; font-size: 0.9rem;
+  }
+  .dock-quick-undo {
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.95); color: var(--ink);
+    font-size: 1.15rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(26, 26, 26, 0.18);
+  }
+  .dock-quick-undo[hidden] { display: none; }
+  /* Collapsed: hide the tools and the glass shell — only the pill (and the
+     quick-undo bubble) remain on screen. */
+  .edit-dock.dock-collapsed .dock-zone,
+  .edit-dock.dock-collapsed .dock-sep,
+  .edit-dock.dock-collapsed .dock-grip { display: none; }
+  .edit-dock.dock-collapsed {
+    background: transparent; border-color: transparent;
+    box-shadow: none; padding: 0;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
 }
 
 /* Per-media remove (×) overlay */

@@ -300,6 +300,11 @@
       <button class="dock-btn" id="redoFab" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>↷</button>
       <button class="dock-btn" id="dockFeedback" type="button" title="Send feedback" aria-label="Feedback">💬</button>
     </div>
+    <!-- Mobile only: the dock collapses to this pill (+ a quick-undo bubble) -->
+    <div class="dock-collapsed-row">
+      <button class="dock-quick-undo" id="undoQuick" type="button" title="Undo" aria-label="Undo" hidden>↶</button>
+      <button class="dock-toggle" id="dockToggle" type="button" aria-expanded="false">✏️ Edit</button>
+    </div>
     <div class="dock-pop" id="dockPop" hidden></div>
   </div>
 

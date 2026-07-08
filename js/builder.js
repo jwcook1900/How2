@@ -237,6 +237,36 @@
     var u = $("undoFab"), r = $("redoFab");
     if (u) u.disabled = hIndex <= 0;
     if (r) r.disabled = hIndex >= history.length - 1;
+    updateQuickUndo();
+  }
+
+  /* ---- Mobile dock collapse: on phones the toolbar folds into an "✏️ Edit"
+     pill (bottom-right) so it doesn't hover over the content. Tapping the pill
+     expands the full dock; tapping away collapses it. A quick-undo bubble shows
+     beside the collapsed pill whenever there's history to undo. ---- */
+  function isMobileDock() {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 720px)").matches);
+  }
+  function dockCollapsed() {
+    var d = $("editDock");
+    return !!(d && d.classList.contains("dock-collapsed"));
+  }
+  function setDockCollapsed(on) {
+    var d = $("editDock");
+    if (!d) return;
+    d.classList.toggle("dock-collapsed", on);
+    var t = $("dockToggle");
+    if (t) {
+      t.innerHTML = on ? "✏️ Edit" : "✕ Close";
+      t.setAttribute("aria-expanded", on ? "false" : "true");
+    }
+    if (on) closeDockPop();
+    updateQuickUndo();
+  }
+  function updateQuickUndo() {
+    var q = $("undoQuick");
+    if (!q) return;
+    q.hidden = !(isMobileDock() && dockCollapsed() && hIndex > 0);
   }
 
   function showStep(key) {
@@ -250,7 +280,10 @@
     var fb = $("feedbackFab");
     if (fb) fb.hidden = (key === 3);
     if (key !== 3) closeDockPop();
-    else applyDockPos(); // restore any dragged-to position on the edit step
+    else {
+      applyDockPos(); // restore any dragged-to position on the edit step
+      if (isMobileDock()) setDockCollapsed(true); // phones start with just the pill
+    }
     // progress dots
     var stepNum = steps[key].getAttribute("data-step");
     document.querySelectorAll(".wizard-progress .dot").forEach(function (d) {
@@ -3167,6 +3200,14 @@
   $("dockPolish").addEventListener("click", function (e) { e.stopPropagation(); dockPolish(); });
   $("dockDelete").addEventListener("click", function (e) { e.stopPropagation(); dockDelete(); });
   initDockDrag(); // let users drag the floating toolbar to reposition it
+  if ($("dockToggle")) $("dockToggle").addEventListener("click", function (e) {
+    e.stopPropagation();
+    setDockCollapsed(!dockCollapsed());
+  });
+  if ($("undoQuick")) $("undoQuick").addEventListener("click", function (e) {
+    e.stopPropagation();
+    undo();
+  });
   // Exit returns a signed-in user to their dashboard (account-less users go home).
   if ($("exitBtn") && window.GotItAuth && GotItAuth.isSignedIn()) $("exitBtn").href = "dashboard.html";
   // Warn before leaving with work that isn't safely saved. A published guide by
@@ -3182,7 +3223,11 @@
   });
   // Close the popover when clicking away from the dock.
   document.addEventListener("click", function (e) {
-    if (!e.target.closest("#editDock")) closeDockPop();
+    if (!e.target.closest("#editDock")) {
+      closeDockPop();
+      // On phones, tapping back into the page folds the dock away again.
+      if (isMobileDock() && !dockCollapsed()) setDockCollapsed(true);
+    }
   });
   $("copyBtn").addEventListener("click", function () { logShare(); copyFrom("shareUrl", "Link copied!"); });
   $("copyEditBtn").addEventListener("click", function () { copyFrom("editUrl", "Edit link copied!"); });

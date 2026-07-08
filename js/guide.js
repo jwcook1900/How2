@@ -676,6 +676,70 @@
     setTimeout(function () { input.focus(); }, 50);
   }
 
+  /* ---- Floating utility menu (top-left frosted bubble) ----
+     Share / feedback / create / home. Kept deliberately quiet so the published
+     page still reads as the creator's guide, not a GotIt Guides billboard. */
+  (function wireGuideNav() {
+    var toggle = document.getElementById("gnavToggle");
+    var menu = document.getElementById("gnavMenu");
+    if (!toggle || !menu) return;
+    function toast(msg) {
+      var t = document.createElement("div");
+      t.className = "dash-toast"; t.textContent = msg;
+      document.body.appendChild(t);
+      requestAnimationFrame(function () { t.classList.add("show"); });
+      setTimeout(function () {
+        t.classList.remove("show");
+        setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+      }, 2200);
+    }
+    function close() {
+      menu.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", onDoc);
+    }
+    function onDoc(e) { if (!e.target.closest("#guideNav")) close(); }
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (menu.hidden) {
+        // Feedback only applies once a guide is actually showing (not while
+        // locked / not-found), and Share needs a shareable slug.
+        var fbItem = document.getElementById("gnavFeedback");
+        if (fbItem) fbItem.hidden = !doc.querySelector("#guideFeedback");
+        var shItem = document.getElementById("gnavShare");
+        if (shItem) shItem.hidden = !slug;
+        menu.hidden = false;
+        toggle.setAttribute("aria-expanded", "true");
+        document.addEventListener("click", onDoc);
+      } else close();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+
+    var share = document.getElementById("gnavShare");
+    if (share) share.addEventListener("click", function () {
+      close();
+      var url = location.origin + "/g/" + encodeURIComponent(slug);
+      if (GotItStore.event) GotItStore.event("share", slug); // best-effort analytics
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: url }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied!"); },
+          function () { toast(url); });
+      } else {
+        window.prompt("Copy this link:", url);
+      }
+    });
+    var fb = document.getElementById("gnavFeedback");
+    if (fb) fb.addEventListener("click", function () {
+      close();
+      var box = doc.querySelector("#guideFeedback");
+      if (!box) return;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      var ta = box.querySelector("#gfbText");
+      if (ta) setTimeout(function () { ta.focus(); }, 450);
+    });
+  })();
+
   // Load the guide (cloud or local), then render (or prompt to unlock).
   if (!slug) {
     render(null);

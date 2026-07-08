@@ -1981,7 +1981,7 @@ body.dragging-active * {
 .feedback-note.ok { color: #1a9e57; }
 
 /* Feedback screenshot attach */
-.feedback-attach { display: flex; align-items: center; gap: 12px; margin: 12px 0 2px; }
+.feedback-attach { display: flex; align-items: center; gap: 12px; margin: 2px 0 18px; }
 .feedback-attach-btn { cursor: pointer; }
 .feedback-attach-preview { position: relative; display: inline-block; }
 .feedback-attach-preview img {
@@ -3076,7 +3076,10 @@ body.dragging-active * {
    ============================================================ */
 .block-x, .routine-item-del, .reminder-time-x, .rem-time-x, .reminder-add-time,
 .dash-card-more, .dash-fb-close, .dash-fb-del, .dash-fb-reply,
-.feedback-x, .mock-dot, .contact-value a { position: relative; }
+.mock-dot, .contact-value a { position: relative; }
+/* (.feedback-x and the media-corner buttons are already absolutely positioned —
+   they only get the ::after extension, never `relative`, or they'd fall out of
+   their corners.) */
 /* .contact-del is absolutely positioned on phones (contact rows wrap), so it
    only gets `relative` on wider screens where it's still in normal flow. */
 @media (min-width: 561px) { .contact-del { position: relative; } }

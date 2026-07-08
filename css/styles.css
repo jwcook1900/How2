@@ -2247,6 +2247,12 @@ body.dragging-active * {
 .import-link-note { font-size: 0.84rem; line-height: 1.45; margin: 0 0 12px; }
 .import-link-note.ok { color: var(--green, #2E9E6B); }
 .import-link-note.err { color: var(--coral-dark, #E8521C); }
+/* "Talk it out" recorder */
+.import-record { margin: 4px 0 14px; }
+.record-btn.recording { background: #d64545; }
+.record-btn.recording:hover { background: #c23b3b; }
+.record-btn span { font-variant-numeric: tabular-nums; opacity: 0.92; }
+.record-status { font-size: 0.86rem; color: var(--ink-muted); line-height: 1.45; margin: 8px 2px 0; text-align: center; }
 
 /* Chosen import attachments (photos / files) */
 .paste-attach { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }

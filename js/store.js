@@ -22,7 +22,8 @@ window.GotItStore = (function () {
             url: j.data.url,
             key: j.data.api_key,
             statsUrl: j.custom && j.custom.statsFunctionUrl,
-            guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl
+            guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl,
+            transcribeUrl: j.custom && j.custom.transcribeFunctionUrl
           };
         }
         return null;
@@ -435,6 +436,28 @@ window.GotItStore = (function () {
           var r = d.aiAssist;
           if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
           return r;
+        });
+      });
+    },
+
+    // Transcribe a recorded audio Blob via Whisper (server-side). Resolves with
+    // { ok, text } or { ok:false, error }, or null when there's no cloud backend.
+    transcribe: function (blob, mime) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.transcribeUrl) return null;
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onerror = function () { reject(new Error("Couldn't read the recording.")); };
+          reader.onload = function () {
+            var dataUrl = String(reader.result || "");
+            var b64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+            fetch(cfg.transcribeUrl, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ audio: b64, mime: mime || blob.type || "audio/webm" })
+            }).then(function (r) { return r.json(); }).then(resolve, reject);
+          };
+          reader.readAsDataURL(blob);
         });
       });
     },

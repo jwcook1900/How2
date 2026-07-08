@@ -10,6 +10,7 @@ import { videoFn } from "./functions/video/resource";
 import { welcomeFn } from "./functions/welcome/resource";
 import { guideFeedbackFn } from "./functions/guide-feedback/resource";
 import { urlFn } from "./functions/url/resource";
+import { transcribeFn } from "./functions/transcribe/resource";
 import { CfnUserPoolDomain } from "aws-cdk-lib/aws-cognito";
 
 /**
@@ -29,6 +30,7 @@ const backend = defineBackend({
   welcomeFn,
   guideFeedbackFn,
   urlFn,
+  transcribeFn,
 });
 
 // Custom hosted-UI domain so the Google sign-in screen shows
@@ -89,9 +91,23 @@ const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
   },
 });
 
+// Speech-to-text for "Talk it out": receives an audio recording and returns its
+// transcript (OpenAI Whisper). A standalone Lambda URL so it can take the larger
+// audio payloads (up to ~6 MB) that AppSync would reject.
+const transcribeLambda = backend.transcribeFn.resources.lambda as LambdaFunction;
+const transcribeUrl = transcribeLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE,
+  cors: {
+    allowedOrigins: ["*"],
+    allowedMethods: [HttpMethod.POST],
+    allowedHeaders: ["content-type"],
+  },
+});
+
 backend.addOutput({ custom: {
   statsFunctionUrl: statsUrl.url,
   guideFeedbackFunctionUrl: guideFeedbackUrl.url,
+  transcribeFunctionUrl: transcribeUrl.url,
   // The CloudFront target to point the auth.gotitguides.com Route 53 alias at.
   authCustomDomainCloudFront: authCustomDomain.attrCloudFrontDistribution,
 } });

@@ -167,6 +167,38 @@
     }
   ];
 
+  // Category-matched examples for the import panel, so the "just talk" sample
+  // transcript and the paste hint speak the user's situation (a Kids guide
+  // shouldn't show a vet's phone number). Keyed by category id; "other" is the
+  // fallback.
+  var IMPORT_EXAMPLES = {
+    pet:      { talk: "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234, and he's scared of the vacuum…",
+                paste: "feeding times, medication, walks, vet details, quirks…" },
+    home:     { talk: "Lockbox code is 1234, the Wi-Fi password's on the fridge, bins go out Tuesday, and the best coffee is around the corner…",
+                paste: "check-in details, Wi-Fi, house rules, local tips, who to call…" },
+    kids:     { talk: "Mia naps at 1pm, dinner at 5.30, bath then bed by 7, she's allergic to peanuts, and Leo needs his bear to sleep…",
+                paste: "routines, meals, allergies, screen-time rules, emergency contacts…" },
+    staff:    { talk: "Arrive at 9 and ask for Sam, your logins are in the welcome email, stand-up is at 9.30, and dress is casual…",
+                paste: "day-one plan, logins, tools, key people, week-one tips…" },
+    event:    { talk: "Ceremony starts at 3pm at The Garden, parking's on Rose St, dress is cocktail, dinner from 6…",
+                paste: "when & where, the run sheet, dress code, parking, contacts…" },
+    cleaner:  { talk: "Lockbox 1234 by the door, focus on the kitchen and bathrooms, the vacuum's in the hall closet, please skip the study…",
+                paste: "what to clean, products, access, preferences, contacts…" },
+    gardener: { talk: "Side gate code is 1234, mow front and back, don't prune the roses yet, green bin goes out Wednesday…",
+                paste: "jobs each visit, special plants, watering, bins, contacts…" },
+    physio:   { talk: "Heel slides, three sets of ten, twice a day, quad sets after breakfast, and stop if there's any sharp pain…",
+                paste: "exercises with sets & reps, precautions, what to track, clinic contact…" },
+    housesit: { talk: "The key's under the pot, alarm code 1234, water the plants every two days, bins out Wednesday…",
+                paste: "daily tasks, appliance quirks, what to do if something breaks, contacts…" },
+    care:     { talk: "Mum's up at 7, tablets with breakfast, she rests after lunch, and the after-hours nurse is on 9999 1234…",
+                paste: "the daily routine, medications, meals, contacts, comforts…" },
+    other:    { talk: "Step one is…, then…, watch out for…, and if you're stuck, call…",
+                paste: "feeding times, medication, bedtime routine, emergency contacts, house rules…" }
+  };
+  function importExamples() {
+    return IMPORT_EXAMPLES[state.category && state.category.id] || IMPORT_EXAMPLES.other;
+  }
+
   // Which auto-blocks a new guide starts with, by category. Daily Routine only
   // suits recurring-care guides (pets, kids, aged care); Emergency Contacts is
   // dropped for short-term rentals (its "who to call" answer goes into a normal
@@ -419,15 +451,16 @@
     var ta = $("pasteText");
     if ($("recordRow")) $("recordRow").hidden = !talk;
     if (talk) resetRecorder();
+    var ex = importExamples();
     if (photo) {
       help.textContent = "Take a clear photo of each page of your existing guide — paper, a printout or a screenshot — and we'll read them in and build a clean digital guide.";
       ta.placeholder = "Optional: anything the photos don't cover…";
     } else if (talk) {
-      help.textContent = "Tap record and just talk — describe their day and the must-knows. We'll transcribe it and shape it into a clean guide. (You can also type or tap your keyboard's mic below.)";
-      ta.placeholder = 'Your transcript appears here to review… or type / dictate: "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234…"';
+      help.textContent = "Tap record and just talk — describe the routine and the must-knows. We'll transcribe it and shape it into a clean guide. (You can also type or tap your keyboard's mic below.)";
+      ta.placeholder = 'Your transcript appears here to review… or type / dictate: "' + ex.talk + '"';
     } else {
       help.textContent = "Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.";
-      ta.placeholder = "Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…";
+      ta.placeholder = "Paste your rough notes here. For example: " + ex.paste;
     }
     $("pastePanel").removeAttribute("hidden");
     // Photo mode jumps straight to the camera / photo library.

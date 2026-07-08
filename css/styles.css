@@ -2297,8 +2297,8 @@ body.dragging-active * {
 .paste-photo-hint { font-size: 0.82rem; color: var(--ink-muted); line-height: 1.45; margin: 0 0 12px; }
 /* "Or paste a link" — read a public page / Google Doc into the notes box */
 .import-link-row { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
-.import-link-input { flex: 1; min-width: 0; }
-.import-link-row .btn { flex: none; }
+.import-link-input { flex: 1; min-width: 0; padding-left: 12px; padding-right: 10px; }
+.import-link-row .btn { flex: none; padding: 10px 14px; }
 .import-link-note { font-size: 0.84rem; line-height: 1.45; margin: 0 0 12px; }
 .import-link-note.ok { color: var(--green, #2E9E6B); }
 .import-link-note.err { color: var(--coral-dark, #E8521C); }

@@ -28,6 +28,21 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 </head>
 <body>
+  <!-- Floating utility menu. Deliberately minimal — the published guide is the
+       creator's own page, so no brand bar: just one frosted bubble, top-left,
+       with the handful of genuinely useful actions tucked inside. -->
+  <div class="guide-nav no-print" id="guideNav">
+    <button class="nav-toggle glass" id="gnavToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-dropdown glass" id="gnavMenu" hidden>
+      <button type="button" id="gnavShare">📤 Share this guide</button>
+      <button type="button" id="gnavFeedback">💬 Give feedback on this guide</button>
+      <a href="builder.html" id="gnavCreate">✨ Create your own guide</a>
+      <a href="index.html">GotIt Guides home</a>
+    </div>
+  </div>
+
   <main class="builder-main">
     <div class="container">
       <div class="guide-doc" id="guideDoc">

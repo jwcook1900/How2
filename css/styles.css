@@ -186,14 +186,26 @@ ul { margin: 0; padding: 0; list-style: none; }
   box-shadow: 0 12px 32px rgba(26, 26, 26, 0.18);
 }
 @keyframes navpop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.nav-dropdown a {
+.nav-dropdown a,
+.nav-dropdown button {
   padding: 10px 14px;
   border-radius: 10px;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--ink);
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.nav-dropdown a:hover { background: var(--coral-soft); color: var(--coral-dark); }
+.nav-dropdown a:hover,
+.nav-dropdown button:hover { background: var(--coral-soft); color: var(--coral-dark); }
+
+/* Floating menu on published guides: one frosted bubble, fixed top-left, so
+   the guide itself stays the creator's page (no brand bar). */
+.guide-nav { position: fixed; top: 12px; left: 12px; z-index: 90; }
+.guide-nav .nav-dropdown { min-width: 230px; }
 .logo-mark {
   font-weight: 800;
   font-size: 1.4rem;

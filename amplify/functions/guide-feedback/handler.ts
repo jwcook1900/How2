@@ -98,6 +98,78 @@ export const handler = async (event: any) => {
       return json(200, { items });
     }
 
+    // ---- Dashboard: the caller's own per-guide analytics ----
+    // Verifies the caller, finds the slugs they own (SavedGuide), then tallies
+    // view/share events for just those guides, bucketing views into the
+    // caller's local days (tz = minutes, as Date.getTimezoneOffset() reports).
+    if (action === "stats") {
+      const sub = await callerSub(String(body.idToken || ""));
+      const sgT = process.env.SAVEDGUIDE_TABLE;
+      const evT = process.env.EVENT_TABLE;
+      if (!sub || !sgT || !evT) return json(200, { ok: false, guides: {} });
+      const tz = Math.max(-840, Math.min(840, Number(body.tz) || 0));
+      const localDay = (iso: string) => {
+        const t = Date.parse(iso);
+        return isNaN(t) ? "" : new Date(t - tz * 60000).toISOString().slice(0, 10);
+      };
+      // Which slugs are mine? (ownerSub, falling back to Amplify's owner field
+      // for rows saved before ownerSub existed.)
+      const mine = new Set<string>();
+      let sk: Record<string, any> | undefined = undefined;
+      do {
+        const res: any = await ddb.send(new ScanCommand({
+          TableName: sgT,
+          ProjectionExpression: "slug, ownerSub, #o",
+          ExpressionAttributeNames: { "#o": "owner" },
+          ExclusiveStartKey: sk,
+        }));
+        for (const it of res.Items || []) {
+          const os = (it.ownerSub && it.ownerSub.S) ||
+            ((it.owner && it.owner.S) ? it.owner.S.split("::")[0] : "");
+          if (os === sub && it.slug && it.slug.S) mine.add(it.slug.S);
+        }
+        sk = res.LastEvaluatedKey;
+      } while (sk);
+      if (!mine.size) return json(200, { ok: true, guides: {} });
+
+      const DAYS = 14;
+      const days: string[] = [];
+      for (let i = DAYS - 1; i >= 0; i--) {
+        days.push(new Date(Date.now() - tz * 60000 - i * 86400000).toISOString().slice(0, 10));
+      }
+      const agg: Record<string, { views: number; shares: number; daily: Record<string, number> }> = {};
+      sk = undefined;
+      do {
+        const res: any = await ddb.send(new ScanCommand({
+          TableName: evT,
+          ProjectionExpression: "#k, slug, createdAt",
+          ExpressionAttributeNames: { "#k": "kind" },
+          ExclusiveStartKey: sk,
+        }));
+        for (const it of res.Items || []) {
+          const evSlug = (it.slug && it.slug.S) || "";
+          if (!mine.has(evSlug)) continue;
+          const kind = (it.kind && it.kind.S) || "";
+          const a = agg[evSlug] || (agg[evSlug] = { views: 0, shares: 0, daily: {} });
+          if (kind === "view") {
+            a.views++;
+            const d = localDay((it.createdAt && it.createdAt.S) || "");
+            if (d) a.daily[d] = (a.daily[d] || 0) + 1;
+          } else if (kind === "share") a.shares++;
+        }
+        sk = res.LastEvaluatedKey;
+      } while (sk);
+
+      const guides: Record<string, any> = {};
+      for (const gSlug of Object.keys(agg)) {
+        const a = agg[gSlug];
+        const daily = days.map((d) => ({ d, v: a.daily[d] || 0 }));
+        const week = daily.slice(-7).reduce((s, x) => s + x.v, 0);
+        guides[gSlug] = { views: a.views, shares: a.shares, week, daily };
+      }
+      return json(200, { ok: true, guides });
+    }
+
     // ---- Dashboard: dismiss one of the caller's suggestions ----
     if (action === "dismiss") {
       const sub = await callerSub(String(body.idToken || ""));

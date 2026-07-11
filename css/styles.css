@@ -3118,3 +3118,35 @@ body.dragging-active * {
   /* The expanded dock's close pill was a touch short */
   .edit-dock:not(.dock-collapsed) .dock-toggle { padding: 12px 16px; }
 }
+
+/* ============================================================
+   Daily-views bar charts (dashboard sparklines + stats timelines)
+   Single series in the brand hue: thin bars, 2px gaps, rounded
+   tops, zero days as baseline stubs, today emphasised. Values
+   live in tooltips/ink text, never in the series colour.
+   ============================================================ */
+.dash-card-stats { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.dcs-nums { font-size: 0.82rem; color: var(--ink-muted); white-space: nowrap; }
+.dcs-nums b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.dcs-spark { display: flex; align-items: flex-end; gap: 2px; height: 26px; flex: 1; min-width: 0; max-width: 150px; }
+.dcs-spark i { flex: 1 1 0; background: var(--coral); border-radius: 2px 2px 0 0; min-height: 2px; }
+.dcs-spark i.z { background: var(--line); border-radius: 1px; }
+.dcs-spark i.today { background: var(--coral-dark); }
+
+.stat-chart {
+  display: flex; align-items: flex-end; gap: 2px; height: 120px;
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  padding: 14px 14px 10px; margin: 8px 0 4px;
+}
+.stat-chart i { flex: 1 1 0; background: var(--coral); border-radius: 3px 3px 0 0; min-height: 2px; }
+.stat-chart i.z { background: var(--line); border-radius: 1px; }
+.stat-chart i.today { background: var(--coral-dark); }
+.stat-chart i:hover { filter: brightness(0.85); }
+.stat-chart-axis { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--ink-muted); margin: 0 4px 26px; }
+
+.sg-daily { display: flex; align-items: flex-end; gap: 1px; height: 34px; margin-top: 10px; }
+.sg-daily i { flex: 1 1 0; background: var(--coral); border-radius: 2px 2px 0 0; min-height: 2px; }
+.sg-daily i.z { background: var(--line); border-radius: 1px; }
+.sg-daily i.today { background: var(--coral-dark); }
+.sg-daily i:hover { filter: brightness(0.85); }

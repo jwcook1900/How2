@@ -19,8 +19,12 @@ export const handler = async (event: any) => {
 
     let raw = event && event.body;
     if (event && event.isBase64Encoded && raw) raw = Buffer.from(raw, "base64").toString("utf8");
-    let key = "";
-    try { key = (JSON.parse(raw || "{}").key || "").trim(); } catch (e) { key = ""; }
+    let key = "", tz = 0;
+    try {
+      const b = JSON.parse(raw || "{}");
+      key = (b.key || "").trim();
+      tz = Math.max(-840, Math.min(840, Number(b.tz) || 0)); // caller's Date.getTimezoneOffset()
+    } catch (e) { key = ""; }
 
     const secret = process.env.STATS_KEY || "";
     if (!secret) return { statusCode: 503, headers: HEADERS, body: JSON.stringify({ error: "not configured" }) };
@@ -36,6 +40,18 @@ export const handler = async (event: any) => {
     const publishesBySlug: Record<string, number> = {};
     const featsBySlug: Record<string, Set<string>> = {}; // slug -> set of feature names
     const lastBySlug: Record<string, string> = {};       // slug -> latest ISO timestamp
+    // Daily view timelines, bucketed into the caller's local days.
+    const DAYS = 30;
+    const localDay = (iso: string) => {
+      const t = Date.parse(iso);
+      return isNaN(t) ? "" : new Date(t - tz * 60000).toISOString().slice(0, 10);
+    };
+    const dayAxis: string[] = [];
+    for (let i = DAYS - 1; i >= 0; i--) {
+      dayAxis.push(new Date(Date.now() - tz * 60000 - i * 86400000).toISOString().slice(0, 10));
+    }
+    const viewsDayTotal: Record<string, number> = {};
+    const viewsDayBySlug: Record<string, Record<string, number>> = {};
     // How guides are started (totals) and which features they use (distinct
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
     const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0, photo: 0 };
@@ -62,6 +78,12 @@ export const handler = async (event: any) => {
         } else if (kind === "view") {
           views++;
           if (slug) viewsBySlug[slug] = (viewsBySlug[slug] || 0) + 1;
+          const day = localDay(ca);
+          if (day) {
+            viewsDayTotal[day] = (viewsDayTotal[day] || 0) + 1;
+            if (slug) (viewsDayBySlug[slug] || (viewsDayBySlug[slug] = {}))[day] =
+              ((viewsDayBySlug[slug] || {})[day] || 0) + 1;
+          }
         } else if (kind.indexOf("start_") === 0) {
           const m = kind.slice(6);
           if (m in startMethods) startMethods[m]++;
@@ -96,11 +118,17 @@ export const handler = async (event: any) => {
         publishes: publishesBySlug[slug] || 0,
         features: featsBySlug[slug] ? Array.from(featsBySlug[slug]) : [],
         lastActive: lastBySlug[slug] || "",
+        // 30-day daily views (zero-filled), only for guides that have any.
+        daily: viewsDayBySlug[slug]
+          ? dayAxis.map((d) => ({ d, v: viewsDayBySlug[slug][d] || 0 }))
+          : undefined,
       }))
       .sort((a, b) => b.views - a.views || b.shares - a.shares || b.publishes - a.publishes)
       .slice(0, 100);
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features, guides }) };
+    const viewsDaily = dayAxis.map((d) => ({ d, v: viewsDayTotal[d] || 0 }));
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features, guides, viewsDaily }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

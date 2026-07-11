@@ -82,6 +82,9 @@ guideFeedbackLambda.addEnvironment("GUIDEFEEDBACK_TABLE", guideFeedbackTable.tab
 guideFeedbackLambda.addEnvironment("USER_POOL_ID", backend.auth.resources.userPool.userPoolId);
 savedGuideTable.grantReadData(guideFeedbackLambda);
 guideFeedbackTable.grantReadWriteData(guideFeedbackLambda); // write on submit, read/delete for the dashboard
+// The dashboard's own per-guide analytics (action "stats") reads the Event table.
+guideFeedbackLambda.addEnvironment("EVENT_TABLE", eventTable.tableName);
+eventTable.grantReadData(guideFeedbackLambda);
 const guideFeedbackUrl = guideFeedbackLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE,
   cors: {

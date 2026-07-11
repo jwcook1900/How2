@@ -44,13 +44,13 @@
     var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return (+p[2]) + " " + (M[+p[1] - 1] || "");
   }
-  // A tiny 14-day views bar-sparkline. Single series in the brand hue; zero
-  // days show as baseline stubs; today is emphasised; each bar carries its
-  // value in a native tooltip.
-  function sparkHtml(daily) {
+  // Daily-views bars: single series in the brand hue; zero days show as
+  // baseline stubs; today is emphasised; each bar carries its value in a
+  // native tooltip.
+  function barsHtml(daily, cls) {
     var max = 0;
     daily.forEach(function (x) { if (x.v > max) max = x.v; });
-    var s = '<span class="dcs-spark" aria-hidden="true">';
+    var s = '<div class="' + cls + '" aria-hidden="true">';
     daily.forEach(function (x, i) {
       var last = i === daily.length - 1;
       var h = x.v && max ? Math.max(10, Math.round(x.v / max * 100)) + "%" : "2px";
@@ -58,7 +58,64 @@
         '" style="height:' + h + '" title="' + esc(fmtDay(x.d)) + " \u2014 " + x.v +
         " view" + (x.v === 1 ? "" : "s") + '"></i>';
     });
-    return s + "</span>";
+    return s + "</div>";
+  }
+
+  /* ---------- per-guide analytics window ---------- */
+  function openStatsModal(g) {
+    closeStatsModal();
+    var st = gstats[g.slug] || { views: 0, shares: 0, week: 0, daily: [] };
+    var gname = (g.title || "").trim() || "Untitled guide";
+
+    var overlay = document.createElement("div");
+    overlay.className = "dash-fb-overlay";
+    overlay.id = "dashAnOverlay";
+    var modal = document.createElement("div");
+    modal.className = "dash-fb-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+
+    var head = document.createElement("div");
+    head.className = "dash-fb-head";
+    head.innerHTML = '<div class="dash-fb-title">' +
+        '<span class="dash-fb-emoji">\uD83D\uDCCA</span>' +
+        '<span>Analytics for \u201C' + esc(gname) + '\u201D</span>' +
+      "</div>";
+    var close = document.createElement("button");
+    close.type = "button"; close.className = "dash-fb-close";
+    close.setAttribute("aria-label", "Close"); close.textContent = "\u2715";
+    close.addEventListener("click", closeStatsModal);
+    head.appendChild(close);
+
+    var body = document.createElement("div");
+    body.className = "dash-an-body";
+    function tile(n, label) {
+      return '<div class="dash-an-num"><b>' + n + "</b><span>" + label + "</span></div>";
+    }
+    var daily = st.daily || [];
+    var chart = daily.length && st.views
+      ? '<div class="dash-an-label">Daily views \u2014 last 14 days</div>' +
+        barsHtml(daily, "dash-an-chart") +
+        '<div class="dash-an-axis"><span>' + esc(fmtDay(daily[0].d)) + "</span><span>" +
+          esc(fmtDay(daily[daily.length - 1].d)) + " (today)</span></div>"
+      : '<p class="dash-an-empty">No views yet \u2014 share the link and check back here.</p>';
+    body.innerHTML =
+      '<div class="dash-an-nums">' +
+        tile(st.views || 0, "total views") +
+        tile(st.week || 0, "this week") +
+        tile(st.shares || 0, "shares") +
+      "</div>" + chart +
+      '<p class="dash-an-foot">Counted since analytics went live \u00B7 days in your timezone</p>';
+
+    modal.appendChild(head);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeStatsModal(); });
+    document.body.appendChild(overlay);
+  }
+  function closeStatsModal() {
+    var o = $("dashAnOverlay");
+    if (o && o.parentNode) o.parentNode.removeChild(o);
   }
   function relTime(iso) {
     if (!iso) return "";
@@ -246,23 +303,20 @@
     el.appendChild(main);
     el.appendChild(meta);
     el.appendChild(updated);
-    // The creator's own analytics for this guide (only once stats have loaded;
-    // a guide with no events yet shows a gentle zero state).
+    el.appendChild(actions);
+    // Analytics chip: cards stay clean — the numbers live in a per-guide
+    // stats window (only offered once stats have loaded).
     if (Object.keys(gstats).length) {
       var st = gstats[g.slug];
-      var statsEl = document.createElement("div");
-      statsEl.className = "dash-card-stats";
-      if (st && st.views) {
-        statsEl.innerHTML =
-          '<span class="dcs-nums">\uD83D\uDC40 <b>' + st.views + "</b> view" + (st.views === 1 ? "" : "s") +
-          (st.week ? ' \u00B7 <b>' + st.week + "</b> this week" : "") + "</span>" +
-          sparkHtml(st.daily || []);
-      } else {
-        statsEl.innerHTML = '<span class="dcs-nums">\uD83D\uDC40 No views yet \u2014 share the link!</span>';
-      }
-      el.appendChild(statsEl);
+      var an = document.createElement("button");
+      an.type = "button";
+      an.className = "dash-card-chip dash-card-an";
+      an.innerHTML = "\uD83D\uDCCA " + (st && st.views
+        ? "<b>" + st.views + "</b>&nbsp;view" + (st.views === 1 ? "" : "s")
+        : "Stats");
+      an.addEventListener("click", function (e) { e.stopPropagation(); openStatsModal(g); });
+      el.appendChild(an);
     }
-    el.appendChild(actions);
 
     // Sitter feedback (persistent, per guide). Only shown when there's at least
     // one note; opens a list you can read/reply-to/delete without it vanishing.
@@ -270,7 +324,7 @@
     if (fb.length) {
       var fbBtn = document.createElement("button");
       fbBtn.type = "button";
-      fbBtn.className = "dash-card-feedback";
+      fbBtn.className = "dash-card-chip dash-card-feedback";
       fbBtn.innerHTML = '💬 <span class="dcf-label">Feedback</span> ' +
         '<span class="dcf-count">' + fb.length + "</span>";
       fbBtn.addEventListener("click", function (e) {
@@ -746,7 +800,7 @@
     if (!e.target.closest(".dash-card-more-wrap")) closeMenus();
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") { closeMenus(); closeSettings(); closeFeedbackModal(); closeCollaborateModal(); }
+    if (e.key === "Escape") { closeMenus(); closeSettings(); closeFeedbackModal(); closeCollaborateModal(); closeStatsModal(); }
   });
 
   /* ---------- boot ---------- */

@@ -17,6 +17,7 @@
   var profile = null;   // { id, displayName }
   var guides = [];      // SavedGuide rows
   var suggestions = []; // GuideFeedback rows (sitter suggestions)
+  var gstats = {};      // per-slug analytics: { views, shares, week, daily[] }
   var isNewUser = false; // true on the first sign-in (no profile yet)
 
   /* ---------- helpers ---------- */
@@ -36,6 +37,28 @@
   }
   function feedbackFor(slug) {
     return suggestions.filter(function (s) { return s.slug === slug; });
+  }
+  // "2026-07-08" -> "8 Jul"
+  function fmtDay(d) {
+    var p = String(d).split("-");
+    var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return (+p[2]) + " " + (M[+p[1] - 1] || "");
+  }
+  // A tiny 14-day views bar-sparkline. Single series in the brand hue; zero
+  // days show as baseline stubs; today is emphasised; each bar carries its
+  // value in a native tooltip.
+  function sparkHtml(daily) {
+    var max = 0;
+    daily.forEach(function (x) { if (x.v > max) max = x.v; });
+    var s = '<span class="dcs-spark" aria-hidden="true">';
+    daily.forEach(function (x, i) {
+      var last = i === daily.length - 1;
+      var h = x.v && max ? Math.max(10, Math.round(x.v / max * 100)) + "%" : "2px";
+      s += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
+        '" style="height:' + h + '" title="' + esc(fmtDay(x.d)) + " \u2014 " + x.v +
+        " view" + (x.v === 1 ? "" : "s") + '"></i>';
+    });
+    return s + "</span>";
   }
   function relTime(iso) {
     if (!iso) return "";
@@ -223,6 +246,22 @@
     el.appendChild(main);
     el.appendChild(meta);
     el.appendChild(updated);
+    // The creator's own analytics for this guide (only once stats have loaded;
+    // a guide with no events yet shows a gentle zero state).
+    if (Object.keys(gstats).length) {
+      var st = gstats[g.slug];
+      var statsEl = document.createElement("div");
+      statsEl.className = "dash-card-stats";
+      if (st && st.views) {
+        statsEl.innerHTML =
+          '<span class="dcs-nums">\uD83D\uDC40 <b>' + st.views + "</b> view" + (st.views === 1 ? "" : "s") +
+          (st.week ? ' \u00B7 <b>' + st.week + "</b> this week" : "") + "</span>" +
+          sparkHtml(st.daily || []);
+      } else {
+        statsEl.innerHTML = '<span class="dcs-nums">\uD83D\uDC40 No views yet \u2014 share the link!</span>';
+      }
+      el.appendChild(statsEl);
+    }
     el.appendChild(actions);
 
     // Sitter feedback (persistent, per guide). Only shown when there's at least
@@ -630,10 +669,14 @@
       Promise.all([
         GotItStore.getProfile(tok).catch(function () { return null; }),
         GotItStore.listSavedGuides(tok),
-        GotItStore.listGuideFeedback().catch(function () { return []; })
+        GotItStore.listGuideFeedback().catch(function () { return []; }),
+        // Guarded: a cached older store.js won't have guideStats yet.
+        (GotItStore.guideStats ? GotItStore.guideStats() : Promise.resolve({}))
+          .catch(function () { return {}; })
       ]).then(function (res) {
         profile = res[0];
         suggestions = res[2] || [];
+        gstats = res[3] || {};
         // No profile yet → brand-new account. Send the one-time welcome email
         // and create a profile so it's used as the "already welcomed" guard and
         // won't fire again. The backend emails the user's own verified address.

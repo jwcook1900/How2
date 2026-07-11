@@ -22,6 +22,19 @@
         statCard("🔗", s.shares || 0, "Shares") +
       "</div>";
 
+    // Views per day, all guides (last 30 days, viewer-local time)
+    var vd = s.viewsDaily || [];
+    var vdTotal = vd.reduce(function (a, x) { return a + x.v; }, 0);
+    var vdPeak = vd.reduce(function (a, x) { return Math.max(a, x.v); }, 0);
+    var dailyHtml = vd.length
+      ? '<h2 class="stat-h2">Views \u2014 last 30 days' +
+          ' <span class="stat-sub">(' + vdTotal + " view" + (vdTotal === 1 ? "" : "s") +
+          (vdPeak ? " \u00B7 peak " + vdPeak + "/day" : "") + ")</span></h2>" +
+        bars(vd, "stat-chart") +
+        '<div class="stat-chart-axis"><span>' + esc(fmtD(vd[0].d)) + "</span><span>" +
+          esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>"
+      : "";
+
     // How guides are started (Talk / Paste / Scratch)
     var sm = s.startMethods || {};
     var startTotal = (sm.talk || 0) + (sm.paste || 0) + (sm.scratch || 0) + (sm.photo || 0);
@@ -66,9 +79,9 @@
         '<p class="stat-empty">No guide activity yet — publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + startHtml + featHtml + guidesHtml +
+    out.innerHTML = cards + dailyHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected. ' +
-      "Start-method and feature stats only include activity after this update.</p>";
+      "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
     var fEl = $("sgFilter");
     if (fEl) fEl.addEventListener("input", function () {
@@ -78,6 +91,28 @@
         c.style.display = (!q || slug.indexOf(q) >= 0) ? "" : "none";
       });
     });
+  }
+
+  // "2026-07-08" -> "8 Jul"
+  function fmtD(d) {
+    var p = String(d).split("-");
+    var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return (+p[2]) + " " + (M[+p[1] - 1] || "");
+  }
+  // Daily-views bars: single brand hue, zero days as baseline stubs, today
+  // emphasised, per-bar value in a native tooltip.
+  function bars(daily, cls) {
+    var max = 0;
+    daily.forEach(function (x) { if (x.v > max) max = x.v; });
+    var out = '<div class="' + cls + '" aria-hidden="true">';
+    daily.forEach(function (x, i) {
+      var last = i === daily.length - 1;
+      var h = x.v && max ? Math.max(8, Math.round(x.v / max * 100)) + "%" : "2px";
+      out += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
+        '" style="height:' + h + '" title="' + esc(fmtD(x.d)) + " \u2014 " + x.v +
+        " view" + (x.v === 1 ? "" : "s") + '"></i>';
+    });
+    return out + "</div>";
   }
 
   var FEAT_META = {
@@ -101,6 +136,7 @@
       '<div class="sg-metrics">' +
         metric("👀", g.views, "views") + metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
       "</div>" +
+      (g.daily ? bars(g.daily, "sg-daily") : "") +
       (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +
     "</div>";
   }

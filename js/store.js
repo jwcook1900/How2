@@ -249,6 +249,21 @@ window.GotItStore = (function () {
     /* ---- Sitter suggestions on the dashboard ----
        Read/dismissed through the guide-feedback function, scoped by the caller's
        verified Cognito identity (access token), not AppSync owner-auth. */
+    // The signed-in creator's own per-guide analytics (views/shares + a
+    // 14-day daily series), served by the guide-feedback function after
+    // verifying the caller's identity. Resolves {} when unavailable.
+    guideStats: function () {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return {};
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "stats", idToken: idToken, tz: new Date().getTimezoneOffset() })
+        }).then(function (res) { return res.ok ? res.json() : { guides: {} }; })
+          .then(function (d) { return (d && d.guides) || {}; }, function () { return {}; });
+      }, function () { return {}; });
+    },
+
     listGuideFeedback: function () {
       return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
         var cfg = r[0], idToken = r[1];
@@ -597,7 +612,7 @@ window.GotItStore = (function () {
         return fetch(cfg.statsUrl, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ key: key })
+          body: JSON.stringify({ key: key, tz: new Date().getTimezoneOffset() })
         }).then(function (r) {
           if (r.status === 200) return r.json();
           if (r.status === 401) throw new Error("wrong passphrase");

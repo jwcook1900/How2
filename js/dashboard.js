@@ -54,9 +54,10 @@
     daily.forEach(function (x, i) {
       var last = i === daily.length - 1;
       var h = x.v && max ? Math.max(10, Math.round(x.v / max * 100)) + "%" : "2px";
+      var tip = esc(fmtDay(x.d)) + " \u2014 " + x.v + " view" + (x.v === 1 ? "" : "s") +
+        (x.u ? " \u00B7 " + x.u + " visitor" + (x.u === 1 ? "" : "s") : "");
       s += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
-        '" style="height:' + h + '" title="' + esc(fmtDay(x.d)) + " \u2014 " + x.v +
-        " view" + (x.v === 1 ? "" : "s") + '"></i>';
+        '" style="height:' + h + '" title="' + tip + '"></i>';
     });
     return s + "</div>";
   }
@@ -102,6 +103,7 @@
     body.innerHTML =
       '<div class="dash-an-nums">' +
         tile(st.views || 0, "total views") +
+        tile(st.unique || 0, "unique visitors") +
         tile(st.week || 0, "this week") +
         tile(st.shares || 0, "shares") +
       "</div>" + chart +

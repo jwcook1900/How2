@@ -93,6 +93,10 @@ const schema = a.schema({
     .model({
       kind: a.string().required(),
       slug: a.string(),
+      // Anonymous visitor id (a random token the browser keeps in its own
+      // localStorage) so views can be counted unique-vs-total. Not personal
+      // data — it identifies a browser, not a person.
+      vid: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey().to(["create"])]),
 

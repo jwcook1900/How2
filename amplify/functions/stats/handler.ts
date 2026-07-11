@@ -52,6 +52,11 @@ export const handler = async (event: any) => {
     }
     const viewsDayTotal: Record<string, number> = {};
     const viewsDayBySlug: Record<string, Record<string, number>> = {};
+    // Unique visitors (distinct anonymous vids on view events; older events
+    // carry none, so uniques are a floor for history and exact from now on).
+    const uniqAll = new Set<string>();
+    const uniqBySlug: Record<string, Set<string>> = {};
+    const uniqDayTotal: Record<string, Set<string>> = {};
     // How guides are started (totals) and which features they use (distinct
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
     const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0, photo: 0 };
@@ -60,7 +65,7 @@ export const handler = async (event: any) => {
     do {
       const res: any = await ddb.send(new ScanCommand({
         TableName: table,
-        ProjectionExpression: "#k, slug, createdAt",
+        ProjectionExpression: "#k, slug, createdAt, vid",
         ExpressionAttributeNames: { "#k": "kind" },
         ExclusiveStartKey: startKey,
       }));
@@ -78,9 +83,15 @@ export const handler = async (event: any) => {
         } else if (kind === "view") {
           views++;
           if (slug) viewsBySlug[slug] = (viewsBySlug[slug] || 0) + 1;
+          const vid = (item.vid && item.vid.S) || "";
+          if (vid) {
+            uniqAll.add(vid);
+            if (slug) (uniqBySlug[slug] || (uniqBySlug[slug] = new Set())).add(vid);
+          }
           const day = localDay(ca);
           if (day) {
             viewsDayTotal[day] = (viewsDayTotal[day] || 0) + 1;
+            if (vid) (uniqDayTotal[day] || (uniqDayTotal[day] = new Set())).add(vid);
             if (slug) (viewsDayBySlug[slug] || (viewsDayBySlug[slug] = {}))[day] =
               ((viewsDayBySlug[slug] || {})[day] || 0) + 1;
           }
@@ -116,6 +127,7 @@ export const handler = async (event: any) => {
         views: viewsBySlug[slug] || 0,
         shares: sharesBySlug[slug] || 0,
         publishes: publishesBySlug[slug] || 0,
+        unique: uniqBySlug[slug] ? uniqBySlug[slug].size : 0,
         features: featsBySlug[slug] ? Array.from(featsBySlug[slug]) : [],
         lastActive: lastBySlug[slug] || "",
         // 30-day daily views (zero-filled), only for guides that have any.
@@ -126,9 +138,12 @@ export const handler = async (event: any) => {
       .sort((a, b) => b.views - a.views || b.shares - a.shares || b.publishes - a.publishes)
       .slice(0, 100);
 
-    const viewsDaily = dayAxis.map((d) => ({ d, v: viewsDayTotal[d] || 0 }));
+    const viewsDaily = dayAxis.map((d) => ({
+      d, v: viewsDayTotal[d] || 0, u: uniqDayTotal[d] ? uniqDayTotal[d].size : 0,
+    }));
+    const uniqueVisitors = uniqAll.size;
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, shares, topGuides, startMethods, features, guides, viewsDaily }) };
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

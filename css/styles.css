@@ -2393,6 +2393,12 @@ body.dragging-active * {
 .sg-name { font-weight: 700; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
 .sg-name:hover { color: var(--coral); text-decoration: underline; }
 .sg-when { color: var(--ink-muted); font-size: 0.78rem; white-space: nowrap; flex-shrink: 0; }
+.sg-new {
+  flex-shrink: 0; align-self: center;
+  background: var(--coral); color: #fff;
+  font-size: 0.64rem; font-weight: 800; letter-spacing: 0.06em;
+  border-radius: 999px; padding: 2px 8px;
+}
 .sg-metrics { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
 .sg-metric { color: var(--ink-muted); font-size: 0.88rem; }
 .sg-metric b { color: var(--ink); font-weight: 800; }

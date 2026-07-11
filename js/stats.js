@@ -130,10 +130,15 @@
       return '<span class="sg-metric">' + emoji + " <b>" + (n || 0) + "</b> " + label + "</span>";
     };
     var when = relTime(g.lastActive);
+    var created = g.created ? fmtD(String(g.created).slice(0, 10)) : "";
+    var isNew = g.created && (Date.now() - Date.parse(g.created)) < 7 * 86400000;
+    var stamp = (created ? "created " + created : "") +
+      (created && when ? " \u00B7 " : "") + (when ? "active " + when : "");
     return '<div class="sg-card" data-slug="' + esc(g.slug) + '">' +
       '<div class="sg-top">' +
         '<a class="sg-name" href="/g/' + encodeURIComponent(g.slug) + '" target="_blank" rel="noopener">' + esc(g.slug) + "</a>" +
-        (when ? '<span class="sg-when">' + esc(when) + "</span>" : "") +
+        (isNew ? '<span class="sg-new">NEW</span>' : "") +
+        (stamp ? '<span class="sg-when">' + esc(stamp) + "</span>" : "") +
       "</div>" +
       '<div class="sg-metrics">' +
         metric("👀", g.views, "views") + metric("👤", g.unique, "visitors") +

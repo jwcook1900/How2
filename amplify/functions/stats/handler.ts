@@ -40,6 +40,11 @@ export const handler = async (event: any) => {
     const publishesBySlug: Record<string, number> = {};
     const featsBySlug: Record<string, Set<string>> = {}; // slug -> set of feature names
     const lastBySlug: Record<string, string> = {};       // slug -> latest ISO timestamp
+    // When a guide came into being: its first publish event (publish is only
+    // logged on first publish), falling back to the earliest event of any kind
+    // for guides that predate publish logging.
+    const createdBySlug: Record<string, string> = {};
+    const firstSeenBySlug: Record<string, string> = {};
     // Daily view timelines, bucketed into the caller's local days.
     const DAYS = 30;
     const localDay = (iso: string) => {
@@ -74,9 +79,13 @@ export const handler = async (event: any) => {
         const slug = (item.slug && item.slug.S) || "";
         const ca = (item.createdAt && item.createdAt.S) || "";
         if (slug && ca && ca > (lastBySlug[slug] || "")) lastBySlug[slug] = ca;
+        if (slug && ca && (!firstSeenBySlug[slug] || ca < firstSeenBySlug[slug])) firstSeenBySlug[slug] = ca;
         if (kind === "publish") {
           publishes++;
-          if (slug) publishesBySlug[slug] = (publishesBySlug[slug] || 0) + 1;
+          if (slug) {
+            publishesBySlug[slug] = (publishesBySlug[slug] || 0) + 1;
+            if (ca && (!createdBySlug[slug] || ca < createdBySlug[slug])) createdBySlug[slug] = ca;
+          }
         } else if (kind === "share") {
           shares++;
           if (slug) sharesBySlug[slug] = (sharesBySlug[slug] || 0) + 1;
@@ -128,6 +137,7 @@ export const handler = async (event: any) => {
         shares: sharesBySlug[slug] || 0,
         publishes: publishesBySlug[slug] || 0,
         unique: uniqBySlug[slug] ? uniqBySlug[slug].size : 0,
+        created: createdBySlug[slug] || firstSeenBySlug[slug] || "",
         features: featsBySlug[slug] ? Array.from(featsBySlug[slug]) : [],
         lastActive: lastBySlug[slug] || "",
         // 30-day daily views (zero-filled), only for guides that have any.

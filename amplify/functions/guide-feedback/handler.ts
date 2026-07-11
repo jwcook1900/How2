@@ -137,12 +137,15 @@ export const handler = async (event: any) => {
       for (let i = DAYS - 1; i >= 0; i--) {
         days.push(new Date(Date.now() - tz * 60000 - i * 86400000).toISOString().slice(0, 10));
       }
-      const agg: Record<string, { views: number; shares: number; daily: Record<string, number> }> = {};
+      const agg: Record<string, {
+        views: number; shares: number; uniq: Set<string>;
+        daily: Record<string, number>; dailyU: Record<string, Set<string>>;
+      }> = {};
       sk = undefined;
       do {
         const res: any = await ddb.send(new ScanCommand({
           TableName: evT,
-          ProjectionExpression: "#k, slug, createdAt",
+          ProjectionExpression: "#k, slug, createdAt, vid",
           ExpressionAttributeNames: { "#k": "kind" },
           ExclusiveStartKey: sk,
         }));
@@ -150,11 +153,17 @@ export const handler = async (event: any) => {
           const evSlug = (it.slug && it.slug.S) || "";
           if (!mine.has(evSlug)) continue;
           const kind = (it.kind && it.kind.S) || "";
-          const a = agg[evSlug] || (agg[evSlug] = { views: 0, shares: 0, daily: {} });
+          const a = agg[evSlug] ||
+            (agg[evSlug] = { views: 0, shares: 0, uniq: new Set(), daily: {}, dailyU: {} });
           if (kind === "view") {
             a.views++;
+            const vid = (it.vid && it.vid.S) || "";
+            if (vid) a.uniq.add(vid);
             const d = localDay((it.createdAt && it.createdAt.S) || "");
-            if (d) a.daily[d] = (a.daily[d] || 0) + 1;
+            if (d) {
+              a.daily[d] = (a.daily[d] || 0) + 1;
+              if (vid) (a.dailyU[d] || (a.dailyU[d] = new Set())).add(vid);
+            }
           } else if (kind === "share") a.shares++;
         }
         sk = res.LastEvaluatedKey;
@@ -163,9 +172,13 @@ export const handler = async (event: any) => {
       const guides: Record<string, any> = {};
       for (const gSlug of Object.keys(agg)) {
         const a = agg[gSlug];
-        const daily = days.map((d) => ({ d, v: a.daily[d] || 0 }));
+        const daily = days.map((d) => ({
+          d, v: a.daily[d] || 0, u: a.dailyU[d] ? a.dailyU[d].size : 0,
+        }));
         const week = daily.slice(-7).reduce((s, x) => s + x.v, 0);
-        guides[gSlug] = { views: a.views, shares: a.shares, week, daily };
+        // unique counts only events that carried a visitor id (older ones
+        // don't), so it's a floor for historical data and exact from now on.
+        guides[gSlug] = { views: a.views, unique: a.uniq.size, shares: a.shares, week, daily };
       }
       return json(200, { ok: true, guides });
     }

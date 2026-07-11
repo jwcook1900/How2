@@ -3129,7 +3129,8 @@ body.dragging-active * {
    ============================================================ */
 /* Per-guide analytics window (reuses the .dash-fb modal shell) */
 .dash-an-body { padding: 16px 20px 20px; }
-.dash-an-nums { display: flex; gap: 10px; margin-bottom: 18px; }
+.dash-an-nums { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+.dash-an-nums .dash-an-num { flex: 1 1 45%; }
 .dash-an-num {
   flex: 1; text-align: center; background: var(--soft, #FBF8F5);
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 6px 10px;

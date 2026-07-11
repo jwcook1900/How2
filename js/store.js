@@ -575,10 +575,20 @@ window.GotItStore = (function () {
     // Log a lightweight analytics event (kind: publish/view/share, + slug).
     // Best-effort and never rejects, so callers can fire-and-forget.
     event: function (kind, slug) {
+      // Anonymous per-browser id so views can be counted unique-vs-total.
+      var vid = null;
+      try {
+        vid = localStorage.getItem("gotit_vid");
+        if (!vid) {
+          var a = new Uint8Array(12); window.crypto.getRandomValues(a);
+          vid = Array.prototype.map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+          localStorage.setItem("gotit_vid", vid);
+        }
+      } catch (e) { vid = null; }
       return loadConfig().then(function (cfg) {
         if (!cfg) return false;
         var q = "mutation Cr($input: CreateEventInput!){ createEvent(input: $input){ id } }";
-        return gql(cfg, q, { input: { kind: kind, slug: slug || null } })
+        return gql(cfg, q, { input: { kind: kind, slug: slug || null, vid: vid } })
           .then(function () { return true; }, function () { return false; });
       }, function () { return false; });
     },

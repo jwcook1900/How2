@@ -19,6 +19,7 @@
       '<div class="stat-grid">' +
         statCard("📘", s.publishes || 0, "Guides published") +
         statCard("👀", s.views || 0, "Guide views") +
+        statCard("👤", s.uniqueVisitors || 0, "Unique visitors") +
         statCard("🔗", s.shares || 0, "Shares") +
       "</div>";
 
@@ -80,7 +81,7 @@
     }
 
     out.innerHTML = cards + dailyHtml + startHtml + featHtml + guidesHtml +
-      '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected. ' +
+      '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
     var fEl = $("sgFilter");
@@ -108,9 +109,10 @@
     daily.forEach(function (x, i) {
       var last = i === daily.length - 1;
       var h = x.v && max ? Math.max(8, Math.round(x.v / max * 100)) + "%" : "2px";
+      var tip = esc(fmtD(x.d)) + " \u2014 " + x.v + " view" + (x.v === 1 ? "" : "s") +
+        (x.u ? " \u00B7 " + x.u + " visitor" + (x.u === 1 ? "" : "s") : "");
       out += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
-        '" style="height:' + h + '" title="' + esc(fmtD(x.d)) + " \u2014 " + x.v +
-        " view" + (x.v === 1 ? "" : "s") + '"></i>';
+        '" style="height:' + h + '" title="' + tip + '"></i>';
     });
     return out + "</div>";
   }
@@ -134,7 +136,8 @@
         (when ? '<span class="sg-when">' + esc(when) + "</span>" : "") +
       "</div>" +
       '<div class="sg-metrics">' +
-        metric("👀", g.views, "views") + metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
+        metric("👀", g.views, "views") + metric("👤", g.unique, "visitors") +
+        metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
       "</div>" +
       (g.daily ? bars(g.daily, "sg-daily") : "") +
       (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +

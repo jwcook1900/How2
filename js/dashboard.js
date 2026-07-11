@@ -141,6 +141,7 @@
     item("Duplicate", function () { duplicateGuide(g); });
     // Share-related actions only make sense once a public link exists.
     if (published) {
+      item("Change link…", function () { changeLink(g); });
       item("Copy share link", function () { copyText(viewUrl(g.slug), "Share link copied!"); });
       item("Download QR", function () { downloadQR(g); });
     }
@@ -490,6 +491,50 @@
       return reload();
     }).then(function () { toast("Duplicated ✓"); })
       .catch(function () { toast("Couldn't duplicate that one."); });
+  }
+
+  // Give a published guide a new link name. The link is the guide's record id,
+  // so this republishes the same content at the new address and points the
+  // dashboard row there. The old record isn't deleted (the store has no delete
+  // for account-less guides), so a previously shared link keeps showing the
+  // guide as it was — hence the "best before you share it" warning.
+  function changeLink(g) {
+    var input = window.prompt(
+      "New link name (letters, numbers and hyphens):\n" + location.host + "/g/…",
+      g.slug);
+    if (input == null) return;
+    var slug = String(input).toLowerCase().trim()
+      .replace(/[^a-z0-9-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+    if (!slug || slug === g.slug) return;
+    if (!window.confirm(
+      "Move this guide to " + location.host + "/g/" + slug + "?\n\n" +
+      "If you've already shared the old link, it may keep showing the old version — " +
+      "changing the link is best done before sharing.")) return;
+    toast("Changing link…");
+    GotItStore.get(slug).then(function (existing) {
+      if (existing) { toast("That link name is already taken — try another."); return; }
+      return GotItStore.get(g.slug).then(function (obj) {
+        if (!obj) throw new Error("not found");
+        var payload;
+        if (GotItStore.isEncrypted(obj)) {
+          // Locked guide: copy the envelope as-is (still opens with the same
+          // code); the slug lives in the envelope metadata.
+          payload = {};
+          for (var k in obj) if (obj.hasOwnProperty(k)) payload[k] = obj[k];
+          payload.slug = slug;
+        } else {
+          payload = obj;
+          payload.slug = slug;
+        }
+        return GotItStore.create(payload, g.editToken).then(function () {
+          return GotItStore.updateSavedGuide(idTok, g.id, { slug: slug });
+        }).then(function () {
+          g.slug = slug;
+          render();
+          copyText(viewUrl(slug), "Link changed — new link copied!");
+        });
+      });
+    }).catch(function () { toast("Couldn't change the link just now."); });
   }
 
   function deleteGuide(g, cardEl) {

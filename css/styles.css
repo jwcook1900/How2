@@ -1105,6 +1105,43 @@ ul { margin: 0; padding: 0; list-style: none; }
 .acc-content ol { list-style: decimal; }
 .acc-content li { margin: 3px 0; }
 .acc-content p { margin: 0 0 6px; }
+/* Collapsible dropdown blocks inside a section (long lists — e.g. every
+   seizure trigger). Native <details>: collapsed for viewers, tap to expand. */
+.acc-content details {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-tint, #FBF8F5);
+  margin: 10px 0;
+}
+.acc-content summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 11px 14px;
+  list-style: none; /* we draw our own chevron */
+  display: flex; align-items: center; gap: 9px;
+  -webkit-tap-highlight-color: transparent;
+}
+.acc-content summary::-webkit-details-marker { display: none; }
+.acc-content summary::before {
+  content: "▸";
+  color: var(--coral);
+  flex-shrink: 0;
+  transition: transform 0.18s var(--ease, ease);
+}
+.acc-content details[open] > summary::before { transform: rotate(90deg); }
+.acc-content details > *:not(summary) { margin: 0 14px 12px; }
+/* In the editor the block is pinned open — label it so creators know what
+   viewers will get. (Only editor bodies are contenteditable.) */
+.acc-content[contenteditable] summary::after {
+  content: "viewers tap to expand";
+  font-size: 0.7rem; font-weight: 600; color: var(--ink-muted);
+  margin-left: auto; padding-left: 10px; flex-shrink: 0;
+}
+@media print {
+  .acc-content details { break-inside: avoid; }
+  .acc-content summary::before { content: "▾"; }
+}
 
 /* ── Floating glass editor dock (step 3) ───────────────────────────────── */
 .edit-dock {
@@ -2422,6 +2459,7 @@ body.dragging-active * {
 .sg-metrics { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; }
 .sg-metric { color: var(--ink-muted); font-size: 0.88rem; }
 .sg-metric b { color: var(--ink); font-weight: 800; }
+.sg-srcs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; color: var(--ink-muted); font-size: 0.78rem; }
 .sg-feats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .sg-feat {
   font-size: 0.76rem; font-weight: 600; color: var(--ink-soft);
@@ -3175,6 +3213,12 @@ body.dragging-active * {
 .dash-an-chart i:hover { filter: brightness(0.85); }
 .dash-an-axis { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--ink-muted); margin: 5px 4px 0; }
 .dash-an-empty { color: var(--ink-muted); font-size: 0.92rem; text-align: center; padding: 18px 0; margin: 0; }
+.dash-an-srcs { display: flex; flex-wrap: wrap; gap: 6px; }
+.dash-an-src {
+  background: var(--soft, #FBF8F5); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 11px; font-size: 0.8rem; color: var(--ink-muted);
+}
+.dash-an-src b { color: var(--ink); font-weight: 800; }
 .dash-an-foot { font-size: 0.74rem; color: var(--ink-muted); margin: 14px 0 0; text-align: center; }
 
 .stat-chart {

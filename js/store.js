@@ -119,7 +119,10 @@ window.GotItStore = (function () {
   /* ---- HTML sanitiser for rich-text section bodies ----
      Parses inertly (DOMParser, so no images load and no scripts run), then
      rebuilds with only whitelisted tags and no attributes. */
-  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1 };
+  /* DETAILS/SUMMARY power the "dropdown inside a section" blocks for long
+     lists. Attributes are stripped like everything else, which also drops
+     `open` — so published dropdowns always start collapsed. */
+  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1, DETAILS: 1, SUMMARY: 1 };
   function sanitizeHtml(html) {
     var docp;
     try { docp = new DOMParser().parseFromString(String(html), "text/html"); }
@@ -585,10 +588,19 @@ window.GotItStore = (function () {
           localStorage.setItem("gotit_vid", vid);
         }
       } catch (e) { vid = null; }
+      // Where the visit came from: the referrer's domain only (never the full
+      // URL). Same-site or no referrer both count as "direct".
+      var ref = "direct";
+      try {
+        if (document.referrer) {
+          var host = new URL(document.referrer).hostname;
+          if (host && host !== window.location.hostname) ref = host.replace(/^www\./, "").slice(0, 80);
+        }
+      } catch (e) { /* keep "direct" */ }
       return loadConfig().then(function (cfg) {
         if (!cfg) return false;
         var q = "mutation Cr($input: CreateEventInput!){ createEvent(input: $input){ id } }";
-        return gql(cfg, q, { input: { kind: kind, slug: slug || null, vid: vid } })
+        return gql(cfg, q, { input: { kind: kind, slug: slug || null, vid: vid, ref: ref } })
           .then(function () { return true; }, function () { return false; });
       }, function () { return false; });
     },

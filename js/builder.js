@@ -1827,6 +1827,21 @@
     });
     bindEditable(el.querySelector(".acc-content"), function (v) { sec.body = v; }, true);
 
+    // Dropdown blocks are pinned open while editing (saving strips `open`, so
+    // published guides still get them collapsed). Blocking the summary's
+    // native toggle keeps taps placing the caret instead of folding the block.
+    var contentEl = el.querySelector(".acc-content");
+    Array.prototype.forEach.call(contentEl.querySelectorAll("details"), function (d) {
+      d.setAttribute("open", "");
+    });
+    contentEl.addEventListener("click", function (e) {
+      var t = e.target;
+      while (t && t !== contentEl) {
+        if (t.tagName === "SUMMARY") { e.preventDefault(); return; }
+        t = t.parentNode;
+      }
+    });
+
     renderSectionMedia(el, sec);
     GotItStore.applyAccent(el, sec.color);
     return el;
@@ -2978,6 +2993,15 @@
       b.addEventListener("click", function (e) { e.stopPropagation(); applyFormat(f[1]); });
       pop.appendChild(b);
     });
+    // Collapsible dropdown for long lists (e.g. every seizure trigger) —
+    // viewers see just its title and tap to expand.
+    var dd = document.createElement("button");
+    dd.type = "button"; dd.className = "dock-pop-btn";
+    dd.textContent = "▾"; dd.title = "Dropdown (viewers tap to expand)";
+    dd.setAttribute("aria-label", "Insert a collapsible dropdown");
+    dd.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    dd.addEventListener("click", function (e) { e.stopPropagation(); insertDropdown(); });
+    pop.appendChild(dd);
   }
   function applyFormat(cmd) {
     if (selectedType !== "section") return;
@@ -2987,6 +3011,43 @@
     try { document.execCommand(cmd, false, null); } catch (e) {}
     selectedRef.body = GotItStore.sanitizeHtml(content.innerHTML);
     recordHistory();
+  }
+  /* Insert a <details>/<summary> dropdown into the selected section's body.
+     Selected text becomes the dropdown's contents; with nothing selected a
+     starter template is added. In the editor dropdowns are pinned open (see
+     buildSectionEl) so they're editable; publishing strips the `open`
+     attribute, so viewers always get them collapsed. */
+  function insertDropdown() {
+    if (selectedType !== "section") return;
+    var content = selectedEl.querySelector(".acc-content");
+    if (!selectedEl.classList.contains("open")) selectedEl.classList.add("open");
+    content.focus();
+    var sel = window.getSelection();
+    var range = (sel && sel.rangeCount && content.contains(sel.anchorNode)) ? sel.getRangeAt(0) : null;
+    var d = document.createElement("details");
+    d.setAttribute("open", "");
+    var sm = document.createElement("summary");
+    sm.textContent = "Tap for the full list";
+    d.appendChild(sm);
+    var body = document.createElement("div");
+    if (range && !range.collapsed) {
+      body.appendChild(range.extractContents());
+      d.appendChild(body);
+      range.insertNode(d);
+    } else {
+      body.innerHTML = "List everything here — one item per line.";
+      d.appendChild(body);
+      if (range) { range.collapse(false); range.insertNode(d); }
+      else content.appendChild(d);
+    }
+    selectedRef.body = GotItStore.sanitizeHtml(content.innerHTML);
+    recordHistory();
+    // Put the caret in the summary so its title can be renamed right away.
+    try {
+      var r = document.createRange();
+      r.selectNodeContents(sm); r.collapse(false);
+      sel.removeAllRanges(); sel.addRange(r);
+    } catch (e) {}
   }
 
   function buildMediaPop(pop) {

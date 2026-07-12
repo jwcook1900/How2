@@ -101,6 +101,9 @@ const schema = a.schema({
       // localStorage) so views can be counted unique-vs-total. Not personal
       // data — it identifies a browser, not a person.
       vid: a.string(),
+      // Traffic source: the referrer's domain only ("reddit.com"), or
+      // "direct". Never a full URL — no paths or query strings are kept.
+      ref: a.string(),
     })
     .authorization((allow) => [allow.publicApiKey().to(["create"])]),
 

@@ -66,6 +66,10 @@ export const handler = async (event: any) => {
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
     const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0, photo: 0 };
     const featSlugs: Record<string, Set<string>> = {};
+    // Traffic sources: referrer domain (or "direct") on view events. Events
+    // from before ref tracking shipped carry none and simply aren't counted.
+    const refCounts: Record<string, number> = {};
+    const refBySlug: Record<string, Record<string, number>> = {};
     // Creation funnel: builder opened -> category picked -> method chosen ->
     // draft built (distinct editor slugs) -> published (distinct publish slugs).
     let builderOpens = 0;
@@ -75,8 +79,8 @@ export const handler = async (event: any) => {
     do {
       const res: any = await ddb.send(new ScanCommand({
         TableName: table,
-        ProjectionExpression: "#k, slug, createdAt, vid",
-        ExpressionAttributeNames: { "#k": "kind" },
+        ProjectionExpression: "#k, slug, createdAt, vid, #r",
+        ExpressionAttributeNames: { "#k": "kind", "#r": "ref" },
         ExclusiveStartKey: startKey,
       }));
       for (const item of res.Items || []) {
@@ -101,6 +105,12 @@ export const handler = async (event: any) => {
           if (vid) {
             uniqAll.add(vid);
             if (slug) (uniqBySlug[slug] || (uniqBySlug[slug] = new Set())).add(vid);
+          }
+          const ref = (item.ref && item.ref.S) || "";
+          if (ref) {
+            refCounts[ref] = (refCounts[ref] || 0) + 1;
+            if (slug) (refBySlug[slug] || (refBySlug[slug] = {}))[ref] =
+              ((refBySlug[slug] || {})[ref] || 0) + 1;
           }
           const day = localDay(ca);
           if (day) {
@@ -155,6 +165,11 @@ export const handler = async (event: any) => {
         daily: viewsDayBySlug[slug]
           ? dayAxis.map((d) => ({ d, v: viewsDayBySlug[slug][d] || 0 }))
           : undefined,
+        // Top traffic sources for this guide, e.g. { "reddit.com": 12, direct: 3 }.
+        refs: refBySlug[slug]
+          ? Object.fromEntries(Object.entries(refBySlug[slug])
+              .sort((a, b) => b[1] - a[1]).slice(0, 5))
+          : undefined,
       }))
       .sort((a, b) => b.views - a.views || b.shares - a.shares || b.publishes - a.publishes)
       .slice(0, 100);
@@ -170,7 +185,7 @@ export const handler = async (event: any) => {
       published: Object.keys(publishesBySlug).length,
     };
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts }) };
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts, refs: refCounts }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

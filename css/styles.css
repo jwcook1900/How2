@@ -2378,6 +2378,26 @@ body.dragging-active * {
 @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr; } }
 
 /* Per-guide breakdown */
+.stat-chipbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 0 0 12px;
+}
+.stat-chip {
+  border: 1px solid var(--line); background: var(--white); color: var(--ink);
+  border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  font-family: inherit; font-size: 0.82rem; font-weight: 700; line-height: 1.2;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.stat-chip:hover { border-color: var(--coral); }
+.stat-chip.on { background: var(--coral); border-color: var(--coral); color: #fff; }
+.stat-chip-label {
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-muted); margin-right: 2px;
+}
+.stat-chip-sep { flex: 1 1 auto; min-width: 8px; }
+/* Range chips live inside the chart's h2, right-aligned on one line */
+.stat-range { float: right; display: inline-flex; gap: 4px; }
+.stat-range .stat-chip { padding: 4px 10px; font-size: 0.76rem; }
 .stat-filter {
   width: 100%; box-sizing: border-box; margin: 0 0 12px;
   border: 1.5px solid var(--line); border-radius: 999px;

@@ -10,34 +10,94 @@
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  function render(s) {
+  // Current view state for the interactive bits (chips re-render; the name
+  // filter narrows in place so typing never loses focus).
+  var DATA = null;
+  var sortKey = "views";   // views | unique | created | active
+  var newOnly = false;     // only guides created in the last 7 days
+  var range = 30;          // chart window: 7 | 14 | 30 days
+  var q = "";              // name filter
+
+  function render(s) { DATA = s; paint(); }
+
+  function chip(label, on, attrs) {
+    return '<button type="button" class="stat-chip' + (on ? " on" : "") + '" ' + attrs + ">" + label + "</button>";
+  }
+
+  function sortedGuides() {
+    var list = (DATA.guides || []).slice();
+    if (newOnly) {
+      list = list.filter(function (g) {
+        return g.created && (Date.now() - Date.parse(g.created)) < 7 * 86400000;
+      });
+    }
+    list.sort(function (a, b) {
+      if (sortKey === "unique") return (b.unique || 0) - (a.unique || 0);
+      if (sortKey === "created") return String(b.created || "").localeCompare(String(a.created || ""));
+      if (sortKey === "active") return String(b.lastActive || "").localeCompare(String(a.lastActive || ""));
+      return (b.views || 0) - (a.views || 0);
+    });
+    return list;
+  }
+
+  function applyNameFilter() {
+    var wrap = $("statGuides");
+    if (!wrap) return;
+    var needle = q.trim().toLowerCase();
+    Array.prototype.forEach.call(wrap.children, function (c) {
+      var slug = (c.getAttribute("data-slug") || "").toLowerCase();
+      c.style.display = (!needle || slug.indexOf(needle) >= 0) ? "" : "none";
+    });
+  }
+
+  function exportCsv(list) {
+    var rows = [["slug", "views", "visitors", "shares", "publishes", "created", "lastActive"]];
+    list.forEach(function (g) {
+      rows.push([g.slug, g.views || 0, g.unique || 0, g.shares || 0, g.publishes || 0,
+        (g.created || "").slice(0, 10), (g.lastActive || "").slice(0, 10)]);
+    });
+    var csv = rows.map(function (r) {
+      return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(",");
+    }).join("\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = "gotit-guides-stats.csv";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 500);
+  }
+
+  function paint() {
+    var s = DATA;
     $("statsGate").hidden = true;
     var out = $("statsOut");
     out.hidden = false;
 
     var cards =
       '<div class="stat-grid">' +
-        statCard("📘", s.publishes || 0, "Guides published") +
-        statCard("👀", s.views || 0, "Guide views") +
-        statCard("👤", s.uniqueVisitors || 0, "Unique visitors") +
-        statCard("🔗", s.shares || 0, "Shares") +
+        statCard("\uD83D\uDCD8", s.publishes || 0, "Guides published") +
+        statCard("\uD83D\uDC40", s.views || 0, "Guide views") +
+        statCard("\uD83D\uDC64", s.uniqueVisitors || 0, "Unique visitors") +
+        statCard("\uD83D\uDD17", s.shares || 0, "Shares") +
       "</div>";
 
-    // Views per day, all guides (last 30 days, viewer-local time)
-    var vd = s.viewsDaily || [];
+    // Views per day (window selectable: 7 / 14 / 30, viewer-local days)
+    var vdAll = s.viewsDaily || [];
+    var vd = vdAll.slice(-range);
     var vdTotal = vd.reduce(function (a, x) { return a + x.v; }, 0);
     var vdPeak = vd.reduce(function (a, x) { return Math.max(a, x.v); }, 0);
-    var dailyHtml = vd.length
-      ? '<h2 class="stat-h2">Views \u2014 last 30 days' +
+    var rangeChips = '<span class="stat-range">' +
+      [7, 14, 30].map(function (r) { return chip(r + "d", range === r, 'data-range="' + r + '"'); }).join("") +
+      "</span>";
+    var dailyHtml = vdAll.length
+      ? '<h2 class="stat-h2">Views \u2014 last ' + range + " days" +
           ' <span class="stat-sub">(' + vdTotal + " view" + (vdTotal === 1 ? "" : "s") +
-          (vdPeak ? " \u00B7 peak " + vdPeak + "/day" : "") + ")</span></h2>" +
+          (vdPeak ? " \u00B7 peak " + vdPeak + "/day" : "") + ")</span>" + rangeChips + "</h2>" +
         bars(vd, "stat-chart") +
-        '<div class="stat-chart-axis"><span>' + esc(fmtD(vd[0].d)) + "</span><span>" +
-          esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>"
+        (vd.length ? '<div class="stat-chart-axis"><span>' + esc(fmtD(vd[0].d)) + "</span><span>" +
+          esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>" : "")
       : "";
 
-    // Creation funnel: where people drop off between opening the builder and
-    // publishing. Each card shows conversion from the previous step.
+    // Creation funnel (each % is of the step before)
     var fu = s.funnel || {};
     var funnelHtml = (fu.opens || fu.starts || fu.drafts || fu.published)
       ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before)</span></h2>' +
@@ -49,7 +109,7 @@
         "</div>"
       : "";
 
-    // Which categories people pick (kind "cat", category id in the slug field)
+    // Which categories people pick
     var CAT_META = {
       pet: "\uD83D\uDC36 Pet Care", home: "\uD83C\uDFE0 Home / Airbnb", kids: "\uD83D\uDC76 Kids",
       staff: "\uD83E\uDDD1\u200D\uD83D\uDCBC Staff", event: "\uD83C\uDF89 Event", cleaner: "\uD83E\uDDF9 Cleaner",
@@ -64,24 +124,24 @@
         }).join("") + "</div>"
       : "";
 
-    // How guides are started (Talk / Paste / Scratch)
+    // How guides are started
     var sm = s.startMethods || {};
     var startTotal = (sm.talk || 0) + (sm.paste || 0) + (sm.scratch || 0) + (sm.photo || 0);
     var startHtml = startTotal
       ? '<h2 class="stat-h2">How guides are started</h2><div class="stat-grid">' +
-          statCard("🎙️", sm.talk || 0, "Talk it out" + pct(sm.talk, startTotal)) +
-          statCard("📋", sm.paste || 0, "Paste notes" + pct(sm.paste, startTotal)) +
-          statCard("✍️", sm.scratch || 0, "From scratch" + pct(sm.scratch, startTotal)) +
-          statCard("📸", sm.photo || 0, "Photo of a guide" + pct(sm.photo, startTotal)) +
+          statCard("\uD83C\uDF99\uFE0F", sm.talk || 0, "Talk it out" + pct(sm.talk, startTotal)) +
+          statCard("\uD83D\uDCCB", sm.paste || 0, "Paste notes" + pct(sm.paste, startTotal)) +
+          statCard("\u270D\uFE0F", sm.scratch || 0, "From scratch" + pct(sm.scratch, startTotal)) +
+          statCard("\uD83D\uDCF8", sm.photo || 0, "Photo of a guide" + pct(sm.photo, startTotal)) +
         "</div>"
       : "";
 
-    // Features used across published guides (share of all publishes)
+    // Features used across published guides
     var f = s.features || {};
     var pub = s.publishes || 0;
     var featRows = [
-      ["📸", "photo", "Photos"], ["🎬", "video", "Videos"], ["🖼️", "cover", "Cover photo"],
-      ["⏰", "routine", "Daily routine"], ["📓", "log", "Logs"], ["🔒", "lock", "Locked"],
+      ["\uD83D\uDCF8", "photo", "Photos"], ["\uD83C\uDFAC", "video", "Videos"], ["\uD83D\uDDBC\uFE0F", "cover", "Cover photo"],
+      ["\u23F0", "routine", "Daily routine"], ["\uD83D\uDCD3", "log", "Logs"], ["\uD83D\uDD12", "lock", "Locked"],
     ];
     var anyFeat = featRows.some(function (r) { return f[r[1]]; });
     var featHtml = anyFeat
@@ -93,31 +153,52 @@
         "</div>"
       : "";
 
-    // Per-guide breakdown: each guide's own views / shares / publishes / features.
-    var guides = s.guides || [];
+    // Per-guide breakdown, with sort / new-only / CSV controls
+    var list = sortedGuides();
     var guidesHtml;
-    if (guides.length) {
-      var filter = guides.length > 6
-        ? '<input type="search" id="sgFilter" class="stat-filter" placeholder="Filter guides by name…" autocomplete="off" />'
-        : "";
-      guidesHtml = '<h2 class="stat-h2">Per-guide breakdown <span class="stat-sub">(' + guides.length + ')</span></h2>' +
-        filter + '<div class="stat-guides" id="statGuides">' +
-        guides.map(guideCard).join("") + "</div>";
+    if ((s.guides || []).length) {
+      var controls =
+        '<div class="stat-chipbar">' +
+          '<span class="stat-chip-label">Sort</span>' +
+          chip("Views", sortKey === "views", 'data-sort="views"') +
+          chip("Visitors", sortKey === "unique", 'data-sort="unique"') +
+          chip("Newest", sortKey === "created", 'data-sort="created"') +
+          chip("Recently active", sortKey === "active", 'data-sort="active"') +
+          '<span class="stat-chip-sep"></span>' +
+          chip("\uD83C\uDD95 New this week", newOnly, 'data-newonly="1"') +
+          chip("\u2B07 CSV", false, 'data-csv="1"') +
+        "</div>" +
+        '<input type="search" id="sgFilter" class="stat-filter" placeholder="Filter guides by name\u2026" autocomplete="off" />';
+      guidesHtml = '<h2 class="stat-h2">Per-guide breakdown <span class="stat-sub">(' +
+          list.length + (newOnly ? " new this week" : "") + ')</span></h2>' +
+        controls +
+        (list.length
+          ? '<div class="stat-guides" id="statGuides">' + list.map(guideCard).join("") + "</div>"
+          : '<p class="stat-empty">No guides match \u2014 try turning off the "New this week" filter.</p>');
     } else {
       guidesHtml = '<h2 class="stat-h2">Per-guide breakdown</h2>' +
-        '<p class="stat-empty">No guide activity yet — publish or share a guide to see it here.</p>';
+        '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
     out.innerHTML = cards + dailyHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
+    // Wire the controls (repainted each time)
     var fEl = $("sgFilter");
-    if (fEl) fEl.addEventListener("input", function () {
-      var q = this.value.trim().toLowerCase();
-      Array.prototype.forEach.call($("statGuides").children, function (c) {
-        var slug = (c.getAttribute("data-slug") || "").toLowerCase();
-        c.style.display = (!q || slug.indexOf(q) >= 0) ? "" : "none";
+    if (fEl) {
+      fEl.value = q;
+      fEl.addEventListener("input", function () { q = this.value; applyNameFilter(); });
+    }
+    applyNameFilter();
+    Array.prototype.forEach.call(out.querySelectorAll(".stat-chip"), function (c) {
+      c.addEventListener("click", function () {
+        if (c.getAttribute("data-csv")) { exportCsv(sortedGuides()); return; }
+        var r = c.getAttribute("data-range");
+        if (r) { range = +r; paint(); return; }
+        if (c.getAttribute("data-newonly")) { newOnly = !newOnly; paint(); return; }
+        var sKey = c.getAttribute("data-sort");
+        if (sKey) { sortKey = sKey; paint(); }
       });
     });
   }

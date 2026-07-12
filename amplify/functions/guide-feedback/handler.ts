@@ -140,13 +140,14 @@ export const handler = async (event: any) => {
       const agg: Record<string, {
         views: number; shares: number; uniq: Set<string>;
         daily: Record<string, number>; dailyU: Record<string, Set<string>>;
+        refs: Record<string, number>;
       }> = {};
       sk = undefined;
       do {
         const res: any = await ddb.send(new ScanCommand({
           TableName: evT,
-          ProjectionExpression: "#k, slug, createdAt, vid",
-          ExpressionAttributeNames: { "#k": "kind" },
+          ProjectionExpression: "#k, slug, createdAt, vid, #r",
+          ExpressionAttributeNames: { "#k": "kind", "#r": "ref" },
           ExclusiveStartKey: sk,
         }));
         for (const it of res.Items || []) {
@@ -154,11 +155,15 @@ export const handler = async (event: any) => {
           if (!mine.has(evSlug)) continue;
           const kind = (it.kind && it.kind.S) || "";
           const a = agg[evSlug] ||
-            (agg[evSlug] = { views: 0, shares: 0, uniq: new Set(), daily: {}, dailyU: {} });
+            (agg[evSlug] = { views: 0, shares: 0, uniq: new Set(), daily: {}, dailyU: {}, refs: {} });
           if (kind === "view") {
             a.views++;
             const vid = (it.vid && it.vid.S) || "";
             if (vid) a.uniq.add(vid);
+            // Traffic source: referrer domain or "direct" (absent on events
+            // from before ref tracking shipped — those aren't counted).
+            const ref = (it.ref && it.ref.S) || "";
+            if (ref) a.refs[ref] = (a.refs[ref] || 0) + 1;
             const d = localDay((it.createdAt && it.createdAt.S) || "");
             if (d) {
               a.daily[d] = (a.daily[d] || 0) + 1;
@@ -178,7 +183,9 @@ export const handler = async (event: any) => {
         const week = daily.slice(-7).reduce((s, x) => s + x.v, 0);
         // unique counts only events that carried a visitor id (older ones
         // don't), so it's a floor for historical data and exact from now on.
-        guides[gSlug] = { views: a.views, unique: a.uniq.size, shares: a.shares, week, daily };
+        const refs = Object.fromEntries(
+          Object.entries(a.refs).sort((x, y) => y[1] - x[1]).slice(0, 5));
+        guides[gSlug] = { views: a.views, unique: a.uniq.size, shares: a.shares, week, daily, refs };
       }
       return json(200, { ok: true, guides });
     }

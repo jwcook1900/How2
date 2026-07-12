@@ -482,6 +482,19 @@
     if (/[?&]print=1/.test(location.search)) {
       setTimeout(function () { window.print(); }, 700);
     }
+    // Dropdown blocks start collapsed on screen but must not hide content on
+    // paper: open them all for printing, then restore how the reader had them.
+    var reopen = [];
+    window.addEventListener("beforeprint", function () {
+      reopen = [];
+      Array.prototype.forEach.call(document.querySelectorAll(".acc-content details:not([open])"), function (d) {
+        d.setAttribute("open", ""); reopen.push(d);
+      });
+    });
+    window.addEventListener("afterprint", function () {
+      reopen.forEach(function (d) { d.removeAttribute("open"); });
+      reopen = [];
+    });
   }
 
   /* ---------- Add-to-calendar reminders (sitter side) ----------

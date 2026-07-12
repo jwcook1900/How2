@@ -97,6 +97,20 @@
           esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>" : "")
       : "";
 
+    // Where views come from (referrer domain or "direct"; collected on view
+    // events only from when ref tracking shipped, so older views don't show)
+    var refs = s.refs || {};
+    var refKeys = Object.keys(refs).sort(function (a, b) { return refs[b] - refs[a]; }).slice(0, 12);
+    var refTotal = refKeys.reduce(function (a, k) { return a + refs[k]; }, 0);
+    var refsHtml = refKeys.length
+      ? '<h2 class="stat-h2">Where views come from <span class="stat-sub">(' + refTotal +
+          " view" + (refTotal === 1 ? "" : "s") + " with a known source)</span></h2>" +
+        '<ul class="stat-list stat-refs">' + refKeys.map(function (k) {
+          var label = k === "direct" ? "🔗 Direct (typed, app, or no referrer)" : "🌐 " + esc(k);
+          return "<li><b>" + label + "</b><span>" + refs[k] + pct(refs[k], refTotal) + "</span></li>";
+        }).join("") + "</ul>"
+      : "";
+
     // Creation funnel (each % is of the step before)
     var fu = s.funnel || {};
     var funnelHtml = (fu.opens || fu.starts || fu.drafts || fu.published)
@@ -180,7 +194,7 @@
         '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + dailyHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
+    out.innerHTML = cards + dailyHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
@@ -253,9 +267,20 @@
         metric("👀", g.views, "views") + metric("👤", g.unique, "visitors") +
         metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
       "</div>" +
+      srcChips(g.refs) +
       (g.daily ? bars(g.daily, "sg-daily") : "") +
       (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +
     "</div>";
+  }
+
+  // Top traffic sources as small chips, e.g. "reddit.com 12 · direct 3".
+  function srcChips(refs) {
+    if (!refs) return "";
+    var keys = Object.keys(refs).sort(function (a, b) { return refs[b] - refs[a]; }).slice(0, 3);
+    if (!keys.length) return "";
+    return '<div class="sg-srcs">from ' + keys.map(function (k) {
+      return '<span class="sg-feat">' + (k === "direct" ? "direct" : esc(k)) + " <b>" + refs[k] + "</b></span>";
+    }).join(" ") + "</div>";
   }
 
   // Compact "3 days ago" from an ISO timestamp.

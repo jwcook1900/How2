@@ -100,13 +100,23 @@
         '<div class="dash-an-axis"><span>' + esc(fmtDay(daily[0].d)) + "</span><span>" +
           esc(fmtDay(daily[daily.length - 1].d)) + " (today)</span></div>"
       : '<p class="dash-an-empty">No views yet \u2014 share the link and check back here.</p>';
+    // Top traffic sources (referrer domains; "direct" = typed/app/no referrer)
+    var refs = st.refs || {};
+    var refKeys = Object.keys(refs).sort(function (a, b) { return refs[b] - refs[a]; }).slice(0, 3);
+    var srcs = refKeys.length
+      ? '<div class="dash-an-label" style="margin-top:16px">Where views come from</div>' +
+        '<div class="dash-an-srcs">' + refKeys.map(function (k) {
+          return '<span class="dash-an-src">' + (k === "direct" ? "\uD83D\uDD17 direct" : "\uD83C\uDF10 " + esc(k)) +
+            " <b>" + refs[k] + "</b></span>";
+        }).join("") + "</div>"
+      : "";
     body.innerHTML =
       '<div class="dash-an-nums">' +
         tile(st.views || 0, "total views") +
         tile(st.unique || 0, "unique visitors") +
         tile(st.week || 0, "this week") +
         tile(st.shares || 0, "shares") +
-      "</div>" + chart +
+      "</div>" + chart + srcs +
       '<p class="dash-an-foot">Counted since analytics went live \u00B7 days in your timezone</p>';
 
     modal.appendChild(head);

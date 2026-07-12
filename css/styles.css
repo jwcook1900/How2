@@ -3168,6 +3168,8 @@ body.dragging-active * {
 .stat-chart i.today { background: var(--coral-dark); }
 .stat-chart i:hover { filter: brightness(0.85); }
 .stat-chart-axis { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--ink-muted); margin: 0 4px 26px; }
+.stat-cats { display: flex; flex-wrap: wrap; gap: 6px; margin: -14px 0 26px; }
+.stat-cats b { color: var(--ink); }
 
 .sg-daily { display: flex; align-items: flex-end; gap: 1px; height: 34px; margin-top: 10px; }
 .sg-daily i { flex: 1 1 0; background: var(--coral); border-radius: 2px 2px 0 0; min-height: 2px; }

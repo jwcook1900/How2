@@ -66,6 +66,11 @@ export const handler = async (event: any) => {
     // guides — a Set of slugs per feature, so re-publishes don't double-count).
     const startMethods: Record<string, number> = { talk: 0, paste: 0, scratch: 0, photo: 0 };
     const featSlugs: Record<string, Set<string>> = {};
+    // Creation funnel: builder opened -> category picked -> method chosen ->
+    // draft built (distinct editor slugs) -> published (distinct publish slugs).
+    let builderOpens = 0;
+    const catCounts: Record<string, number> = {};
+    const editorSlugs = new Set<string>();
     let startKey: Record<string, any> | undefined = undefined;
     do {
       const res: any = await ddb.send(new ScanCommand({
@@ -104,6 +109,12 @@ export const handler = async (event: any) => {
             if (slug) (viewsDayBySlug[slug] || (viewsDayBySlug[slug] = {}))[day] =
               ((viewsDayBySlug[slug] || {})[day] || 0) + 1;
           }
+        } else if (kind === "builder_open") {
+          builderOpens++;
+        } else if (kind === "cat") {
+          if (slug) catCounts[slug] = (catCounts[slug] || 0) + 1;
+        } else if (kind === "editor") {
+          if (slug) editorSlugs.add(slug);
         } else if (kind.indexOf("start_") === 0) {
           const m = kind.slice(6);
           if (m in startMethods) startMethods[m]++;
@@ -152,8 +163,14 @@ export const handler = async (event: any) => {
       d, v: viewsDayTotal[d] || 0, u: uniqDayTotal[d] ? uniqDayTotal[d].size : 0,
     }));
     const uniqueVisitors = uniqAll.size;
+    const funnel = {
+      opens: builderOpens,
+      starts: startMethods.talk + startMethods.paste + startMethods.scratch + startMethods.photo,
+      drafts: editorSlugs.size,
+      published: Object.keys(publishesBySlug).length,
+    };
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily }) };
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

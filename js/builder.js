@@ -403,6 +403,7 @@
   }
 
   function pickCategory(cat) {
+    GotItStore.event("cat", cat.id); // funnel: which guide types people want
     state.category = cat;
     state.qIndex = 0;
     state.answers = {};
@@ -740,6 +741,7 @@
       createdAt: Date.now()
     };
     state.created = false;
+    GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
   }
 
   function importFallback(rawText, noCloud) {
@@ -1161,6 +1163,7 @@
       branding: true,
       createdAt: Date.now()
     };
+    GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
 
     // brief "building" pause for effect
     setTimeout(function () {
@@ -3483,6 +3486,9 @@
   var editToken = getParam("t");
   var catParam = getParam("cat");
   autoPasteIntent = getParam("start") === "paste"; // homepage "Paste your notes" CTA
+  // Funnel: count a builder open for fresh create sessions (an edit link is a
+  // return visit to an existing guide, not a new start).
+  if (!(editSlug && editToken)) GotItStore.event("builder_open");
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
   else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
   else showStep(1);

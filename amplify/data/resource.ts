@@ -49,6 +49,10 @@ const schema = a.schema({
       // read server-side by the guide-feedback function.
       ownerEmail: a.string(),
       ownerSub: a.string(),
+      // True once the owner renames the card on their dashboard — from then on
+      // the dashboard label is independent and re-publishes stop syncing the
+      // guide's cover title over it.
+      customTitle: a.boolean(),
     })
     .authorization((allow) => [allow.owner()]),
 

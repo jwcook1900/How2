@@ -541,22 +541,21 @@
   }
 
   function renameGuide(g, cardEl) {
-    var name = window.prompt("Rename this guide", g.title || "");
+    var name = window.prompt(
+      "Name this guide on your dashboard.\n(The guide's own cover title won't change.)",
+      g.title || "");
     if (name == null) return;
     name = name.trim();
     if (!name || name === g.title) return;
-    GotItStore.updateSavedGuide(idTok, g.id, { title: name }).then(function () {
+    // Dashboard-only label: flagged custom so re-publishes stop syncing the
+    // cover title over it.
+    GotItStore.updateSavedGuide(idTok, g.id, { title: name, customTitle: true }).then(function () {
       g.title = name;
+      g.customTitle = true;
       var t = cardEl.querySelector(".dash-card-title");
       if (t) t.textContent = name;
       cardEl.setAttribute("data-title", name);
-      // Keep the published guide's own title in step (unlocked guides only).
-      if (!g.locked) {
-        GotItStore.get(g.slug).then(function (obj) {
-          if (obj && !GotItStore.isEncrypted(obj)) { obj.title = name; GotItStore.update(obj); }
-        }).catch(function () {});
-      }
-      toast("Renamed");
+      toast("Dashboard name updated");
     }).catch(function () { toast("Couldn't rename that just now."); });
   }
 

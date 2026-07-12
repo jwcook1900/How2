@@ -3290,7 +3290,12 @@
       return GotItStore.listSavedGuides(tok).then(function (items) {
         var row = items.filter(function (x) { return x.slug === g.slug; })[0];
         if (row) {
-          return GotItStore.updateSavedGuide(tok, row.id, { title: g.title, emoji: g.emoji, locked: !!locked })
+          // A custom dashboard name stays the owner's — only sync the cover
+          // title/emoji onto cards that haven't been renamed.
+          var patch = row.customTitle
+            ? { locked: !!locked }
+            : { title: g.title, emoji: g.emoji, locked: !!locked };
+          return GotItStore.updateSavedGuide(tok, row.id, patch)
             .then(reflectSavedToDash);
         }
         var payload = currentSavePayload();

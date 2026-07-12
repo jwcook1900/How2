@@ -161,7 +161,7 @@ window.GotItStore = (function () {
       return loadConfig().then(function (cfg) {
         if (!cfg) return [];
         return gqlAuth(cfg,
-          "query { listSavedGuides { items { id slug editToken title emoji status locked createdAt updatedAt } } }",
+          "query { listSavedGuides { items { id slug editToken title emoji status locked customTitle createdAt updatedAt } } }",
           {}, idToken
         ).then(function (d) {
           var items = (d.listSavedGuides && d.listSavedGuides.items) || [];
@@ -194,7 +194,7 @@ window.GotItStore = (function () {
       return loadConfig().then(function (cfg) {
         if (!cfg) throw new Error("Backend not available");
         var input = { id: id };
-        ["title", "emoji", "status", "locked"].forEach(function (k) {
+        ["title", "emoji", "status", "locked", "slug", "customTitle"].forEach(function (k) {
           if (fields[k] !== undefined) input[k] = fields[k];
         });
         var oe = emailFromIdToken(idToken); // keep the owner email fresh for feedback routing

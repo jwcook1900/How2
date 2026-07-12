@@ -36,6 +36,34 @@
           esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>"
       : "";
 
+    // Creation funnel: where people drop off between opening the builder and
+    // publishing. Each card shows conversion from the previous step.
+    var fu = s.funnel || {};
+    var funnelHtml = (fu.opens || fu.starts || fu.drafts || fu.published)
+      ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before)</span></h2>' +
+        '<div class="stat-grid">' +
+          statCard("\uD83D\uDEAA", fu.opens || 0, "Builder opened") +
+          statCard("\uD83D\uDC46", fu.starts || 0, "Method chosen" + pct(fu.starts, fu.opens)) +
+          statCard("\uD83D\uDCDD", fu.drafts || 0, "Drafts built" + pct(fu.drafts, fu.starts)) +
+          statCard("\uD83D\uDE80", fu.published || 0, "Published" + pct(fu.published, fu.drafts)) +
+        "</div>"
+      : "";
+
+    // Which categories people pick (kind "cat", category id in the slug field)
+    var CAT_META = {
+      pet: "\uD83D\uDC36 Pet Care", home: "\uD83C\uDFE0 Home / Airbnb", kids: "\uD83D\uDC76 Kids",
+      staff: "\uD83E\uDDD1\u200D\uD83D\uDCBC Staff", event: "\uD83C\uDF89 Event", cleaner: "\uD83E\uDDF9 Cleaner",
+      gardener: "\uD83C\uDF33 Gardener", physio: "\uD83E\uDDD1\u200D\u2695\uFE0F Physio", housesit: "\uD83C\uDFE1 House Sitter",
+      care: "\uD83D\uDC75 Aged Care", other: "\u270F\uFE0F Other"
+    };
+    var cats = s.cats || {};
+    var catKeys = Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; });
+    var catsHtml = catKeys.length
+      ? '<div class="stat-cats">' + catKeys.map(function (k) {
+          return '<span class="sg-feat">' + (CAT_META[k] || esc(k)) + " <b>" + cats[k] + "</b></span>";
+        }).join("") + "</div>"
+      : "";
+
     // How guides are started (Talk / Paste / Scratch)
     var sm = s.startMethods || {};
     var startTotal = (sm.talk || 0) + (sm.paste || 0) + (sm.scratch || 0) + (sm.photo || 0);
@@ -80,7 +108,7 @@
         '<p class="stat-empty">No guide activity yet — publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + dailyHtml + startHtml + featHtml + guidesHtml +
+    out.innerHTML = cards + dailyHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 

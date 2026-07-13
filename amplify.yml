@@ -22,6 +22,8 @@ frontend:
       - 'css/**/*'
       - 'js/**/*'
       - 'images/**/*'
+      # Fonts + wasm the share-preview Lambda fetches at cold start
+      - 'og-assets/**/*'
   cache:
     paths:
       - 'node_modules/**/*'

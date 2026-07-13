@@ -11,6 +11,7 @@ import { welcomeFn } from "./functions/welcome/resource";
 import { guideFeedbackFn } from "./functions/guide-feedback/resource";
 import { urlFn } from "./functions/url/resource";
 import { transcribeFn } from "./functions/transcribe/resource";
+import { ogFn } from "./functions/og/resource";
 import { CfnUserPoolDomain } from "aws-cdk-lib/aws-cognito";
 
 /**
@@ -31,6 +32,7 @@ const backend = defineBackend({
   guideFeedbackFn,
   urlFn,
   transcribeFn,
+  ogFn,
 });
 
 // Custom hosted-UI domain so the Google sign-in screen shows
@@ -107,10 +109,25 @@ const transcribeUrl = transcribeLambda.addFunctionUrl({
   },
 });
 
+// Share previews: /g/<slug> pages with per-guide OG tags + /g/<slug>/card.png
+// share images. The Amplify Hosting rewrite for /g/<*> proxies to this URL.
+// Reads the Guide table directly (standalone Lambda URL, same one-directional
+// dependency reasoning as the stats function).
+const guideTable = backend.data.resources.tables["Guide"];
+const ogLambda = backend.ogFn.resources.lambda as LambdaFunction;
+ogLambda.addEnvironment("GUIDE_TABLE", guideTable.tableName);
+ogLambda.addEnvironment("SITE_ORIGIN", "https://www.gotitguides.com");
+guideTable.grantReadData(ogLambda);
+const ogUrl = ogLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE, // serves public pages/images only
+});
+
 backend.addOutput({ custom: {
   statsFunctionUrl: statsUrl.url,
   guideFeedbackFunctionUrl: guideFeedbackUrl.url,
   transcribeFunctionUrl: transcribeUrl.url,
+  // Point the Amplify Hosting /g/<*> 200-rewrite at this URL (+ /g/<*>).
+  ogFunctionUrl: ogUrl.url,
   // The CloudFront target to point the auth.gotitguides.com Route 53 alias at.
   authCustomDomainCloudFront: authCustomDomain.attrCloudFrontDistribution,
 } });

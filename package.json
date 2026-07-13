@@ -16,6 +16,7 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1075.0"
+    "@aws-sdk/client-dynamodb": "^3.1075.0",
+    "@resvg/resvg-wasm": "^2.6.2"
   }
 }

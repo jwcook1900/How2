@@ -248,6 +248,7 @@
     if (history.length > MAX_HISTORY) history.shift();
     hIndex = history.length - 1;
     updateUndoRedo();
+    scheduleDraftSave(); // unpublished work also lands in localStorage
   }
   function scheduleHistory() {
     if (histBusy) return;
@@ -255,7 +256,48 @@
     histTimer = setTimeout(recordHistory, 300);
   }
   function flushHistory() { clearTimeout(histTimer); recordHistory(); }
-  function initHistory() { history = [snapshot()]; hIndex = 0; updateUndoRedo(); }
+  function initHistory() { history = [snapshot()]; hIndex = 0; updateUndoRedo(); scheduleDraftSave(); }
+
+  /* ---------- Local draft autosave ----------
+     Unpublished drafts used to live only in this page's memory, so an
+     interrupted session (tab reload, phone lock, accidental close) lost
+     everything — nobody re-dictates a ten-minute guide. Every history
+     snapshot is also written to localStorage (best-effort), and a fresh
+     builder open offers to resume. Cleared on publish or discard. Only
+     for never-published guides: published ones live in the cloud and
+     re-open via their edit link. */
+  var DRAFT_KEY = "gotit_draft_v1";
+  var DRAFT_MAX_AGE = 7 * 86400000; // a week-old draft is stale, not precious
+  var draftTimer = null;
+  function saveDraftLocal() {
+    if (state.created || !state.guide || currentStepKey !== 3) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ guide: state.guide, savedAt: Date.now() }));
+    } catch (e) { /* storage full or blocked — autosave stays best-effort */ }
+  }
+  function scheduleDraftSave() { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraftLocal, 1200); }
+  function clearDraftLocal() { clearTimeout(draftTimer); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  function loadDraftLocal() {
+    try {
+      var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      if (!d || !d.guide || !d.guide.title) return null;
+      if (Date.now() - (d.savedAt || 0) > DRAFT_MAX_AGE) { clearDraftLocal(); return null; }
+      return d;
+    } catch (e) { return null; }
+  }
+  // A backgrounded phone tab may never fire the debounce — save immediately.
+  // Blur the active field first: text being typed only syncs into the guide
+  // on blur, and mid-sentence is exactly when phones interrupt people.
+  function emergencyDraftSave() {
+    try {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    } catch (e) {}
+    saveDraftLocal();
+  }
+  window.addEventListener("pagehide", emergencyDraftSave);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") emergencyDraftSave();
+  });
   function restoreHistory() {
     histBusy = true;
     state.guide = JSON.parse(history[hIndex]);
@@ -2632,6 +2674,16 @@
   // Custom link control. The link is the guide's record id, so it can only be
   // chosen before the first publish; afterwards it's shown locked.
   function updateSlugUI() {
+    // The note above the publish button answers the moment's actual worry:
+    // before first publish that's "who can see this / is it final?", after
+    // it's "do my edits reach the live guide?".
+    var note = $("publishNote");
+    if (note) {
+      note.innerHTML = state.created
+        ? "💾 Your changes are saved to your live guide each time you hit <strong>Save &amp; publish</strong>."
+        : "🔒 Private by default — only people you share the link with can see it.<br />" +
+          "✏️ You can keep editing after publishing — your link stays the same.";
+    }
     var row = $("slugRow");
     if (!row) return;
     var input = $("slugInput");
@@ -2702,6 +2754,9 @@
     btn.disabled = true;
     btn.textContent = "Saving…";
 
+    // Funnel: distinguish "never tried to publish" from "tried and failed".
+    if (!state.created) GotItStore.event("publish_tap", g.slug || null);
+
     // Resolve the optional custom link name, then resize/encrypt and store.
     resolveSlug().then(function () {
       return buildStorable(g, locked, pass, 380000);
@@ -2714,12 +2769,15 @@
     }).then(function (res) {
       var firstPublish = !state.created;
       state.created = true;
+      clearDraftLocal(); // it's live now — the local safety copy has done its job
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       logFeatureUsage(g, locked); // which features this guide uses (deduped by slug)
       renderGuideEditor(); // reflect any auto-resized images in the editor
       showShare(g, res && res.cloud, locked);
       touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
     }).catch(function (err) {
+      // Failed attempts otherwise look like abandoned drafts in the funnel.
+      GotItStore.event("publish_err", state.guide.slug || null);
       if (err && err.message === "__HANDLED__") { /* toast already shown */ }
       else if (err && err.message === "__TOOBIG__") {
         showToast("Even after resizing, there's too much image data — try removing a photo.");
@@ -3623,6 +3681,42 @@
     return null;
   }
 
+  // Fresh builder open with an unpublished draft in localStorage → offer to
+  // pick it back up. A banner (not a modal): starting something new instead
+  // stays one tap away, and the draft survives until they publish or discard.
+  function offerDraftResume() {
+    var d = loadDraftLocal();
+    if (!d) return;
+    var step1 = steps[1];
+    if (!step1 || $("draftBanner")) return;
+    var name = String(d.guide.title || "").trim() || "your guide";
+    var banner = document.createElement("div");
+    banner.className = "draft-banner";
+    banner.id = "draftBanner";
+    banner.innerHTML =
+      '<p class="draft-banner-text">👋 You have an unfinished guide — <b>' +
+        (d.guide.emoji ? esc(d.guide.emoji) + " " : "") + esc(name) + "</b> — saved on this device.</p>" +
+      '<div class="draft-banner-actions">' +
+        '<button class="btn btn-primary btn-sm" id="draftResume" type="button">▶ Keep working on it</button>' +
+        '<button class="btn btn-ghost btn-sm" id="draftDiscard" type="button">Discard</button>' +
+      "</div>";
+    var heading = step1.querySelector(".step-heading");
+    step1.insertBefore(banner, heading ? heading.nextSibling : step1.firstChild);
+    $("draftResume").addEventListener("click", function () {
+      state.guide = d.guide;
+      state.created = false;
+      banner.remove();
+      renderGuideEditor();
+      showStep(3);
+      initHistory();
+    });
+    $("draftDiscard").addEventListener("click", function () {
+      if (!window.confirm('Discard "' + name + '" for good?')) return;
+      clearDraftLocal();
+      banner.remove();
+    });
+  }
+
   var editSlug = getParam("g");
   var editToken = getParam("t");
   var catParam = getParam("cat");
@@ -3632,5 +3726,5 @@
   if (!(editSlug && editToken)) GotItStore.event("builder_open");
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
   else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
-  else showStep(1);
+  else { showStep(1); offerDraftResume(); }
 })();

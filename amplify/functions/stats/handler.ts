@@ -75,6 +75,10 @@ export const handler = async (event: any) => {
     let builderOpens = 0;
     const catCounts: Record<string, number> = {};
     const editorSlugs = new Set<string>();
+    // Publish attempts (distinct drafts that tapped the button) and failures —
+    // separates "never tried" from "tried and something went wrong".
+    const tapSlugs = new Set<string>();
+    let publishErrors = 0;
     let startKey: Record<string, any> | undefined = undefined;
     do {
       const res: any = await ddb.send(new ScanCommand({
@@ -125,6 +129,10 @@ export const handler = async (event: any) => {
           if (slug) catCounts[slug] = (catCounts[slug] || 0) + 1;
         } else if (kind === "editor") {
           if (slug) editorSlugs.add(slug);
+        } else if (kind === "publish_tap") {
+          tapSlugs.add(slug || "?" + Math.random());
+        } else if (kind === "publish_err") {
+          publishErrors++;
         } else if (kind.indexOf("start_") === 0) {
           const m = kind.slice(6);
           if (m in startMethods) startMethods[m]++;
@@ -182,7 +190,9 @@ export const handler = async (event: any) => {
       opens: builderOpens,
       starts: startMethods.talk + startMethods.paste + startMethods.scratch + startMethods.photo,
       drafts: editorSlugs.size,
+      tried: tapSlugs.size,
       published: Object.keys(publishesBySlug).length,
+      errors: publishErrors,
     };
 
     return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts, refs: refCounts }) };

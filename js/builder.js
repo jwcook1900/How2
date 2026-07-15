@@ -323,7 +323,21 @@
       d.classList.toggle("active", n === stepNum);
       d.classList.toggle("done", Number(n) < Number(stepNum));
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Jump (not glide) to the top of the new step. The global
+    // `html { scroll-behavior: smooth }` would animate this from deep in a
+    // long editor page, and iOS Safari cancels that animation when the layout
+    // collapses under it — leaving people staring at the bottom of the share
+    // screen instead of the "published" confirmation. Re-assert after a beat
+    // to beat late layout (QR/code renders, images) that can drag the
+    // viewport back down.
+    var de = document.documentElement;
+    de.style.scrollBehavior = "auto";
+    window.scrollTo(0, 0);
+    requestAnimationFrame(function () { window.scrollTo(0, 0); });
+    setTimeout(function () {
+      window.scrollTo(0, 0);
+      de.style.scrollBehavior = ""; // back to the stylesheet's smooth scrolling
+    }, 250);
   }
 
   function showToast(msg) {
@@ -1766,11 +1780,32 @@
     return x;
   }
 
+  // True when deleting this section/log would lose real work (typed text,
+  // photos, videos, log rows) — empty defaults can go without ceremony.
+  function widgetHasContent(type, ref) {
+    if (!ref) return false;
+    if (type === "section") {
+      var text = String(ref.body || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+      if (text && text !== "Tap to add details…") return true;
+      return sectionPhotos(ref).length > 0 || sectionVideos(ref).length > 0;
+    }
+    if (type === "log") {
+      return (ref.rows || []).some(function (r) { return (r.when || r.note); });
+    }
+    return false;
+  }
+
   // Removes a whole widget. Sections/logs drop their data; the singleton
   // emergency and routine widgets are flagged off (so they aren't re-added on
   // the next render) and can be brought back from the add-block row.
   function removeWidget(type, el, ref) {
     var g = state.guide;
+    // The ✕ lives near the collapse chevron, so a mis-tap is easy — confirm
+    // before dropping anything that contains actual work. (Undo also works.)
+    if (widgetHasContent(type, ref)) {
+      var name = String((ref && ref.title) || "").trim() || "this " + (type === "log" ? "log" : "section");
+      if (!window.confirm('Remove "' + name + '" and everything in it?')) return;
+    }
     if (type === "section") g.sections = g.sections.filter(function (s) { return s.id !== ref.id; });
     else if (type === "log") g.logs = g.logs.filter(function (l) { return l.id !== ref.id; });
     else if (type === "emergency") g.noEmergency = true;

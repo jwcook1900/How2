@@ -1063,16 +1063,18 @@ ul { margin: 0; padding: 0; list-style: none; }
   padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: none; border-radius: 50%;
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--ink-muted);
+  /* Destructive at rest — a delete control shouldn't look interchangeable
+     with the collapse chevron that can sit beside it. */
+  background: rgba(226, 80, 62, 0.09);
+  color: #c0453a;
   font-family: inherit;
   font-size: 0.85rem; line-height: 1;
   cursor: pointer;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
 .block-x:hover { background: #e2503e; color: #fff; }
-/* Keep the ✕ clear of the chevron on accordion section headers */
-.acc-header .block-x { margin-left: 6px; }
+/* Keep the ✕ well clear of the chevron on accordion section headers */
+.acc-header .block-x { margin-left: 22px; }
 .acc-chevron {
   transition: transform 0.3s var(--ease);
   color: var(--ink-muted);
@@ -3156,6 +3158,9 @@ body.dragging-active * {
 }
 /* Tighter extensions where neighbours sit close, so hit areas barely collide */
 .reminder-time-x::after, .rem-time-x::after { content: ""; position: absolute; inset: -6px; }
+/* On accordion headers the collapse chevron sits to the ✕'s left: extend the
+   ✕'s tap zone up/down/right only, never toward the chevron. */
+.acc-header .block-x::after { inset: -10px -12px -10px 0; }
 .dash-fb-del::after, .dash-fb-reply::after { content: ""; position: absolute; inset: -5px -6px; }
 .sec-media-x::after, .sec-media-move::after,
 .sec-media-repos::after, .sec-media-whole::after {

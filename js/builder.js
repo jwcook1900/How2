@@ -1443,7 +1443,7 @@
     return attempt(0);
   }
 
-  function pickCover(coverEl) {
+  function pickCover(coverEl, onDone) {
     var input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -1454,6 +1454,7 @@
         state.guide.cover = dataUrl;
         applyCover(coverEl, state.guide);
         recordHistory();
+        if (onDone) onDone(); // e.g. the publish nudge continuing to publish
       });
     });
     input.click();
@@ -2674,7 +2675,18 @@
   }
 
   /* ---------- Step 4: publish & share ---------- */
+  /* Publish-time cover nudge: photos have their highest payoff right when
+     someone's about to share, so ask exactly once per guide — and never
+     block. "Publish without" publishes immediately and sets a flag on the
+     guide (persisted in its payload) so it never asks again. */
   function publish() {
+    var g = state.guide;
+    if (!g.cover && !g.coverAskDone) { $("coverAskModal").hidden = false; return; }
+    doPublish();
+  }
+  function closeCoverAsk() { $("coverAskModal").hidden = true; }
+
+  function doPublish() {
     var g = state.guide;
     if (!state.editToken) state.editToken = makeToken();
 
@@ -3313,6 +3325,23 @@
     renderGuideEditor();
   });
   $("publishBtn").addEventListener("click", publish);
+  // Cover nudge: skip publishes right away (and never asks again for this
+  // guide); add opens the picker and continues straight to publish after the
+  // photo lands; ✕/backdrop just close (no publish, will ask next time).
+  Array.prototype.forEach.call(document.querySelectorAll("[data-coverask-close]"), function (el) {
+    el.addEventListener("click", closeCoverAsk);
+  });
+  $("coverAskSkip").addEventListener("click", function () {
+    state.guide.coverAskDone = true;
+    closeCoverAsk();
+    doPublish();
+  });
+  $("coverAskAdd").addEventListener("click", function () {
+    closeCoverAsk();
+    var coverEl = $("guideDoc").querySelector(".guide-cover");
+    if (!coverEl) { doPublish(); return; }
+    pickCover(coverEl, function () { doPublish(); });
+  });
   $("masterPolishBtn").addEventListener("click", masterPolish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
 
@@ -3510,6 +3539,7 @@
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
+    if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
   });
 
   // Feedback widget

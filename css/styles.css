@@ -2032,6 +2032,9 @@ body.dragging-active * {
 .feedback-card .q-textarea { width: 100%; margin-bottom: 12px; }
 .feedback-card .q-input { width: 100%; margin-bottom: 16px; }
 .feedback-actions { display: flex; justify-content: flex-end; gap: 10px; }
+/* Cover nudge: two comfortable choices that never overflow the card */
+.coverask-actions { flex-wrap: wrap; margin-top: 6px; }
+.coverask-actions .btn { flex: 1 1 auto; white-space: nowrap; }
 .feedback-note { margin: 12px 0 0; font-size: 0.88rem; font-weight: 600; }
 .feedback-note.error { color: var(--coral-dark); }
 .feedback-note.ok { color: #1a9e57; }

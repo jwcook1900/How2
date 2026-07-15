@@ -338,6 +338,22 @@
     </div>
   </div>
 
+  <!-- Publish-time cover-photo nudge: shown once per guide when publishing
+       without a cover. Never blocking — "Publish without" proceeds at once
+       and stops it ever asking again for this guide. -->
+  <div class="feedback-modal" id="coverAskModal" hidden>
+    <div class="feedback-backdrop" data-coverask-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="coverAskTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-coverask-close>×</button>
+      <h3 class="feedback-title" id="coverAskTitle">📸 Add a cover photo first?</h3>
+      <p class="feedback-lead">Guides with a photo feel instantly theirs — and it's the first thing the person you share it with sees.</p>
+      <div class="feedback-actions coverask-actions">
+        <button class="btn btn-ghost btn-sm" id="coverAskSkip" type="button">Publish without</button>
+        <button class="btn btn-primary btn-sm" id="coverAskAdd" type="button">📸 Add a photo</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add-a-video instructions modal -->
   <div class="feedback-modal" id="videoModal" hidden>
     <div class="feedback-backdrop" data-vid-close></div>

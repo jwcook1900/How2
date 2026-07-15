@@ -119,8 +119,15 @@
           statCard("\uD83D\uDEAA", fu.opens || 0, "Builder opened") +
           statCard("\uD83D\uDC46", fu.starts || 0, "Method chosen" + pct(fu.starts, fu.opens)) +
           statCard("\uD83D\uDCDD", fu.drafts || 0, "Drafts built" + pct(fu.drafts, fu.starts)) +
-          statCard("\uD83D\uDE80", fu.published || 0, "Published" + pct(fu.published, fu.drafts)) +
-        "</div>"
+          // "Tried to publish" only exists for events after publish_tap shipped
+          (fu.tried ? statCard("\uD83C\uDFAF", fu.tried, "Tried to publish" + pct(fu.tried, fu.drafts)) : "") +
+          statCard("\uD83D\uDE80", fu.published || 0, "Published" + pct(fu.published, fu.tried || fu.drafts)) +
+        "</div>" +
+        (fu.errors
+          ? '<p class="stat-empty" style="margin:-14px 0 26px">\u26A0\uFE0F ' + fu.errors +
+            " publish attempt" + (fu.errors === 1 ? "" : "s") +
+            " failed (image size or network) \u2014 those guides still show as drafts above.</p>"
+          : "")
       : "";
 
     // Which categories people pick

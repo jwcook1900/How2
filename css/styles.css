@@ -2517,6 +2517,15 @@ body.dragging-active * {
 }
 .slug-hint { color: var(--ink-muted); font-size: 0.82rem; margin-top: 10px; line-height: 1.5; }
 .slug-row.locked .slug-input-wrap { opacity: 0.65; }
+/* Once published the link can't change here — the picker collapses to a
+   compact two-line note (the link, then where to change it). */
+.slug-row-compact { padding: 10px 16px; }
+.slug-compact {
+  margin: 0; font-size: 0.86rem; color: var(--ink-muted);
+  line-height: 1.45; overflow-wrap: anywhere;
+}
+.slug-compact b { color: var(--ink); font-weight: 700; }
+.slug-compact-hint { display: block; font-size: 0.78rem; margin-top: 2px; }
 
 /* Password lock — builder control + viewer unlock screen */
 .lock-row {

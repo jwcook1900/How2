@@ -2637,10 +2637,14 @@
     var prefix = $("slugPrefix");
     if (prefix) prefix.textContent = location.host + "/g/";
     if (state.created) {
-      input.value = state.guide.slug;
-      input.disabled = true;
-      row.classList.add("locked");
-      $("slugHint").textContent = "This is your guide's link — set when it was first published.";
+      // Published: the link can't be edited here (changing it means creating
+      // the guide at a new address — that lives on the dashboard, behind
+      // My guides → ⋯ → "Change link…"). Collapse the whole picker to one
+      // compact line so it stops eating editor space.
+      row.classList.add("locked", "slug-row-compact");
+      row.innerHTML = '<p class="slug-compact"><b>' +
+        esc(location.host + "/g/" + state.guide.slug) + "</b>" +
+        '<span class="slug-compact-hint">Your guide’s link · change it from My guides → ⋯ → Change link…</span></p>';
     } else {
       input.disabled = false;
       row.classList.remove("locked");

@@ -1219,7 +1219,11 @@
         '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
       "</div>" +
       '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>' +
-      '<button class="cover-reposition-btn no-print" type="button" title="Reposition photo" aria-label="Reposition photo">' + MOVE_ICON_SVG + "</button>";
+      '<button class="cover-reposition-btn no-print" type="button" title="Reposition photo" aria-label="Reposition photo">' + MOVE_ICON_SVG + "</button>" +
+      // Hero feature, so it gets a standing invitation right on the tile —
+      // not just the entry buried in the dock's 📷 menu. Hidden once a photo
+      // is set (applyCover), when reposition/change take over.
+      '<button class="cover-add-photo no-print" type="button">📸 Add a cover photo</button>';
     var textEl = cover.querySelector(".cover-text");
     if (g.coverTextY) textEl.style.transform = "translateY(" + g.coverTextY + "px)";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
@@ -1235,6 +1239,10 @@
     var coverRepos = cover.querySelector(".cover-reposition-btn");
     if (coverRepos) {
       coverRepos.addEventListener("click", function (e) { e.stopPropagation(); startCoverReposition(cover); });
+    }
+    var coverAdd = cover.querySelector(".cover-add-photo");
+    if (coverAdd) {
+      coverAdd.addEventListener("click", function (e) { e.stopPropagation(); pickCover(cover); });
     }
     var emojiX = cover.querySelector(".cover-emoji-x");
     if (g.coverEmojiOff) emojiX.hidden = true;
@@ -1323,9 +1331,12 @@
     }
     // With no icon, sit the title near the top so it clears the photo's subject.
     coverEl.classList.toggle("no-emoji", !g.emoji);
-    // The reposition handle only makes sense once there's a photo to pan.
+    // The reposition handle only makes sense once there's a photo to pan;
+    // the "add a cover photo" invitation only until there is one.
     var rb = coverEl.querySelector(".cover-reposition-btn");
     if (rb) rb.hidden = !g.cover;
+    var ab = coverEl.querySelector(".cover-add-photo");
+    if (ab) ab.hidden = !!g.cover;
   }
 
   // ---- Image helpers: downscale + re-encode so guides fit the store limit ----

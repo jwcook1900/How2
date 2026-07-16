@@ -377,7 +377,10 @@ window.GotItStore = (function () {
     // True if a stored object is a locked/encrypted envelope.
     isEncrypted: function (obj) { return !!(obj && obj.enc === 1 && obj.ct); },
 
-    // Encrypt a guide object with a password → storable envelope.
+    // Encrypt a guide object with a password → storable envelope. The title
+    // and cover emoji ride OUTSIDE the encryption on purpose: the unlock
+    // screen and link previews can then say whose guide it is ("Whiskey's
+    // Care Guide — protected") while everything else stays sealed.
     encrypt: function (guide, password) {
       if (!subtle()) return Promise.reject(new Error("Password protection needs https"));
       var salt = window.crypto.getRandomValues(new Uint8Array(16));
@@ -386,7 +389,8 @@ window.GotItStore = (function () {
         var data = new TextEncoder().encode(JSON.stringify(guide));
         return subtle().encrypt({ name: "AES-GCM", iv: iv }, key, data);
       }).then(function (ct) {
-        return { enc: 1, slug: guide.slug, salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+        return { enc: 1, slug: guide.slug, title: guide.title || "", emoji: guide.emoji || "",
+          salt: b64(salt), iv: b64(iv), ct: b64(ct) };
       });
     },
 

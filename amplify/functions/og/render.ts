@@ -6,8 +6,9 @@
    title, subtitle, cover emoji, section TITLES and section count.
    Never body text, contacts, phone numbers, medication details,
    access codes, photos, or the owner's identity. Encrypted
-   (code-protected) guides expose nothing but a neutral
-   "protected" card — their payload is unreadable by design.
+   (code-protected) guides expose only the plaintext title/emoji
+   their envelope carries (a deliberate choice made at publish
+   time) — the contents are unreadable by design.
    ============================================================ */
 
 export type Preview = {
@@ -46,6 +47,11 @@ export function firstGrapheme(s: string): string {
   return Array.from(s)[0] || "";
 }
 
+// A single trimmed line of text (guards envelope titles against oddities).
+export function firstLine(s: unknown): string {
+  return String(s == null ? "" : s).split(/[\r\n]/)[0].trim().slice(0, 120);
+}
+
 // Twemoji asset name for an emoji: codepoints joined by "-", dropping the
 // FE0F variation selector when there's no ZWJ (twemoji's file-naming rule).
 export function twemojiFile(emoji: string): string {
@@ -72,13 +78,19 @@ export function derivePreview(payload: any, siteName: string): Preview {
       ],
     };
   }
-  // Encrypted envelope: the server cannot read it, and must not pretend to.
+  // Encrypted envelope: the contents are unreadable by design, but envelopes
+  // published since the plaintext-title change carry the guide's name and
+  // cover emoji outside the encryption — show those, never anything else.
   if (payload.enc === 1) {
+    const lockedName = firstLine(payload.title);
     return {
-      kind: "protected", emoji: "🔒", chips: [], rows: [],
-      title: "This guide is protected",
-      desc: "This guide is protected. Enter your code to view it.",
-      sub: "Enter your code to view it.",
+      kind: "protected",
+      emoji: firstGrapheme(String(payload.emoji || "")) || "🔒",
+      chips: [], rows: [],
+      title: lockedName || "This guide is protected",
+      desc: (lockedName ? lockedName + " is protected. " : "This guide is protected. ") +
+        "Enter your code to view it.",
+      sub: "Protected — enter your code to view it.",
       count: 0,
     };
   }
@@ -182,17 +194,17 @@ export function buildCardSvg(p: Preview, art: CardArt): string {
   let mini = "";
   // header: gradient block with the guide's emoji + name, like a real cover
   mini += '<rect x="' + CX + '" y="' + CY + '" width="' + CW + '" height="' + headerH + '" fill="url(#bg2)"/>';
-  const miniTitle = truncate(p.kind === "guide" ? p.title : (p.kind === "protected" ? "Protected guide" : "Whiskey's Care Guide"), 20);
+  const miniTitle = truncate(p.kind === "fallback" ? "Whiskey's Care Guide" : p.title, 20);
   const emojiPx = 76;
   if (art.cover) {
     mini += emojiAt(art.cover, MID - emojiPx / 2, CY + 26, emojiPx);
     mini += '<text x="' + MID + '" y="' + (CY + 142) + '" text-anchor="middle" font-size="27" font-weight="800" fill="#fff">' + esc(miniTitle) + "</text>";
     mini += '<text x="' + MID + '" y="' + (CY + 172) + '" text-anchor="middle" font-size="16" font-weight="400" fill="rgba(255,255,255,0.9)">' +
-      esc(truncate(p.desc.split(" · ")[0], 34)) + "</text>";
+      esc(truncate(p.sub, 34)) + "</text>";
   } else {
     mini += '<text x="' + MID + '" y="' + (CY + Math.round(headerH / 2) + 2) + '" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">' + esc(miniTitle) + "</text>";
     mini += '<text x="' + MID + '" y="' + (CY + Math.round(headerH / 2) + 34) + '" text-anchor="middle" font-size="16" font-weight="400" fill="rgba(255,255,255,0.9)">' +
-      esc(truncate(p.desc.split(" · ")[0], 34)) + "</text>";
+      esc(truncate(p.sub, 34)) + "</text>";
   }
   // section rows (the guide's real sections)
   const rows = p.rows.slice(0, 3);

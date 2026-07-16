@@ -22,7 +22,7 @@
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
 import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
-import { derivePreview, injectMeta, buildCardSvg, twemojiFile, Preview } from "./render";
+import { derivePreview, injectMeta, buildCardSvg, twemojiFile, Preview, CardArt } from "./render";
 
 const ddb = new DynamoDBClient({});
 const SITE = (process.env.SITE_ORIGIN || "https://www.gotitguides.com").replace(/\/$/, "");
@@ -129,8 +129,12 @@ export const handler = async (event: any) => {
         const g = await loadGuide(slug).catch(() => null);
         const p: Preview = derivePreview(g ? g.payload : null, "GotIt Guides");
         const { fonts, wasm } = ensureRenderer();
-        const [fontBufs, , em] = await Promise.all([fonts, wasm, emojiSvg(p.emoji)]);
-        const svg = buildCardSvg(p, em);
+        const [fontBufs, , cover, ...icons] = await Promise.all([
+          fonts, wasm, emojiSvg(p.emoji),
+          ...p.rows.slice(0, 3).map((r) => emojiSvg(r.icon)),
+        ]);
+        const art: CardArt = { cover, icons };
+        const svg = buildCardSvg(p, art);
         const r = new Resvg(svg, {
           font: { fontBuffers: fontBufs as any, defaultFontFamily: "Plus Jakarta Sans" },
         });

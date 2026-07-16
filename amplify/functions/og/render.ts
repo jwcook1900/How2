@@ -15,7 +15,10 @@ export type Preview = {
   title: string;
   desc: string;
   emoji: string;        // one grapheme, or ""
-  chips: string[];      // up to 4 section titles
+  chips: string[];      // up to 4 section titles (used in og:description contexts)
+  rows: { icon: string; title: string }[]; // section rows for the card mockup
+  sub: string;          // the subtitle alone (desc = sub + section count)
+  count: number;        // total named sections
 };
 
 /* ---- text helpers ---- */
@@ -57,25 +60,38 @@ export function derivePreview(payload: any, siteName: string): Preview {
   if (!payload) {
     return {
       kind: "fallback", emoji: "🧡", chips: [],
-      title: siteName,
-      desc: "Care guides you share with one link — routines, contacts and everything they need.",
+      title: "The handover guide people actually follow.",
+      desc: "Create a living guide for your pet, home, family or team — share it with one link.",
+      sub: "Create a living guide for your pet, home, family or team — share it with one link.",
+      count: 0,
+      // The mockup shows the classic example rows (same as the site's own card)
+      rows: [
+        { icon: "🦴", title: "Feeding & Routine" },
+        { icon: "💊", title: "Medication" },
+        { icon: "🚨", title: "Vet & Emergency" },
+      ],
     };
   }
   // Encrypted envelope: the server cannot read it, and must not pretend to.
   if (payload.enc === 1) {
     return {
-      kind: "protected", emoji: "🔒", chips: [],
+      kind: "protected", emoji: "🔒", chips: [], rows: [],
       title: "This guide is protected",
       desc: "This guide is protected. Enter your code to view it.",
+      sub: "Enter your code to view it.",
+      count: 0,
     };
   }
   const title = String(payload.title || "").trim() || "A GotIt guide";
   const subtitle = String(payload.subtitle || "").trim();
   const sections = Array.isArray(payload.sections) ? payload.sections : [];
-  const names = sections
-    .map((s: any) => String((s && s.title) || "").trim())
-    .filter((t: string) => t && t !== "New section");
-  const count = names.length;
+  const named = sections
+    .map((s: any) => ({
+      icon: firstGrapheme(String((s && s.icon) || "")),
+      title: String((s && s.title) || "").trim(),
+    }))
+    .filter((s: { icon: string; title: string }) => s.title && s.title !== "New section");
+  const count = named.length;
   const counted = count ? count + " section" + (count === 1 ? "" : "s") : "";
   return {
     kind: "guide",
@@ -84,7 +100,12 @@ export function derivePreview(payload: any, siteName: string): Preview {
       ? subtitle + (counted ? " · " + counted : "")
       : "Everything they need, in one link." + (counted ? " · " + counted : ""),
     emoji: firstGrapheme(String(payload.emoji || "")),
-    chips: names.slice(0, 4).map((t: string) => truncate(t, 24)),
+    chips: named.slice(0, 4).map((s: { title: string }) => truncate(s.title, 24)),
+    rows: named.slice(0, 3).map((s: { icon: string; title: string }) => ({
+      icon: s.icon, title: truncate(s.title, 22),
+    })),
+    sub: subtitle || "Everything they need, in one link.",
+    count,
   };
 }
 
@@ -116,69 +137,129 @@ export function injectMeta(
     .replace(/<head>/, "<head>\n  " + block);
 }
 
-/* ---- the 1200x630 card ---- */
+/* ---- the 1200x630 card ----
+   Modelled on the site's original share image: full-bleed brand gradient,
+   wordmark + big white headline on the left, and a miniature guide card on
+   the right — filled with the guide's real emoji, title and section rows. */
 
 const W = 1200, H = 630;
-const INK = "#2B2320", MUTED = "#8A7A72", CHIP_INK = "#6B5B52";
-const CORAL = "#FF6B35", TINT = "#FFF4EE", PAPER = "#FFFDFB";
+const INK = "#1A1A1A", MUTED = "#8B847C", LINE = "#EDE8E2";
+const CORAL = "#FF6B35", AMBER = "#FFB347", PAPER = "#FFFDFB";
 
-// `emojiSvg` is the raw twemoji SVG markup (trusted asset), or null.
-export function buildCardSvg(p: Preview, emojiSvg: string | null): string {
-  const hasEmoji = !!emojiSvg;
-  const left = hasEmoji ? 270 : 90;
-  const maxTextW = 1100 - left;
+// Strip a twemoji SVG's outer tag and place it at (x,y) sized to `px`.
+function emojiAt(svg: string | null, x: number, y: number, px: number): string {
+  if (!svg) return "";
+  const inner = svg.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+  return '<g transform="translate(' + x + "," + y + ") scale(" + (px / 36) + ')">' + inner + "</g>";
+}
 
-  // Title: one line, sized down once for longer names, then ellipsized.
-  // Width estimate: Jakarta ExtraBold averages ~0.62em per character.
-  let size = 64;
-  let maxChars = Math.floor(maxTextW / (size * 0.62));
-  if (p.title.length > maxChars) {
-    size = 50;
-    maxChars = Math.floor(maxTextW / (size * 0.62));
+// Greedy word-wrap into at most `maxLines` lines of ~`maxChars`, ellipsizing.
+function wrapLines(s: string, maxChars: number, maxLines: number): string[] {
+  const words = String(s || "").trim().split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    if ((cur ? cur + " " + w : w).length <= maxChars) { cur = cur ? cur + " " + w : w; continue; }
+    if (cur) lines.push(cur);
+    cur = w;
+    if (lines.length === maxLines) break;
   }
-  const title = truncate(p.title, maxChars);
-  // Jakarta Regular at 30px averages ~0.52em per character.
-  const subtitle = truncate(p.desc, Math.floor(maxTextW / (30 * 0.52)));
+  if (cur && lines.length < maxLines) lines.push(cur);
+  if (lines.length > maxLines || (cur && lines.length === maxLines && lines.indexOf(cur) < 0)) {
+    lines.length = maxLines;
+    lines[maxLines - 1] = truncate(lines[maxLines - 1] + "…", maxChars + 1);
+  }
+  return lines.length ? lines : [truncate(s, maxChars)];
+}
 
-  // Emoji block: twemoji is a 36x36 viewBox; strip its outer <svg> and place it.
-  let emojiG = "";
-  if (emojiSvg) {
-    const inner = emojiSvg.replace(/^[\s\S]*?<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
-    emojiG = '<g transform="translate(84,86) scale(4.3)">' + inner + "</g>";
+export type CardArt = { cover: string | null; icons: (string | null)[] };
+
+export function buildCardSvg(p: Preview, art: CardArt): string {
+  // ---- right: the mini guide card (its own coordinate system) ----
+  const CX = 760, CY = 64, CW = 368, CH = 502, MID = CX + CW / 2;
+  const headerH = p.emoji || p.kind !== "guide" ? 190 : 150;
+
+  let mini = "";
+  // header: gradient block with the guide's emoji + name, like a real cover
+  mini += '<rect x="' + CX + '" y="' + CY + '" width="' + CW + '" height="' + headerH + '" fill="url(#bg2)"/>';
+  const miniTitle = truncate(p.kind === "guide" ? p.title : (p.kind === "protected" ? "Protected guide" : "Whiskey's Care Guide"), 20);
+  const emojiPx = 76;
+  if (art.cover) {
+    mini += emojiAt(art.cover, MID - emojiPx / 2, CY + 26, emojiPx);
+    mini += '<text x="' + MID + '" y="' + (CY + 142) + '" text-anchor="middle" font-size="27" font-weight="800" fill="#fff">' + esc(miniTitle) + "</text>";
+    mini += '<text x="' + MID + '" y="' + (CY + 172) + '" text-anchor="middle" font-size="16" font-weight="400" fill="rgba(255,255,255,0.9)">' +
+      esc(truncate(p.desc.split(" · ")[0], 34)) + "</text>";
+  } else {
+    mini += '<text x="' + MID + '" y="' + (CY + Math.round(headerH / 2) + 2) + '" text-anchor="middle" font-size="28" font-weight="800" fill="#fff">' + esc(miniTitle) + "</text>";
+    mini += '<text x="' + MID + '" y="' + (CY + Math.round(headerH / 2) + 34) + '" text-anchor="middle" font-size="16" font-weight="400" fill="rgba(255,255,255,0.9)">' +
+      esc(truncate(p.desc.split(" · ")[0], 34)) + "</text>";
+  }
+  // section rows (the guide's real sections)
+  const rows = p.rows.slice(0, 3);
+  let ry = CY + headerH + 34;
+  rows.forEach((r, i) => {
+    const iconSvg = art.icons[i] || null;
+    if (iconSvg) mini += emojiAt(iconSvg, CX + 30, ry - 22, 32);
+    else mini += '<circle cx="' + (CX + 46) + '" cy="' + (ry - 6) + '" r="6" fill="' + CORAL + '"/>';
+    mini += '<text x="' + (CX + 78) + '" y="' + ry + '" font-size="22" font-weight="700" fill="' + INK + '">' + esc(r.title) + "</text>";
+    if (i < rows.length - 1) {
+      mini += '<line x1="' + (CX + 28) + '" y1="' + (ry + 30) + '" x2="' + (CX + CW - 28) + '" y2="' + (ry + 30) + '" stroke="' + LINE + '" stroke-width="2"/>';
+    }
+    ry += 64;
+  });
+  if (!rows.length) {
+    mini += '<text x="' + MID + '" y="' + (ry + 10) + '" text-anchor="middle" font-size="20" font-weight="600" fill="' + MUTED + '">' +
+      esc(p.kind === "protected" ? "Enter your code to view it" : "Open the guide →") + "</text>";
+  }
+  // "+ n more" hint when the guide has more sections than the mockup shows
+  const more = Math.max(0, (p.count || 0) - rows.length);
+  if (more > 0 && rows.length) {
+    mini += '<text x="' + MID + '" y="' + (ry + 6) + '" text-anchor="middle" font-size="19" font-weight="600" fill="' + MUTED + '">+ ' + more + " more section" + (more === 1 ? "" : "s") + "</text>";
   }
 
-  // Section chips: one row, drop whatever doesn't fit.
-  let chips = "";
-  let x = 90;
-  const chipY = hasEmoji ? 330 : 330;
-  for (const c of p.chips) {
-    const w = Math.round(52 + c.length * 13.2);
-    if (x + w > 1116) break;
-    chips +=
-      '<rect x="' + x + '" y="' + chipY + '" width="' + w + '" height="56" rx="28" fill="' + TINT + '"/>' +
-      '<text x="' + (x + w / 2) + '" y="' + (chipY + 37) + '" text-anchor="middle" font-size="24" font-weight="600" fill="' + CHIP_INK + '">' + esc(c) + "</text>";
-    x += w + 18;
+  // ---- left: wordmark, headline (up to 2 lines), subtitle, url ----
+  const maxW = 600;
+  let size = 62;
+  let lines = wrapLines(p.title, Math.floor(maxW / (size * 0.62)), 2);
+  if (lines.length > 1 || p.title.length > 18) {
+    size = 52;
+    lines = wrapLines(p.title, Math.floor(maxW / (size * 0.62)), 2);
   }
+  const titleY = lines.length > 1 ? 252 : 282;
+  const titleSvg = lines.map((ln, i) =>
+    '<text x="84" y="' + (titleY + i * (size + 14)) + '" font-size="' + size + '" font-weight="800" fill="#fff">' + esc(ln) + "</text>"
+  ).join("");
+  const subY = titleY + (lines.length - 1) * (size + 14) + 58;
+  const counted = p.count ? " · " + p.count + " section" + (p.count === 1 ? "" : "s") : "";
+  const subMax = Math.floor(maxW / (28 * 0.52));
+  const subtitle = truncate(p.sub, Math.max(12, subMax - counted.length)) + counted;
 
   return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '">' +
     "<defs>" +
       '<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">' +
-        '<stop offset="0" stop-color="#FF8A5C"/><stop offset="1" stop-color="' + CORAL + '"/>' +
+        '<stop offset="0" stop-color="#FF9A5C"/><stop offset="0.6" stop-color="' + CORAL + '"/><stop offset="1" stop-color="#F0570F"/>' +
       "</linearGradient>" +
+      '<linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="' + CORAL + '"/><stop offset="1" stop-color="' + AMBER + '"/>' +
+      "</linearGradient>" +
+      '<clipPath id="mini"><rect x="' + CX + '" y="' + CY + '" width="' + CW + '" height="' + CH + '" rx="26"/></clipPath>' +
+      '<filter id="sh" x="-30%" y="-30%" width="160%" height="160%">' +
+        '<feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#7a2603" flood-opacity="0.4"/>' +
+      "</filter>" +
     "</defs>" +
     '<rect width="' + W + '" height="' + H + '" fill="url(#bg)"/>' +
-    '<rect x="40" y="40" width="' + (W - 80) + '" height="' + (H - 80) + '" rx="28" fill="' + PAPER + '"/>' +
-    emojiG +
     '<g font-family="Plus Jakarta Sans">' +
-      '<text x="' + left + '" y="' + (hasEmoji ? 165 : 170) + '" font-size="' + size + '" font-weight="800" fill="' + INK + '">' + esc(title) + "</text>" +
-      '<text x="' + left + '" y="' + (hasEmoji ? 222 : 230) + '" font-size="30" font-weight="400" fill="' + MUTED + '">' + esc(subtitle) + "</text>" +
-      chips +
-      '<text x="90" y="562" font-size="24" font-weight="600" fill="' + MUTED + '">gotitguides.com</text>' +
-      '<text x="1110" y="562" font-size="26" font-weight="800" fill="' + CORAL + '" text-anchor="end">GotIt Guides</text>' +
+      // left column
+      '<text x="84" y="128" font-size="28" font-weight="800" fill="#fff">GotIt Guides<tspan fill="' + AMBER + '"> ●</tspan></text>' +
+      titleSvg +
+      '<text x="84" y="' + subY + '" font-size="28" font-weight="400" fill="rgba(255,255,255,0.94)">' + esc(subtitle) + "</text>" +
+      '<text x="84" y="556" font-size="24" font-weight="600" fill="rgba(255,255,255,0.85)">gotitguides.com</text>' +
+      // right mini card: shadow base, then clipped contents
+      '<rect x="' + CX + '" y="' + CY + '" width="' + CW + '" height="' + CH + '" rx="26" fill="' + PAPER + '" filter="url(#sh)"/>' +
+      '<g clip-path="url(#mini)">' +
+        '<rect x="' + CX + '" y="' + CY + '" width="' + CW + '" height="' + CH + '" fill="' + PAPER + '"/>' +
+        mini +
+      "</g>" +
     "</g>" +
-    // Small heart to the left of the wordmark (emoji glyphs don't rasterise
-    // in resvg, so it's drawn as a path).
-    '<path transform="translate(896,538) scale(1.15)" fill="' + CORAL + '" ' +
-      'd="M12 21s-8-4.5-8-11a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.5-8 11-8 11z"/>' +
   "</svg>";
 }

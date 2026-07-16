@@ -3671,6 +3671,9 @@
     state.guide = guide;
     state.editToken = token;
     state.created = true;
+    // This device has proven it holds the edit link — remember the token so
+    // the published guide can offer "Edit this guide" here from now on.
+    if (GotItStore.rememberToken) GotItStore.rememberToken(guide.slug, token);
     renderGuideEditor();
     showStep(3);
     initHistory();

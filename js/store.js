@@ -110,10 +110,14 @@ window.GotItStore = (function () {
   function localPut(guide, editToken) {
     var g = localGuides(); g[guide.slug] = guide;
     localStorage.setItem(GUIDES_KEY, JSON.stringify(g));
-    if (editToken) {
-      var t = localTokens(); t[guide.slug] = editToken;
+    if (editToken) rememberToken(guide.slug, editToken);
+  }
+  function rememberToken(slug, token) {
+    if (!slug || !token) return;
+    try {
+      var t = localTokens(); t[slug] = token;
       localStorage.setItem(TOKENS_KEY, JSON.stringify(t));
-    }
+    } catch (e) { /* storage blocked — the feature just won't appear */ }
   }
 
   /* ---- HTML sanitiser for rich-text section bodies ----
@@ -402,9 +406,20 @@ window.GotItStore = (function () {
         if (!cfg) { localPut(guide, editToken); return { cloud: false }; }
         var q = "mutation Create($input: CreateGuideInput!){ createGuide(input: $input){ id } }";
         return gql(cfg, q, { input: { id: guide.slug, editToken: editToken, payload: JSON.stringify(guide) } })
-          .then(function () { return { cloud: true }; });
+          .then(function (r) {
+            // Remember the token on this device too, so the published guide
+            // can offer its creator a way back into editing.
+            rememberToken(guide.slug, editToken);
+            return { cloud: true };
+          });
       });
     },
+
+    // This device's edit token for a slug (recorded when the guide was
+    // published or opened for editing here), or null. Purely local — holding
+    // the token is what makes someone the owner.
+    editTokenFor: function (slug) { return localTokens()[slug] || null; },
+    rememberToken: function (slug, token) { rememberToken(slug, token); },
 
     // Update an existing guide's contents.
     update: function (guide) {

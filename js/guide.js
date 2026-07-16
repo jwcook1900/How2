@@ -721,6 +721,16 @@
         if (fbItem) fbItem.hidden = !doc.querySelector("#guideFeedback");
         var shItem = document.getElementById("gnavShare");
         if (shItem) shItem.hidden = !slug;
+        // Owner-only edit: shown when this device holds the guide's edit
+        // token (recorded at publish, or by opening the edit link here).
+        // Sitters' devices never have it, so they never see this. Locked
+        // guides additionally ask for their code inside the editor.
+        var edItem = document.getElementById("gnavEdit");
+        if (edItem) {
+          var tok = (slug && GotItStore.editTokenFor) ? GotItStore.editTokenFor(slug) : null;
+          edItem.hidden = !tok;
+          if (tok) edItem.href = "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(tok);
+        }
         menu.hidden = false;
         toggle.setAttribute("aria-expanded", "true");
         document.addEventListener("click", onDoc);

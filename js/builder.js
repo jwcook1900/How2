@@ -3654,20 +3654,26 @@
           $("lockOn").checked = true;
           toggleLockUI();
           $("lockPass").value = pass;
-          finishEnterEdit(real, rec.editToken || token);
+          finishEnterEdit(real, rec.editToken || token, slug);
         }, function () {
           showToast("That code's not right.");
           showStep(1);
         });
         return;
       }
-      finishEnterEdit(rec.guide, rec.editToken || token);
+      finishEnterEdit(rec.guide, rec.editToken || token, slug);
     }).catch(function () {
       showToast("Couldn't load that guide.");
       showStep(1);
     });
   }
-  function finishEnterEdit(guide, token) {
+  function finishEnterEdit(guide, token, slug) {
+    // The record id (the slug in the edit link) IS the guide's identity.
+    // A duplicated or re-linked LOCKED guide still carries its original slug
+    // inside the encrypted payload — trusting that would make the next
+    // publish write to the wrong record and spawn a duplicate dashboard row.
+    // Pinning it here also re-encrypts the right slug on the next publish.
+    if (slug) guide.slug = slug;
     state.guide = guide;
     state.editToken = token;
     state.created = true;

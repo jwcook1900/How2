@@ -20,6 +20,7 @@
    route falls back to the static generic /images/og.png.
    ============================================================ */
 import { DynamoDBClient, GetItemCommand } from "@aws-sdk/client-dynamodb";
+import { unmarshall } from "@aws-sdk/util-dynamodb";
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import { derivePreview, injectMeta, buildCardSvg, twemojiFile, Preview } from "./render";
 
@@ -85,7 +86,9 @@ async function emojiSvg(emoji: string): Promise<string | null> {
 }
 
 // A guide record, or null when the slug doesn't resolve. `payload` may be an
-// encrypted envelope — derivePreview handles that.
+// encrypted envelope — derivePreview handles that. Depending on AppSync's
+// AWSJSON handling the payload sits in DynamoDB either as a JSON *string*
+// or as a native document map — accept both.
 async function loadGuide(slug: string): Promise<{ payload: any; updatedAt: number } | null> {
   const table = process.env.GUIDE_TABLE;
   if (!table || !slug) return null;
@@ -95,9 +98,14 @@ async function loadGuide(slug: string): Promise<{ payload: any; updatedAt: numbe
     ProjectionExpression: "payload, updatedAt",
   }));
   if (!res.Item || !res.Item.payload) return null;
-  let payload: any = null;
-  try { payload = JSON.parse(res.Item.payload.S || ""); } catch (e) { return null; }
-  const upd = Date.parse((res.Item.updatedAt && res.Item.updatedAt.S) || "") || 0;
+  let it: any;
+  try { it = unmarshall(res.Item); } catch (e) { return null; }
+  let payload: any = it.payload;
+  if (typeof payload === "string") {
+    try { payload = JSON.parse(payload); } catch (e) { return null; }
+  }
+  if (!payload || typeof payload !== "object") return null;
+  const upd = Date.parse(String(it.updatedAt || "")) || 0;
   return { payload, updatedAt: upd };
 }
 

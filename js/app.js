@@ -182,7 +182,11 @@
     startAuto();
   })();
 
-  /* ---- Waitlist form (simulated for MVP) ---- */
+  /* ---- Waitlist form ----
+     Sends the signup to the backend (a Feedback row with context "waitlist",
+     which also lands in the team inbox). Only confirms success when it
+     actually stored — the old localStorage-only version quietly lost every
+     signup on the visitor's own device. */
   var form = document.getElementById("waitlistForm");
   var emailInput = document.getElementById("waitlistEmail");
   var msg = document.getElementById("waitlistMsg");
@@ -198,18 +202,27 @@
         emailInput.focus();
         return;
       }
-
-      // Persist locally for MVP (no backend yet)
-      try {
-        var list = JSON.parse(localStorage.getItem("how2_waitlist") || "[]");
-        if (list.indexOf(email) === -1) list.push(email);
-        localStorage.setItem("how2_waitlist", JSON.stringify(list));
-      } catch (err) {
-        /* ignore storage errors */
+      if (!window.GotItStore || !GotItStore.feedback) {
+        msg.textContent = "Something's not loading right — please try again in a moment.";
+        return;
       }
 
-      msg.textContent = "🎉 You're on the list! We'll be in touch.";
-      form.reset();
+      var btn = form.querySelector("button, input[type=submit]");
+      if (btn) btn.disabled = true;
+      msg.textContent = "Adding you…";
+
+      GotItStore.feedback({
+        message: "Waitlist signup",
+        email: email,
+        context: "waitlist",
+      }).then(function () {
+        msg.textContent = "🎉 You're on the list! We'll be in touch.";
+        form.reset();
+      }).catch(function () {
+        msg.textContent = "Couldn't add you just now — please try again in a minute.";
+      }).then(function () {
+        if (btn) btn.disabled = false;
+      });
     });
   }
 })();

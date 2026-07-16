@@ -657,11 +657,15 @@
   // Locked guides arrive as an encrypted envelope — show an unlock screen and
   // decrypt in the browser once the right guide code is entered.
   function showLock(env) {
-    document.title = "Locked guide — GotIt Guides";
+    // Envelopes published since mid-2026 carry the title/emoji in plaintext
+    // (see store.encrypt) so the unlock screen can say whose guide this is.
+    var name = String(env.title || "").trim();
+    var emoji = String(env.emoji || "").trim() || "🔒";
+    document.title = (name ? name + " (locked)" : "Locked guide") + " — GotIt Guides";
     doc.innerHTML =
-      '<div class="guide-cover"><span class="cover-emoji">🔒</span>' +
-        '<div class="cover-title">This guide is locked</div>' +
-        '<div class="cover-sub">Enter the guide code to open it.</div></div>' +
+      '<div class="guide-cover"><span class="cover-emoji">' + esc(emoji) + "</span>" +
+        '<div class="cover-title">' + (name ? esc(name) : "This guide is locked") + "</div>" +
+        '<div class="cover-sub">' + (name ? "🔒 This guide is locked — enter the guide code to open it." : "Enter the guide code to open it.") + "</div></div>" +
       '<div class="lock-screen">' +
         '<input type="password" id="unlockPass" class="q-input" placeholder="Guide code" autocomplete="off" />' +
         '<button class="btn btn-primary" id="unlockBtn" type="button">Unlock</button>' +

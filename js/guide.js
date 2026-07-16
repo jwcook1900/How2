@@ -700,6 +700,24 @@
     var toggle = document.getElementById("gnavToggle");
     var menu = document.getElementById("gnavMenu");
     if (!toggle || !menu) return;
+    // Signed-in owners get "Edit this guide" on any device: their dashboard
+    // records (slug + edit token) prove ownership. The device-local token
+    // stays as the instant, works-signed-out path; this fills the gap for
+    // guides published before token-remembering existed or on other devices.
+    var ownEdit = null;
+    if (slug && window.GotItAuth && GotItAuth.isSignedIn && GotItAuth.isSignedIn() &&
+        GotItStore.listSavedGuides) {
+      GotItAuth.idToken().then(function (tok) {
+        if (!tok) return null;
+        return GotItStore.listSavedGuides(tok);
+      }).then(function (items) {
+        (items || []).forEach(function (it) {
+          if (it.slug === slug && it.editToken) ownEdit = it.editToken;
+        });
+        // Remember it locally too — instant (and signed-out-proof) next time.
+        if (ownEdit && GotItStore.rememberToken) GotItStore.rememberToken(slug, ownEdit);
+      }).catch(function () { /* fall back to the local token silently */ });
+    }
     function toast(msg) {
       var t = document.createElement("div");
       t.className = "dash-toast"; t.textContent = msg;
@@ -732,6 +750,7 @@
         var edItem = document.getElementById("gnavEdit");
         if (edItem) {
           var tok = (slug && GotItStore.editTokenFor) ? GotItStore.editTokenFor(slug) : null;
+          if (!tok) tok = ownEdit; // signed-in owner on a fresh device
           edItem.hidden = !tok;
           if (tok) edItem.href = "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(tok);
         }

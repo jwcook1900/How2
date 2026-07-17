@@ -639,6 +639,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .footer-links a { color: var(--ink-muted); font-size: 0.9rem; font-weight: 600; text-decoration: none; }
 .footer-links a:hover { color: var(--white); }
 
+/* Link to the live example guide inside the examples section lead */
+.example-real-link { color: var(--coral); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.example-real-link:hover { text-decoration: underline; }
+
 /* ── About & privacy page ─────────────────────────────────────────────── */
 .trust-grid {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;

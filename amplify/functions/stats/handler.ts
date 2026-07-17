@@ -1,5 +1,6 @@
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
 import { CognitoIdentityProviderClient, ListUsersCommand } from "@aws-sdk/client-cognito-identity-provider";
+import { canonicalRef } from "../shared/canonicalRef";
 
 const ddb = new DynamoDBClient({});
 const cognito = new CognitoIdentityProviderClient({});
@@ -139,7 +140,7 @@ export const handler = async (event: any) => {
             uniqAll.add(vid);
             if (slug) (uniqBySlug[slug] || (uniqBySlug[slug] = new Set())).add(vid);
           }
-          const ref = (item.ref && item.ref.S) || "";
+          const ref = canonicalRef((item.ref && item.ref.S) || "");
           if (ref) {
             refCounts[ref] = (refCounts[ref] || 0) + 1;
             if (slug) (refBySlug[slug] || (refBySlug[slug] = {}))[ref] =

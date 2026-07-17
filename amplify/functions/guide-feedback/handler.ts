@@ -1,4 +1,5 @@
 import { DynamoDBClient, ScanCommand, PutItemCommand, GetItemCommand, DeleteItemCommand } from "@aws-sdk/client-dynamodb";
+import { canonicalRef } from "../shared/canonicalRef";
 import { randomUUID, createPublicKey, verify as cryptoVerify } from "crypto";
 import { sendEmail } from "../shared/sendEmail";
 
@@ -162,7 +163,7 @@ export const handler = async (event: any) => {
             if (vid) a.uniq.add(vid);
             // Traffic source: referrer domain or "direct" (absent on events
             // from before ref tracking shipped — those aren't counted).
-            const ref = (it.ref && it.ref.S) || "";
+            const ref = canonicalRef((it.ref && it.ref.S) || "");
             if (ref) a.refs[ref] = (a.refs[ref] || 0) + 1;
             const d = localDay((it.createdAt && it.createdAt.S) || "");
             if (d) {

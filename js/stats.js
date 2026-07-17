@@ -311,9 +311,11 @@
     return Math.floor(d / 365) + "y ago";
   }
 
-  // "  (42%)" — a small share label; empty when there's nothing to divide by.
+  // "  (42%)" — a small share label; empty when there's nothing to divide by,
+  // or when n > total (funnel steps started tracking at different times, so a
+  // young step can be smaller than an old one — a >100% funnel is noise).
   function pct(n, total) {
-    if (!total || !n) return "";
+    if (!total || !n || n > total) return "";
     return " (" + Math.round((n / total) * 100) + "%)";
   }
 

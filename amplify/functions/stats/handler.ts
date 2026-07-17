@@ -1,6 +1,35 @@
 import { DynamoDBClient, ScanCommand } from "@aws-sdk/client-dynamodb";
+import { CognitoIdentityProviderClient, ListUsersCommand } from "@aws-sdk/client-cognito-identity-provider";
 
 const ddb = new DynamoDBClient({});
+const cognito = new CognitoIdentityProviderClient({});
+
+// Account counts straight from the user pool (full history — Cognito stamps
+// every user's creation date, so this is exact from day one, not from when
+// tracking shipped). Best-effort: on any failure the stats page just omits it.
+async function countAccounts(tz: number): Promise<{ total: number; week: number } | null> {
+  const poolId = process.env.USER_POOL_ID;
+  if (!poolId) return null;
+  try {
+    let total = 0, week = 0;
+    const weekAgo = Date.now() - 7 * 86400000;
+    let token: string | undefined = undefined;
+    do {
+      const res: any = await cognito.send(new ListUsersCommand({
+        UserPoolId: poolId, Limit: 60, PaginationToken: token,
+      }));
+      for (const u of res.Users || []) {
+        total++;
+        const created = u.UserCreateDate ? new Date(u.UserCreateDate).getTime() : 0;
+        if (created > weekAgo) week++;
+      }
+      token = res.PaginationToken;
+    } while (token);
+    return { total, week };
+  } catch (e) {
+    return null;
+  }
+}
 const HEADERS = { "content-type": "application/json" };
 
 /**
@@ -195,7 +224,9 @@ export const handler = async (event: any) => {
       errors: publishErrors,
     };
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts, refs: refCounts }) };
+    const accounts = await countAccounts(tz);
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts, refs: refCounts, accounts }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

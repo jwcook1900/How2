@@ -78,6 +78,11 @@
         statCard("\uD83D\uDC40", s.views || 0, "Guide views") +
         statCard("\uD83D\uDC64", s.uniqueVisitors || 0, "Unique visitors") +
         statCard("\uD83D\uDD17", s.shares || 0, "Shares") +
+        // Accounts come straight from the user pool (full history, exact)
+        (s.accounts
+          ? statCard("\uD83E\uDEAA", s.accounts.total || 0, "Accounts" +
+              (s.accounts.week ? " (+" + s.accounts.week + " this week)" : ""))
+          : "") +
       "</div>";
 
     // Views per day (window selectable: 7 / 14 / 30, viewer-local days)

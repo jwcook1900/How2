@@ -66,6 +66,9 @@ const eventTable = backend.data.resources.tables["Event"];
 const statsLambda = backend.statsFn.resources.lambda as LambdaFunction;
 statsLambda.addEnvironment("EVENT_TABLE", eventTable.tableName);
 eventTable.grantReadData(statsLambda);
+// Accounts ticker: count users (and this week's signups) from the pool.
+statsLambda.addEnvironment("USER_POOL_ID", backend.auth.resources.userPool.userPoolId);
+backend.auth.resources.userPool.grant(statsLambda, "cognito-idp:ListUsers");
 const statsUrl = statsLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE, // protected by the passphrase in the handler
   cors: {

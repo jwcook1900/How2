@@ -952,6 +952,12 @@ ul { margin: 0; padding: 0; list-style: none; }
   flex-direction: column;
   justify-content: center;
 }
+/* Desktop: the guide column is pinned at 680px wide, so a 240px-tall cover
+   letterboxes the photo into a thin strip. Match the phone's ~3:2 hero shape
+   instead (min-height, not aspect-ratio, so long titles still grow the box). */
+@media (min-width: 720px) {
+  .guide-cover.has-cover { min-height: 420px; }
+}
 /* No icon + a cover photo: lift the title to the top so it sits above the
    photo's subject (e.g. a pet's face in the middle) instead of over it. */
 .guide-cover.has-cover.no-emoji { justify-content: flex-start; }

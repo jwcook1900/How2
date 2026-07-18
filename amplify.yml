@@ -22,7 +22,6 @@ frontend:
       - 'icon-512.png'
       - 'site.webmanifest'
       # Alternative colourway, kept for future use (not referenced anywhere)
-      - 'favicon-orange.svg'
       - 'favicon-orange-512.png'
       - 'amplify_outputs.json'
       - 'css/**/*'

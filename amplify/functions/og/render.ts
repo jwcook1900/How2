@@ -131,6 +131,7 @@ export function injectMeta(
 ): string {
   const block =
     "<title>" + esc(meta.title) + "</title>\n" +
+    '  <link rel="canonical" href="' + esc(meta.url) + '" />\n' +
     '  <meta property="og:title" content="' + esc(meta.title) + '" />\n' +
     '  <meta property="og:description" content="' + esc(meta.desc) + '" />\n' +
     '  <meta property="og:type" content="website" />\n' +

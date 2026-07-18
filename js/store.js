@@ -609,12 +609,22 @@ window.GotItStore = (function () {
         }
       } catch (e) { vid = null; }
       // Where the visit came from: the referrer's domain only (never the full
-      // URL). Same-site or no referrer both count as "direct".
+      // URL). Same-site or no referrer both count as "direct" — unless this
+      // session arrived from outside earlier (e.g. Facebook → a guide → the
+      // "Create your free guide" CTA → the builder): the inbound source is
+      // remembered for the session so internal hops keep their attribution.
       var ref = "direct";
       try {
         if (document.referrer) {
           var host = new URL(document.referrer).hostname;
-          if (host && host !== window.location.hostname) ref = host.replace(/^www\./, "").slice(0, 80);
+          if (host && host !== window.location.hostname) {
+            ref = host.replace(/^www\./, "").slice(0, 80);
+            sessionStorage.setItem("gotit_ref", ref);
+          }
+        }
+        if (ref === "direct") {
+          var stored = sessionStorage.getItem("gotit_ref");
+          if (stored) ref = stored;
         }
       } catch (e) { /* keep "direct" */ }
       return loadConfig().then(function (cfg) {

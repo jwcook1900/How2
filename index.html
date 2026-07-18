@@ -7,6 +7,8 @@
   <meta name="theme-color" content="#1A1A1A" />
   <title>GotIt Guides | Create a care guide your sitter can actually follow</title>
 
+  <link rel="canonical" href="https://www.gotitguides.com/" />
+
   <!-- Open Graph / social preview -->
   <meta property="og:title" content="GotIt Guides | Create a care guide your sitter can actually follow" />
   <meta property="og:description" content="Turn routines, medication, emergency contacts, photos and house notes into one simple shareable link, ready before your next trip, sitter booking or guest stay." />
@@ -28,6 +30,33 @@
   <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
   <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Structured data: what the product is + who runs it -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "GotIt Guides",
+        "url": "https://www.gotitguides.com/",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Any (web)",
+        "description": "Turn routines, medication, emergency contacts, photos, videos and house notes into one simple shareable care guide for pet sitters, family and guests.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" }
+      },
+      {
+        "@type": "Organization",
+        "name": "GotIt Guides",
+        "url": "https://www.gotitguides.com/",
+        "logo": "https://www.gotitguides.com/icon-512.png",
+        "email": "hello@gotitguides.com",
+        "founder": { "@type": "Person", "name": "James Cook" },
+        "address": { "@type": "PostalAddress", "addressLocality": "Sydney", "addressCountry": "AU" }
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
@@ -50,7 +79,7 @@
           </div>
         </div>
         <a href="/" class="logo" aria-label="GotIt Guides home">
-          <span class="logo-mark">GotIt Guides</span>
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
         </a>
       </div>
       <div class="header-right">
@@ -438,7 +467,7 @@
   <footer class="site-footer">
     <div class="container footer-inner">
       <div class="footer-brand">
-        <span class="logo-mark">GotIt Guides</span>
+        <img class="logo-img" src="/brand/logo-reversed.svg" alt="GotIt Guides" />
         <p class="footer-made">Made in Sydney by James</p>
       </div>
       <nav class="footer-links" aria-label="Footer">

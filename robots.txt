@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+# Private / no-value-to-index pages
+Disallow: /stats.html
+Disallow: /dashboard.html
+Disallow: /builder.html
+
+Sitemap: https://www.gotitguides.com/sitemap.xml

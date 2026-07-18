@@ -37,6 +37,13 @@
       <div id="bcast" hidden>
         <h2 class="stat-h2">📣 Email your users</h2>
         <p class="stat-empty" id="bcastWho" style="margin-bottom:14px">Checking who you can email…</p>
+        <details class="bcast-pick" id="bcastPick" hidden>
+          <summary id="bcastPickSummary">Choose recipients</summary>
+          <div class="bcast-recips">
+            <label class="bcast-recip bcast-recip-all"><input type="checkbox" id="bcastAll" checked /> <b>All</b></label>
+            <div id="bcastRecipList"></div>
+          </div>
+        </details>
         <input type="text" id="bcastSubject" class="q-input" placeholder="Subject" maxlength="200" autocomplete="off" />
         <textarea id="bcastBody" class="q-input" rows="8" style="margin-top:10px;resize:vertical"
           placeholder="Write your update in plain text. Blank line = new paragraph; links become clickable.&#10;&#10;Every email automatically gets your name, contact and an unsubscribe link at the bottom."></textarea>

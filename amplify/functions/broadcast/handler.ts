@@ -37,11 +37,12 @@ interface Audience {
   accounts: number;
   waitlist: number;
   unsubscribed: number;
-  recipients: string[]; // deduped, lowercased, unsubs removed
+  recipients: string[];                              // deduped, lowercased, unsubs removed
+  sources: { email: string; src: string }[];         // same set, labelled for the picker UI
 }
 
 async function gatherAudience(): Promise<Audience> {
-  const emails = new Map<string, true>();
+  const emails = new Map<string, string>(); // email -> "account" | "waitlist"
   let accounts = 0, waitlist = 0;
 
   // Account holders, straight from the user pool.
@@ -55,7 +56,7 @@ async function gatherAudience(): Promise<Audience> {
       for (const u of res.Users || []) {
         const attr = (u.Attributes || []).find((a: any) => a.Name === "email");
         const e = (attr && attr.Value || "").trim().toLowerCase();
-        if (EMAIL_RE.test(e) && !emails.has(e)) { emails.set(e, true); accounts++; }
+        if (EMAIL_RE.test(e) && !emails.has(e)) { emails.set(e, "account"); accounts++; }
       }
       token = res.PaginationToken;
     } while (token);
@@ -79,14 +80,15 @@ async function gatherAudience(): Promise<Audience> {
         const e = ((item.email && item.email.S) || "").trim().toLowerCase();
         if (!EMAIL_RE.test(e)) continue;
         if (ctx === "unsub") unsubs.add(e);
-        else if (ctx === "waitlist" && !emails.has(e)) { emails.set(e, true); waitlist++; }
+        else if (ctx === "waitlist" && !emails.has(e)) { emails.set(e, "waitlist"); waitlist++; }
       }
       startKey = res.LastEvaluatedKey;
     } while (startKey);
   }
 
   const recipients = Array.from(emails.keys()).filter((e) => !unsubs.has(e));
-  return { accounts, waitlist, unsubscribed: unsubs.size, recipients };
+  const sources = recipients.map((e) => ({ email: e, src: emails.get(e) || "" }));
+  return { accounts, waitlist, unsubscribed: unsubs.size, recipients, sources };
 }
 
 /* ---- email rendering ---- */
@@ -211,6 +213,8 @@ export const handler = async (event: any) => {
       return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({
         accounts: a.accounts, waitlist: a.waitlist,
         unsubscribed: a.unsubscribed, total: a.recipients.length,
+        // Full labelled list for the recipient picker (admin-only endpoint).
+        emails: a.sources,
       }) };
     }
 
@@ -233,15 +237,26 @@ export const handler = async (event: any) => {
 
     if (b.action === "send") {
       const a = await gatherAudience();
-      if (!a.recipients.length) {
+      // Optional subset: only send to the picked addresses. Always intersected
+      // with the live audience, so a stale/typoed list can't email anyone who
+      // isn't (still) a consenting recipient.
+      let recipients = a.recipients;
+      if (Array.isArray(b.only)) {
+        const picked = new Set(b.only.map((e: any) => String(e || "").trim().toLowerCase()));
+        recipients = recipients.filter((e) => picked.has(e));
+        if (!recipients.length) {
+          return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "none of the selected recipients are in the audience" }) };
+        }
+      }
+      if (!recipients.length) {
         return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ sent: 0, failed: 0, total: 0 }) };
       }
-      const items = a.recipients.map((to) => {
+      const items = recipients.map((to) => {
         const m = renderEmail(subject, body, unsubUrl(to));
         return { from, to: [to], subject: m.subject, text: m.text, html: m.html };
       });
       const r = await sendBatch(items);
-      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ sent: r.sent, failed: r.failed, total: a.recipients.length }) };
+      return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ sent: r.sent, failed: r.failed, total: recipients.length }) };
     }
 
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "unknown action" }) };

@@ -31,6 +31,22 @@
       </div>
 
       <div id="statsOut" hidden></div>
+
+      <!-- Broadcast email composer — separate from statsOut so re-renders of
+           the stats (sort chips etc.) never wipe a half-written email. -->
+      <div id="bcast" hidden>
+        <h2 class="stat-h2">📣 Email your users</h2>
+        <p class="stat-empty" id="bcastWho" style="margin-bottom:14px">Checking who you can email…</p>
+        <input type="text" id="bcastSubject" class="q-input" placeholder="Subject" maxlength="200" autocomplete="off" />
+        <textarea id="bcastBody" class="q-input" rows="8" style="margin-top:10px;resize:vertical"
+          placeholder="Write your update in plain text. Blank line = new paragraph; links become clickable.&#10;&#10;Every email automatically gets your name, contact and an unsubscribe link at the bottom."></textarea>
+        <div class="builder-toolbar" style="margin-top:12px;flex-wrap:wrap;gap:10px">
+          <input type="email" id="bcastTestTo" class="q-input" placeholder="you@example.com" style="max-width:240px" autocomplete="off" />
+          <button class="btn btn-ghost" id="bcastTestBtn" type="button">Send test to me</button>
+          <button class="btn btn-primary" id="bcastSendBtn" type="button" disabled>Send</button>
+        </div>
+        <p class="lock-error" id="bcastNote" hidden></p>
+      </div>
     </div>
   </main>
   <div class="toast" id="toast"></div>

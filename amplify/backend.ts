@@ -12,6 +12,7 @@ import { guideFeedbackFn } from "./functions/guide-feedback/resource";
 import { urlFn } from "./functions/url/resource";
 import { transcribeFn } from "./functions/transcribe/resource";
 import { ogFn } from "./functions/og/resource";
+import { broadcastFn } from "./functions/broadcast/resource";
 import { CfnUserPoolDomain } from "aws-cdk-lib/aws-cognito";
 
 /**
@@ -33,6 +34,7 @@ const backend = defineBackend({
   urlFn,
   transcribeFn,
   ogFn,
+  broadcastFn,
 });
 
 // Custom hosted-UI domain so the Google sign-in screen shows
@@ -125,8 +127,26 @@ const ogUrl = ogLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE, // serves public pages/images only
 });
 
+// Broadcast email: reads recipients (Cognito emails + waitlist Feedback rows),
+// writes unsubscribes back as Feedback rows, and serves the GET /unsub link.
+const feedbackTable = backend.data.resources.tables["Feedback"];
+const broadcastLambda = backend.broadcastFn.resources.lambda as LambdaFunction;
+broadcastLambda.addEnvironment("FEEDBACK_TABLE", feedbackTable.tableName);
+broadcastLambda.addEnvironment("USER_POOL_ID", backend.auth.resources.userPool.userPoolId);
+feedbackTable.grantReadWriteData(broadcastLambda);
+backend.auth.resources.userPool.grant(broadcastLambda, "cognito-idp:ListUsers");
+const broadcastUrl = broadcastLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE, // POST is passphrase-gated; GET /unsub is HMAC-verified
+  cors: {
+    allowedOrigins: ["*"],
+    allowedMethods: [HttpMethod.POST, HttpMethod.GET],
+    allowedHeaders: ["content-type"],
+  },
+});
+
 backend.addOutput({ custom: {
   statsFunctionUrl: statsUrl.url,
+  broadcastFunctionUrl: broadcastUrl.url,
   guideFeedbackFunctionUrl: guideFeedbackUrl.url,
   transcribeFunctionUrl: transcribeUrl.url,
   // Point the Amplify Hosting /g/<*> 200-rewrite at this URL (+ /g/<*>).

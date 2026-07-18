@@ -17,6 +17,7 @@
   var newOnly = false;     // only guides created in the last 7 days
   var range = 30;          // chart window: 7 | 14 | 30 days
   var q = "";              // name filter
+  var showAllGuides = false; // collapsed by default: top 3 + "Show all"
 
   function render(s) { DATA = s; paint(); }
 
@@ -40,14 +41,30 @@
     return list;
   }
 
+  // Shows/hides guide cards from the filter text AND the collapsed state:
+  // collapsed shows the top 3 (of the current sort); typing a search always
+  // looks through ALL guides, so a hidden card can still be found.
   function applyNameFilter() {
     var wrap = $("statGuides");
     if (!wrap) return;
     var needle = q.trim().toLowerCase();
+    var shown = 0;
     Array.prototype.forEach.call(wrap.children, function (c) {
       var slug = (c.getAttribute("data-slug") || "").toLowerCase();
-      c.style.display = (!needle || slug.indexOf(needle) >= 0) ? "" : "none";
+      var match = !needle || slug.indexOf(needle) >= 0;
+      var visible = match && (showAllGuides || needle || shown < 3);
+      if (visible) shown++;
+      c.style.display = visible ? "" : "none";
     });
+    var more = $("sgMore");
+    if (more) {
+      var total = wrap.children.length;
+      // While searching, everything that matches is already visible.
+      more.hidden = !!needle || total <= 3;
+      more.textContent = showAllGuides
+        ? "Show fewer ▴"
+        : "Show all " + total + " guides ▾";
+    }
   }
 
   function exportCsv(list) {
@@ -220,7 +237,8 @@
           list.length + (newOnly ? " new this week" : "") + ')</span></h2>' +
         controls +
         (list.length
-          ? '<div class="stat-guides" id="statGuides">' + list.map(guideCard).join("") + "</div>"
+          ? '<div class="stat-guides" id="statGuides">' + list.map(guideCard).join("") + "</div>" +
+            '<button type="button" class="stat-chip sg-more" id="sgMore" hidden></button>'
           : '<p class="stat-empty">No guides match \u2014 try turning off the "New this week" filter.</p>');
     } else {
       guidesHtml = '<h2 class="stat-h2">Per-guide breakdown</h2>' +
@@ -237,6 +255,11 @@
       fEl.value = q;
       fEl.addEventListener("input", function () { q = this.value; applyNameFilter(); });
     }
+    var moreBtn = $("sgMore");
+    if (moreBtn) moreBtn.addEventListener("click", function () {
+      showAllGuides = !showAllGuides;
+      applyNameFilter();
+    });
     applyNameFilter();
     Array.prototype.forEach.call(out.querySelectorAll(".stat-chip"), function (c) {
       c.addEventListener("click", function () {
@@ -351,7 +374,50 @@
 
   /* ---- broadcast email composer (own container; never repainted) ---- */
   var bcastKey = "";     // held after unlock so sends reuse the passphrase
-  var bcastTotal = 0;    // recipient count from the audience check
+  var bcastTotal = 0;    // full audience size from the audience check
+
+  // Recipient picker: everyone ticked by default; untick to narrow a send
+  // (e.g. just yourself + a friend for a dry run). The server re-checks the
+  // selection against the live audience, so this is convenience, not access.
+  function pickedEmails() {
+    var boxes = document.querySelectorAll("#bcastRecipList input[type=checkbox]");
+    var on = [];
+    Array.prototype.forEach.call(boxes, function (b) { if (b.checked) on.push(b.getAttribute("data-em")); });
+    return on;
+  }
+  function syncPicker() {
+    var send = $("bcastSendBtn");
+    var pick = $("bcastPick");
+    if (!pick || pick.hidden) {
+      // No labelled list (older backend): whole-audience sends only.
+      send.disabled = !bcastTotal;
+      send.textContent = bcastTotal ? "Send to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") : "Send";
+      return;
+    }
+    var sel = pickedEmails().length;
+    var all = $("bcastAll");
+    if (all) all.checked = sel === bcastTotal;
+    $("bcastPickSummary").textContent = "Choose recipients (" + sel + " of " + bcastTotal + " selected)";
+    send.disabled = !sel;
+    send.textContent = sel ? "Send to " + sel + " " + (sel === 1 ? "person" : "people") : "Send";
+  }
+  function buildRecipientPicker(emails) {
+    var pick = $("bcastPick");
+    if (!pick || !emails.length) { syncPicker(); return; }
+    pick.hidden = false;
+    $("bcastRecipList").innerHTML = emails.map(function (r) {
+      return '<label class="bcast-recip"><input type="checkbox" checked data-em="' + esc(r.email) + '" /> ' +
+        esc(r.email) + ' <span class="bcast-src">' + (r.src === "waitlist" ? "waitlist" : "account") + "</span></label>";
+    }).join("");
+    $("bcastRecipList").addEventListener("change", syncPicker);
+    $("bcastAll").addEventListener("change", function () {
+      var on = this.checked;
+      Array.prototype.forEach.call(document.querySelectorAll("#bcastRecipList input[type=checkbox]"),
+        function (b) { b.checked = on; });
+      syncPicker();
+    });
+    syncPicker();
+  }
 
   function bcastSay(kind, msg) {
     var n = $("bcastNote");
@@ -375,9 +441,7 @@
           (a.unsubscribed ? " (" + a.unsubscribed + " unsubscribed, excluded)" : "") +
           ". Every email includes your identity and an unsubscribe link."
         : "Nobody to email yet — accounts and waitlist signups will appear here.";
-      var send = $("bcastSendBtn");
-      send.disabled = !bcastTotal;
-      send.textContent = bcastTotal ? "Send to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") : "Send";
+      buildRecipientPicker(a.emails || []);
     }).catch(function () {
       $("bcastWho").textContent = "Couldn't check the audience — try reloading.";
     });
@@ -400,19 +464,22 @@
       var subject = ($("bcastSubject").value || "").trim();
       var body = ($("bcastBody").value || "").trim();
       if (!subject || !body) { bcastSay("err", "Write a subject and a message first."); return; }
-      if (!confirm("Send this email to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") + "? This can't be undone.")) return;
+      var pickerOn = $("bcastPick") && !$("bcastPick").hidden;
+      var sel = pickerOn ? pickedEmails() : [];
+      var n = pickerOn ? sel.length : bcastTotal;
+      if (!n) { bcastSay("err", "Pick at least one recipient."); return; }
+      if (!confirm("Send this email to " + n + " " + (n === 1 ? "person" : "people") + "? This can't be undone.")) return;
       var btn = $("bcastSendBtn");
       btn.disabled = true; btn.textContent = "Sending…";
-      GotItStore.broadcast({ key: bcastKey, action: "send", subject: subject, body: body })
+      var payload = { key: bcastKey, action: "send", subject: subject, body: body };
+      if (pickerOn && sel.length !== bcastTotal) payload.only = sel; // subset send
+      GotItStore.broadcast(payload)
         .then(function (r) {
           if (r && r.failed) bcastSay("err", "Sent to " + r.sent + " of " + r.total + " — " + r.failed + " failed. Try again later for the rest.");
           else bcastSay("ok", "Sent to " + (r && r.sent || 0) + " " + ((r && r.sent) === 1 ? "person" : "people") + " 🎉");
         })
         .catch(function (e) { bcastSay("err", "Send failed: " + (e && e.message || "unknown error")); })
-        .then(function () {
-          btn.disabled = false;
-          btn.textContent = bcastTotal ? "Send to " + bcastTotal + " people" : "Send";
-        });
+        .then(function () { btn.disabled = false; syncPicker(); });
     });
   }
 

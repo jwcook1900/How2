@@ -2497,6 +2497,15 @@ body.dragging-active * {
 }
 .stat-filter:focus { outline: none; border-color: var(--coral); }
 .stat-guides { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+/* "Show all N guides" expander under the collapsed per-guide list */
+.sg-more { display: block; width: 100%; text-align: center; margin: 2px 0 10px; }
+/* Broadcast recipient picker */
+.bcast-pick { margin: 0 0 14px; }
+.bcast-pick summary { cursor: pointer; font-size: 0.92rem; font-weight: 600; color: var(--ink-soft); }
+.bcast-recips { max-height: 240px; overflow-y: auto; padding: 10px 2px 2px; }
+.bcast-recip { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.92rem; overflow-wrap: anywhere; }
+.bcast-recip-all { border-bottom: 1px solid var(--line); padding-bottom: 9px; margin-bottom: 4px; }
+.bcast-src { color: var(--ink-muted); font-size: 0.78rem; }
 .sg-card {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px;

@@ -4,13 +4,23 @@
    ============================================================ */
 
 :root {
+  /* Brand tokens (CLAUDE.md · Brand — assets in brand/). --color-orange is
+     the accent from the 2026 brand guidelines. The legacy --coral family
+     below predates it and still drives most of the UI: repointing coral at
+     the new orange is a deliberate visual decision, not a find-and-replace,
+     so the two coexist until that call is made. */
+  --color-ink: #1A1A1A;
+  --color-orange: #ED7446;
+  --color-cream: #FAFAF8;
+  --font-brand: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
   --coral: #FF6B35;
   --coral-dark: #E8521C;
   --coral-soft: #FFE7DC;
   --amber: #FFB347;
-  --bg: #FAFAF8;
+  --bg: var(--color-cream);
   --bg-tint: #FFF4EE;
-  --ink: #1A1A1A;
+  --ink: var(--color-ink);
   --ink-soft: #565049;
   --ink-muted: #8B847C;
   --line: #EDE8E2;
@@ -34,7 +44,7 @@ html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-t
 
 body {
   margin: 0;
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-brand);
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
@@ -206,6 +216,10 @@ ul { margin: 0; padding: 0; list-style: none; }
    the guide itself stays the creator's page (no brand bar). */
 .guide-nav { position: fixed; top: 12px; left: 12px; z-index: 90; }
 .guide-nav .nav-dropdown { min-width: 230px; }
+/* Wordmark: always the committed SVG (brand/logo-*.svg), never re-typed text.
+   The SVG's cap height is ~48% of its box, so 32px ≈ the old 1.4rem text. */
+.logo-img { height: 32px; width: auto; display: block; }
+/* Legacy text-wordmark styles kept only for anything still using the class. */
 .logo-mark {
   font-weight: 800;
   font-size: 1.4rem;
@@ -633,6 +647,9 @@ ul { margin: 0; padding: 0; list-style: none; }
   gap: 16px;
 }
 .footer-brand .logo-mark { color: var(--white); }
+.footer-brand .logo-img { height: 27px; }
+/* Footer stacks centred on mobile — keep the logo centred with it. */
+@media (max-width: 600px) { .footer-brand .logo-img { margin: 0 auto; } }
 .footer-made { font-size: 0.9rem; margin-top: 4px; color: var(--ink-muted); }
 .footer-copy { font-size: 0.9rem; color: var(--ink-muted); }
 .footer-links { display: flex; gap: 22px; flex-wrap: wrap; }
@@ -698,6 +715,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   .header-inner { height: 60px; }
   .header-left { gap: 9px; }
   .logo-mark { font-size: 1.08rem; white-space: nowrap; }
+  .logo-img { height: 25px; }
   .nav-toggle { width: 38px; height: 38px; }
   .nav-toggle svg { width: 18px; height: 18px; }
   .header-right { gap: 7px; }
@@ -716,6 +734,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   .site-header .header-inner { padding-left: 14px; padding-right: 14px; }
   .header-left { gap: 7px; }
   .logo-mark { font-size: 1rem; }
+  .logo-img { height: 23px; }
   .header-right { gap: 6px; }
   .header-right .btn-sm { padding: 8px 11px; font-size: 0.84rem; }
 }
@@ -2506,6 +2525,10 @@ body.dragging-active * {
 .bcast-recip { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.92rem; overflow-wrap: anywhere; }
 .bcast-recip-all { border-bottom: 1px solid var(--line); padding-bottom: 9px; margin-bottom: 4px; }
 .bcast-src { color: var(--ink-muted); font-size: 0.78rem; }
+/* Log write-permission toggle (editor) + read-only note (viewer) */
+.log-perm { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 0.88rem; color: var(--ink-soft); cursor: pointer; }
+.log-perm-hint { color: var(--ink-muted); font-size: 0.8rem; }
+.log-readonly { color: var(--ink-muted); font-size: 0.88rem; margin: 10px 0 0; }
 .sg-card {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px;
@@ -2763,7 +2786,7 @@ body.dragging-active * {
   .print-header {
     display: flex !important; column-span: all; -webkit-column-span: all;
     align-items: center; justify-content: space-between; gap: 16px;
-    border-bottom: 2px solid #1A1A1A; padding-bottom: 10px; margin-bottom: 14px;
+    border-bottom: 2px solid var(--color-ink); padding-bottom: 10px; margin-bottom: 14px;
   }
   .print-head-text { display: flex; align-items: center; gap: 12px; }
   .print-emoji { font-size: 2rem; line-height: 1; }

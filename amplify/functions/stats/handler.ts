@@ -7,13 +7,17 @@ const cognito = new CognitoIdentityProviderClient({});
 
 // Account counts straight from the user pool (full history — Cognito stamps
 // every user's creation date, so this is exact from day one, not from when
-// tracking shipped). Best-effort: on any failure the stats page just omits it.
-async function countAccounts(tz: number): Promise<{ total: number; week: number } | null> {
+// tracking shipped). Also buckets signups into the caller's local days for the
+// "new accounts" timeline. Best-effort: on any failure the page omits it.
+async function countAccounts(tz: number): Promise<{ total: number; week: number; daily: { d: string; v: number }[] } | null> {
   const poolId = process.env.USER_POOL_ID;
   if (!poolId) return null;
   try {
     let total = 0, week = 0;
     const weekAgo = Date.now() - 7 * 86400000;
+    const DAYS = 30;
+    const byDay: Record<string, number> = {};
+    const localDay = (t: number) => new Date(t - tz * 60000).toISOString().slice(0, 10);
     let token: string | undefined = undefined;
     do {
       const res: any = await cognito.send(new ListUsersCommand({
@@ -23,10 +27,17 @@ async function countAccounts(tz: number): Promise<{ total: number; week: number 
         total++;
         const created = u.UserCreateDate ? new Date(u.UserCreateDate).getTime() : 0;
         if (created > weekAgo) week++;
+        if (created) { const d = localDay(created); byDay[d] = (byDay[d] || 0) + 1; }
       }
       token = res.PaginationToken;
     } while (token);
-    return { total, week };
+    // Same 30-day zero-filled axis as the views chart, so charts line up.
+    const daily: { d: string; v: number }[] = [];
+    for (let i = DAYS - 1; i >= 0; i--) {
+      const d = localDay(Date.now() - i * 86400000);
+      daily.push({ d, v: byDay[d] || 0 });
+    }
+    return { total, week, daily };
   } catch (e) {
     return null;
   }

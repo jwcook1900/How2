@@ -2596,6 +2596,20 @@
       renderRows();
     });
     el.appendChild(add);
+
+    // Who can write: sitters adding entries is the point of a log, so it's on
+    // by default — but a public/example guide wants a read-only log (anyone on
+    // the internet could scribble into it otherwise).
+    var perm = document.createElement("label");
+    perm.className = "log-perm";
+    perm.innerHTML = '<input type="checkbox"' + (log.ownerOnly ? "" : " checked") + " /> " +
+      "Viewers can add entries <span class=\"log-perm-hint\">(untick for public or example guides — the log shows read-only)</span>";
+    perm.querySelector("input").addEventListener("change", function () {
+      if (this.checked) delete log.ownerOnly;
+      else log.ownerOnly = true;
+      scheduleHistory();
+    });
+    el.appendChild(perm);
     return el;
   }
 

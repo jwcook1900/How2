@@ -140,6 +140,22 @@
           esc(fmtD(ng[ng.length - 1].d)) + " (today)</span></div>"
       : "";
 
+    // New accounts per day (exact — straight from the user pool's creation
+    // stamps; same axis + range chips as the other timelines)
+    var acctsHtml = "";
+    if (s.accounts && s.accounts.daily) {
+      var ac = s.accounts.daily.slice(-range);
+      var acTotal = ac.reduce(function (a, x) { return a + x.v; }, 0);
+      if (acTotal) {
+        acctsHtml =
+          '<h2 class="stat-h2">New accounts — last ' + range + " days" +
+            ' <span class="stat-sub">(' + acTotal + " account" + (acTotal === 1 ? "" : "s") + ")</span></h2>" +
+          bars(ac, "stat-chart", "account") +
+          '<div class="stat-chart-axis"><span>' + esc(fmtD(ac[0].d)) + "</span><span>" +
+            esc(fmtD(ac[ac.length - 1].d)) + " (today)</span></div>";
+      }
+    }
+
     // Where views come from (referrer domain or "direct"; collected on view
     // events only from when ref tracking shipped, so older views don't show)
     var refs = s.refs || {};
@@ -245,7 +261,7 @@
         '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + dailyHtml + newGuidesHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
+    out.innerHTML = cards + dailyHtml + newGuidesHtml + acctsHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 

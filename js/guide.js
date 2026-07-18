@@ -43,6 +43,9 @@
       return getPlain.then(function (latest) {
         var log = findById(latest.logs, logId);
         if (!log) throw new Error("nolog");
+        // Re-check on the freshest copy: if the owner has since made this log
+        // read-only, a stale open tab must not write into it.
+        if (log.ownerOnly) throw new Error("readonly");
         log.rows = log.rows || [];
         log.rows.push(entry);
         var toStore = encrypted ? GotItStore.encrypt(latest, currentPassword) : Promise.resolve(latest);
@@ -243,16 +246,21 @@
     }).join("");
   }
   function logHtml(log) {
-    return '<div class="guide-log" data-log="' + esc(log.id) + '">' +
-        '<div class="log-head">📓 ' + esc(log.title) + "</div>" +
-        '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead>' +
-          '<tbody class="log-rows">' + logRowsHtml(log) + "</tbody></table>" +
-        '<div class="log-add">' +
+    // ownerOnly: the creator turned off viewer entries (read-only log — used
+    // on public/example guides so passers-by can't write into the real record).
+    var addForm = log.ownerOnly
+      ? '<p class="log-readonly">📖 This log is read-only — only the owner can add entries.</p>'
+      : '<div class="log-add">' +
           '<input type="text" class="q-input log-when" aria-label="When" placeholder="When" />' +
           '<input type="text" class="q-input log-note" aria-label="Note" placeholder="Add a note, e.g. seizure, fed, walked…" />' +
           '<button class="btn btn-primary btn-sm log-add-btn" type="button">Add entry</button>' +
         "</div>" +
-        '<p class="log-add-msg" role="status" aria-live="polite" hidden></p>' +
+        '<p class="log-add-msg" role="status" aria-live="polite" hidden></p>';
+    return '<div class="guide-log" data-log="' + esc(log.id) + '">' +
+        '<div class="log-head">📓 ' + esc(log.title) + "</div>" +
+        '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead>' +
+          '<tbody class="log-rows">' + logRowsHtml(log) + "</tbody></table>" +
+        addForm +
       "</div>";
   }
   function byId(list, id) {
@@ -364,6 +372,7 @@
   doc.querySelectorAll(".guide-log").forEach(function (logEl) {
     var log = byId(guide.logs, logEl.getAttribute("data-log"));
     if (!log) return;
+    if (log.ownerOnly) return; // read-only log: no add form was rendered
     var whenInp = logEl.querySelector(".log-when");
     var noteInp = logEl.querySelector(".log-note");
     var btn = logEl.querySelector(".log-add-btn");
@@ -408,7 +417,11 @@
         '<p class="guide-cta-eyebrow">Made with GotIt Guides</p>' +
         '<h3 class="guide-cta-title">Make your own care guide — free</h3>' +
         '<p class="guide-cta-sub">Pull your routine, contacts, medication and notes into one simple link to share with any sitter, carer or guest.</p>' +
-        '<a class="btn btn-primary guide-cta-btn" href="index.html">Create your free guide →</a>' +
+        // Straight into the builder (pre-set to this guide's category) — the
+        // homepage was an extra hop that lost people mid-conversion.
+        '<a class="btn btn-primary guide-cta-btn" href="builder.html' +
+          (guide.category ? "?cat=" + encodeURIComponent(guide.category) : "") +
+          '">Create your free guide →</a>' +
       "</div>" +
       '<p class="guide-foot-mini"><a href="index.html">GotIt Guides</a> · guides people get</p>';
   } else {

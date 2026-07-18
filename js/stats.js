@@ -102,6 +102,27 @@
           esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>" : "")
       : "";
 
+    // New guides per day (from each guide's first-publish date, bucketed into
+    // the same viewer-local days as the views chart; follows the range chips)
+    var tzOff = new Date().getTimezoneOffset();
+    var createdByDay = {};
+    (s.guides || []).forEach(function (g) {
+      if (!g.created) return;
+      var t = Date.parse(g.created);
+      if (isNaN(t)) return;
+      var d = new Date(t - tzOff * 60000).toISOString().slice(0, 10);
+      createdByDay[d] = (createdByDay[d] || 0) + 1;
+    });
+    var ng = vdAll.slice(-range).map(function (x) { return { d: x.d, v: createdByDay[x.d] || 0 }; });
+    var ngTotal = ng.reduce(function (a, x) { return a + x.v; }, 0);
+    var newGuidesHtml = ngTotal
+      ? '<h2 class="stat-h2">New guides — last ' + range + ' days' +
+          ' <span class="stat-sub">(' + ngTotal + " guide" + (ngTotal === 1 ? "" : "s") + ")</span></h2>" +
+        bars(ng, "stat-chart", "guide") +
+        '<div class="stat-chart-axis"><span>' + esc(fmtD(ng[0].d)) + "</span><span>" +
+          esc(fmtD(ng[ng.length - 1].d)) + " (today)</span></div>"
+      : "";
+
     // Where views come from (referrer domain or "direct"; collected on view
     // events only from when ref tracking shipped, so older views don't show)
     var refs = s.refs || {};
@@ -206,7 +227,7 @@
         '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + dailyHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
+    out.innerHTML = cards + dailyHtml + newGuidesHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
@@ -235,16 +256,18 @@
     var M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return (+p[2]) + " " + (M[+p[1] - 1] || "");
   }
-  // Daily-views bars: single brand hue, zero days as baseline stubs, today
-  // emphasised, per-bar value in a native tooltip.
-  function bars(daily, cls) {
+  // Daily bars: single brand hue, zero days as baseline stubs, today
+  // emphasised, per-bar value in a native tooltip. `unit` names what the
+  // numbers are ("view" by default; "guide" for the new-guides chart).
+  function bars(daily, cls, unit) {
+    unit = unit || "view";
     var max = 0;
     daily.forEach(function (x) { if (x.v > max) max = x.v; });
     var out = '<div class="' + cls + '" aria-hidden="true">';
     daily.forEach(function (x, i) {
       var last = i === daily.length - 1;
       var h = x.v && max ? Math.max(8, Math.round(x.v / max * 100)) + "%" : "2px";
-      var tip = esc(fmtD(x.d)) + " \u2014 " + x.v + " view" + (x.v === 1 ? "" : "s") +
+      var tip = esc(fmtD(x.d)) + " \u2014 " + x.v + " " + unit + (x.v === 1 ? "" : "s") +
         (x.u ? " \u00B7 " + x.u + " visitor" + (x.u === 1 ? "" : "s") : "");
       out += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
         '" style="height:' + h + '" title="' + tip + '"></i>';
@@ -280,7 +303,8 @@
         metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
       "</div>" +
       srcChips(g.refs) +
-      (g.daily ? bars(g.daily, "sg-daily") : "") +
+      // Sparkline follows the same 7/14/30-day window as the main chart.
+      (g.daily ? bars(g.daily.slice(-range), "sg-daily") : "") +
       (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +
     "</div>";
   }
@@ -325,6 +349,73 @@
       '<div class="stat-label">' + label + "</div></div>";
   }
 
+  /* ---- broadcast email composer (own container; never repainted) ---- */
+  var bcastKey = "";     // held after unlock so sends reuse the passphrase
+  var bcastTotal = 0;    // recipient count from the audience check
+
+  function bcastSay(kind, msg) {
+    var n = $("bcastNote");
+    n.hidden = false;
+    n.style.color = kind === "ok" ? "#1B7F4B" : "";
+    n.textContent = msg;
+  }
+
+  function initBroadcast(key) {
+    bcastKey = key;
+    var box = $("bcast");
+    if (!box || !box.hidden) return; // already initialised
+    box.hidden = false;
+    GotItStore.broadcast({ key: key, action: "audience" }).then(function (a) {
+      if (!a) { $("bcastWho").textContent = "Email backend isn't available here."; return; }
+      bcastTotal = a.total || 0;
+      $("bcastWho").textContent = bcastTotal
+        ? "Goes to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") + " — " +
+          (a.accounts || 0) + " account holder" + (a.accounts === 1 ? "" : "s") + " + " +
+          (a.waitlist || 0) + " waitlist" +
+          (a.unsubscribed ? " (" + a.unsubscribed + " unsubscribed, excluded)" : "") +
+          ". Every email includes your identity and an unsubscribe link."
+        : "Nobody to email yet — accounts and waitlist signups will appear here.";
+      var send = $("bcastSendBtn");
+      send.disabled = !bcastTotal;
+      send.textContent = bcastTotal ? "Send to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") : "Send";
+    }).catch(function () {
+      $("bcastWho").textContent = "Couldn't check the audience — try reloading.";
+    });
+
+    $("bcastTestBtn").addEventListener("click", function () {
+      var to = ($("bcastTestTo").value || "").trim();
+      var subject = ($("bcastSubject").value || "").trim();
+      var body = ($("bcastBody").value || "").trim();
+      if (!subject || !body) { bcastSay("err", "Write a subject and a message first."); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { bcastSay("err", "Enter your own address for the test."); return; }
+      var btn = $("bcastTestBtn");
+      btn.disabled = true; btn.textContent = "Sending…";
+      GotItStore.broadcast({ key: bcastKey, action: "test", to: to, subject: subject, body: body })
+        .then(function () { bcastSay("ok", "Test sent to " + to + " — check it (and the unsubscribe link) before the real send."); })
+        .catch(function (e) { bcastSay("err", "Test failed: " + (e && e.message || "unknown error")); })
+        .then(function () { btn.disabled = false; btn.textContent = "Send test to me"; });
+    });
+
+    $("bcastSendBtn").addEventListener("click", function () {
+      var subject = ($("bcastSubject").value || "").trim();
+      var body = ($("bcastBody").value || "").trim();
+      if (!subject || !body) { bcastSay("err", "Write a subject and a message first."); return; }
+      if (!confirm("Send this email to " + bcastTotal + " " + (bcastTotal === 1 ? "person" : "people") + "? This can't be undone.")) return;
+      var btn = $("bcastSendBtn");
+      btn.disabled = true; btn.textContent = "Sending…";
+      GotItStore.broadcast({ key: bcastKey, action: "send", subject: subject, body: body })
+        .then(function (r) {
+          if (r && r.failed) bcastSay("err", "Sent to " + r.sent + " of " + r.total + " — " + r.failed + " failed. Try again later for the rest.");
+          else bcastSay("ok", "Sent to " + (r && r.sent || 0) + " " + ((r && r.sent) === 1 ? "person" : "people") + " 🎉");
+        })
+        .catch(function (e) { bcastSay("err", "Send failed: " + (e && e.message || "unknown error")); })
+        .then(function () {
+          btn.disabled = false;
+          btn.textContent = bcastTotal ? "Send to " + bcastTotal + " people" : "Send";
+        });
+    });
+  }
+
   function go() {
     var key = ($("statsKey").value || "").trim();
     if (!key) return;
@@ -333,11 +424,27 @@
     btn.disabled = true; btn.textContent = "Loading…";
     GotItStore.stats(key).then(function (s) {
       if (!s) { err.textContent = "Stats backend isn't available here (publish online to use it)."; err.hidden = false; }
-      else render(s);
+      else { render(s); initBroadcast(key); startAutoRefresh(key); }
     }).catch(function () {
       err.textContent = "Wrong passphrase, or stats aren't configured yet.";
       err.hidden = false;
     }).then(function () { btn.disabled = false; btn.textContent = "View stats"; });
+  }
+
+  // Silent refresh every 3 minutes while the tab is visible, so a day of
+  // watching the page never shows stale numbers. Skipped while typing (a
+  // repaint would blur the filter box); chip/sort/range state is module-level
+  // so it survives every repaint.
+  var refreshTimer = null;
+  function startAutoRefresh(key) {
+    if (refreshTimer) return;
+    refreshTimer = setInterval(function () {
+      if (document.hidden) return;
+      var ae = document.activeElement;
+      if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+      GotItStore.stats(key).then(function (s) { if (s) render(s); })
+        .catch(function () { /* keep showing the last good numbers */ });
+    }, 180000);
   }
 
   $("statsGo").addEventListener("click", go);

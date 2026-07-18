@@ -751,8 +751,18 @@
         if (edItem) {
           var tok = (slug && GotItStore.editTokenFor) ? GotItStore.editTokenFor(slug) : null;
           if (!tok) tok = ownEdit; // signed-in owner on a fresh device
-          edItem.hidden = !tok;
-          if (tok) edItem.href = "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(tok);
+          edItem.hidden = !slug;
+          if (tok) {
+            edItem.href = "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(tok);
+            edItem.removeAttribute("data-help");
+          } else {
+            // No token on this device: the item stays visible (owners on a
+            // fresh device were getting lost) and opens a "get back in"
+            // explainer instead. Sitters who tap it just learn editing is
+            // owner-only — nothing sensitive is shown.
+            edItem.href = "#";
+            edItem.setAttribute("data-help", "1");
+          }
         }
         menu.hidden = false;
         toggle.setAttribute("aria-expanded", "true");
@@ -760,6 +770,37 @@
       } else close();
     });
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+
+    // "Edit this guide" without a token on this device: explain how the owner
+    // gets back in. Recovery never shows or emails a stored token from here —
+    // it only points at the places the owner already has it (their inbox, or
+    // their signed-in dashboard).
+    var edLink = document.getElementById("gnavEdit");
+    if (edLink) edLink.addEventListener("click", function (e) {
+      if (!edLink.getAttribute("data-help")) return; // has a real edit href
+      e.preventDefault();
+      close();
+      var overlay = document.getElementById("editHelpModal");
+      if (overlay) { overlay.hidden = false; return; }
+      overlay = document.createElement("div");
+      overlay.className = "rem-modal"; overlay.id = "editHelpModal";
+      var backdrop = document.createElement("div");
+      backdrop.className = "rem-backdrop";
+      var card = document.createElement("div");
+      card.className = "rem-card";
+      card.innerHTML =
+        '<button type="button" class="rem-x">×</button>' +
+        '<h3 class="rem-title">✏️ Editing this guide</h3>' +
+        '<p class="rem-lead">Only the owner can edit — it works from the guide’s private edit link, and this device doesn’t have it. If this is your guide, here’s how to get back in:</p>' +
+        '<p class="rem-lead" style="margin-top:14px">🔎 <b>Search your email</b> for “GotIt Guides” — if you emailed yourself your links when you published, the edit link is in that email.</p>' +
+        '<p class="rem-lead">🪪 <b>Signed up?</b> <a href="dashboard.html">Sign in to My guides</a> — every guide you saved opens for editing from there, on any device.</p>' +
+        '<p class="rem-lead">💬 <b>Still stuck?</b> Email <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> and we’ll get you back into your guide.</p>';
+      function hide() { overlay.hidden = true; }
+      backdrop.addEventListener("click", hide);
+      card.querySelector(".rem-x").addEventListener("click", hide);
+      overlay.appendChild(backdrop); overlay.appendChild(card);
+      document.body.appendChild(overlay);
+    });
 
     var share = document.getElementById("gnavShare");
     if (share) share.addEventListener("click", function () {

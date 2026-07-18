@@ -22,6 +22,7 @@ window.GotItStore = (function () {
             url: j.data.url,
             key: j.data.api_key,
             statsUrl: j.custom && j.custom.statsFunctionUrl,
+            broadcastUrl: j.custom && j.custom.broadcastFunctionUrl,
             guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl,
             transcribeUrl: j.custom && j.custom.transcribeFunctionUrl
           };
@@ -659,6 +660,26 @@ window.GotItStore = (function () {
           if (r.status === 401) throw new Error("wrong passphrase");
           if (r.status === 503) return null; // not configured yet
           throw new Error("stats unavailable");
+        });
+      });
+    },
+
+    // Broadcast-email admin API (passphrase-protected Lambda URL, /stats page
+    // only). `payload`: { key, action: "audience"|"test"|"send", subject, body, to }.
+    // Resolves with the response object, null if unavailable, rejects on 401.
+    broadcast: function (payload) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.broadcastUrl) return null;
+        return fetch(cfg.broadcastUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function (r) {
+          if (r.status === 401) throw new Error("wrong passphrase");
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error(j && j.error || "failed");
+            return j;
+          });
         });
       });
     },

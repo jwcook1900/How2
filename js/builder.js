@@ -267,16 +267,36 @@
      for never-published guides: published ones live in the cloud and
      re-open via their edit link. */
   var DRAFT_KEY = "gotit_draft_v1";
+  // Unsaved EDITS to an already-published guide (a separate key so a new-guide
+  // draft and an interrupted edit session can't overwrite each other).
+  var EDIT_DRAFT_KEY = "gotit_editdraft_v1";
   var DRAFT_MAX_AGE = 7 * 86400000; // a week-old draft is stale, not precious
   var draftTimer = null;
   function saveDraftLocal() {
-    if (state.created || !state.guide || currentStepKey !== 3) return;
+    if (!state.guide || currentStepKey !== 3) return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ guide: state.guide, savedAt: Date.now() }));
+      if (!state.created) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ guide: state.guide, savedAt: Date.now() }));
+      } else if (state.guide.slug && !state.password) {
+        // Editing a published guide: keep a safety copy of unsaved changes.
+        // Never for locked guides — their contents are code-gated, and a
+        // plaintext draft in localStorage would let anyone on this device
+        // read them without the code.
+        localStorage.setItem(EDIT_DRAFT_KEY, JSON.stringify({ slug: state.guide.slug, guide: state.guide, savedAt: Date.now() }));
+      }
     } catch (e) { /* storage full or blocked — autosave stays best-effort */ }
   }
   function scheduleDraftSave() { clearTimeout(draftTimer); draftTimer = setTimeout(saveDraftLocal, 1200); }
   function clearDraftLocal() { clearTimeout(draftTimer); try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  function clearEditDraft() { try { localStorage.removeItem(EDIT_DRAFT_KEY); } catch (e) {} }
+  function loadEditDraft(slug) {
+    try {
+      var d = JSON.parse(localStorage.getItem(EDIT_DRAFT_KEY) || "null");
+      if (!d || !d.guide || d.slug !== slug) return null;
+      if (Date.now() - (d.savedAt || 0) > DRAFT_MAX_AGE) { clearEditDraft(); return null; }
+      return d;
+    } catch (e) { return null; }
+  }
   function loadDraftLocal() {
     try {
       var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
@@ -2770,6 +2790,9 @@
       var firstPublish = !state.created;
       state.created = true;
       clearDraftLocal(); // it's live now — the local safety copy has done its job
+      clearEditDraft();  // saved edits are in the cloud now too
+      var edBanner = $("editDraftBanner");
+      if (edBanner) edBanner.remove();
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       logFeatureUsage(g, locked); // which features this guide uses (deduped by slug)
       renderGuideEditor(); // reflect any auto-resized images in the editor
@@ -3683,6 +3706,43 @@
     renderGuideEditor();
     showStep(3);
     initHistory();
+    offerEditDraftResume(guide);
+  }
+
+  // An interrupted edit session (phone locked, tab closed before "Save &
+  // publish") left newer work in localStorage than what's live — offer it
+  // back. Only when the saved copy actually differs from the cloud copy.
+  function offerEditDraftResume(cloudGuide) {
+    var d = loadEditDraft(cloudGuide.slug);
+    if (!d || JSON.stringify(d.guide) === JSON.stringify(cloudGuide)) {
+      if (d) clearEditDraft(); // identical — nothing to offer
+      return;
+    }
+    var step3 = $("step3");
+    if (!step3 || $("editDraftBanner")) return;
+    var banner = document.createElement("div");
+    banner.className = "draft-banner";
+    banner.id = "editDraftBanner";
+    banner.innerHTML =
+      '<p class="draft-banner-text">👋 You have <b>unsaved edits</b> to this guide from earlier on this device.</p>' +
+      '<div class="draft-banner-actions">' +
+        '<button class="btn btn-primary btn-sm" id="editDraftRestore" type="button">▶ Restore them</button>' +
+        '<button class="btn btn-ghost btn-sm" id="editDraftDismiss" type="button">Keep the published version</button>' +
+      "</div>";
+    var heading = step3.querySelector(".step-heading");
+    step3.insertBefore(banner, heading ? heading.nextSibling : step3.firstChild);
+    $("editDraftRestore").addEventListener("click", function () {
+      d.guide.slug = cloudGuide.slug; // identity comes from the edit link, always
+      state.guide = d.guide;
+      banner.remove();
+      renderGuideEditor();
+      initHistory();
+      showToast("Restored — hit Save & publish to make it live.");
+    });
+    $("editDraftDismiss").addEventListener("click", function () {
+      clearEditDraft();
+      banner.remove();
+    });
   }
 
   function catById(id) {

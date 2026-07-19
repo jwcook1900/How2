@@ -41,22 +41,28 @@ const backend = defineBackend({
 // "auth.gotitguides.com" instead of the generated Cognito domain. It's added
 // ALONGSIDE the Amplify-managed prefix domain — the app keeps signing people in
 // on the prefix domain until we point it at this one client-side, so deploying
-// this can't interrupt live sign-in. (If this pool won't accept a second domain,
-// the stack simply rolls back with no effect on sign-in.) The ACM cert it
-// references must be in us-east-1 — Cognito requires that region for custom
-// domains, even though the pool is in ap-southeast-2.
-const authCustomDomain = new CfnUserPoolDomain(
-  backend.auth.resources.userPool.stack,
-  "GotItAuthCustomDomain",
-  {
-    userPoolId: backend.auth.resources.userPool.userPoolId,
-    domain: "auth.gotitguides.com",
-    customDomainConfig: {
-      certificateArn:
-        "arn:aws:acm:us-east-1:485215543116:certificate/fd7963c2-72ba-44d7-87e4-b2b2815e0822",
-    },
-  }
-);
+// this can't interrupt live sign-in. The ACM cert it references must be in
+// us-east-1 — Cognito requires that region for custom domains, even though the
+// pool is in ap-southeast-2.
+// PRODUCTION ONLY: a custom domain can belong to exactly one user pool, and
+// production's owns it. Sandbox/preview branches (their own pools) must skip it
+// or their whole first deploy rolls back with "Domain already exists".
+const PROD_BRANCH = "claude/ecstatic-einstein-i3ewvk";
+const isProdBranch = process.env.AWS_BRANCH === PROD_BRANCH;
+const authCustomDomain = isProdBranch
+  ? new CfnUserPoolDomain(
+      backend.auth.resources.userPool.stack,
+      "GotItAuthCustomDomain",
+      {
+        userPoolId: backend.auth.resources.userPool.userPoolId,
+        domain: "auth.gotitguides.com",
+        customDomainConfig: {
+          certificateArn:
+            "arn:aws:acm:us-east-1:485215543116:certificate/fd7963c2-72ba-44d7-87e4-b2b2815e0822",
+        },
+      }
+    )
+  : null;
 
 // The email + feedback functions send via Resend's HTTPS API (key injected as
 // the RESEND_API_KEY secret), so they need no AWS SES/IAM permissions.
@@ -151,6 +157,9 @@ backend.addOutput({ custom: {
   transcribeFunctionUrl: transcribeUrl.url,
   // Point the Amplify Hosting /g/<*> 200-rewrite at this URL (+ /g/<*>).
   ogFunctionUrl: ogUrl.url,
-  // The CloudFront target to point the auth.gotitguides.com Route 53 alias at.
-  authCustomDomainCloudFront: authCustomDomain.attrCloudFrontDistribution,
+  // The CloudFront target to point the auth.gotitguides.com Route 53 alias at
+  // (production only — sandbox branches use their default Cognito domain).
+  ...(authCustomDomain
+    ? { authCustomDomainCloudFront: authCustomDomain.attrCloudFrontDistribution }
+    : {}),
 } });

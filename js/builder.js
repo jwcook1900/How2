@@ -1338,7 +1338,10 @@
         '<span class="lf-flex"></span>' +
         (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
         '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "Finish my guide \u2192" : "Next \u2192") + "</button>" +
-      "</div>";
+      "</div>" +
+      // Finishing must not feel like a commitment: the full editor is next,
+      // and that's where extra sections / photos / videos get added.
+      (isLast ? '<div class="lf-hint lf-finish-hint">Want to say more? Finishing opens your full guide, where you can add extra sections, photos and how-to videos before you share.</div>' : "");
 
     var fieldRow = wrap.querySelector(".lf-field-row");
     var container = document.createElement("div");
@@ -1629,9 +1632,11 @@
     if (!el || reduce) { done(); return; }
     var W = el.offsetWidth, H = el.offsetHeight;
     if (!W || !H) { done(); return; }
-    // Belt and braces: the card's own border flashes green too, so "saved"
-    // reads even where the SVG line animation can't run.
-    el.classList.add("lf-tracing", "lf-saved");
+    // The line starts at the top corner, traces the full perimeter (~0.9s)
+    // and, the moment the loop closes, the card's border flashes green as
+    // the "saved" beat — then the flow moves on.
+    el.classList.add("lf-tracing");
+    var drew = false;
     try {
       var radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
       var NS = "http://www.w3.org/2000/svg";
@@ -1645,17 +1650,31 @@
       rect.setAttribute("fill", "none");
       rect.setAttribute("stroke", "#1B7F4B");
       rect.setAttribute("stroke-width", "3");
+      rect.setAttribute("stroke-linecap", "round");
       svg.appendChild(rect);
       el.appendChild(svg);
       var len = rect.getTotalLength();
       rect.style.strokeDasharray = len;
       rect.style.strokeDashoffset = len;
-      rect.style.transition = "stroke-dashoffset 0.45s ease-in-out";
-      requestAnimationFrame(function () {
-        requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
-      });
-    } catch (e) { /* the border flash still shows */ }
-    setTimeout(done, 560); // renderLive rebuilds the doc, clearing the overlay
+      if (rect.animate) {
+        // Web Animations API: reliable on iOS where CSS transitions on SVG
+        // stroke properties can quietly not run.
+        rect.animate(
+          [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+          { duration: 850, easing: "ease-in-out", fill: "forwards" }
+        );
+      } else {
+        rect.style.transition = "stroke-dashoffset 0.85s ease-in-out";
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
+        });
+      }
+      drew = true;
+    } catch (e) { /* fall through to the flash-only path */ }
+    // No draw (old browser)? Flash immediately so "saved" still reads.
+    var flashAt = drew ? 850 : 0;
+    setTimeout(function () { el.classList.add("lf-saved"); }, flashAt);
+    setTimeout(done, flashAt + 220); // renderLive rebuilds the doc, clearing the overlay
   }
   // The card the current step is writing into (cover for title/photo steps).
   function liveActiveCard() {

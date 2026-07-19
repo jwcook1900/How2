@@ -2637,6 +2637,7 @@ body.dragging-active * {
 .lf-input { width: 100%; box-sizing: border-box; }
 textarea.lf-input { resize: none; }
 .lf-actions { margin-top: 8px; justify-content: flex-end; }
+.lf-finish-hint { text-align: center; margin-top: 12px; }
 /* Photo step: the cover is drag-to-frame; the decision panel sits below it */
 .lf-cover.lf-reframe { cursor: grab; touch-action: none; user-select: none; }
 .lf-cover.lf-reframe:active { cursor: grabbing; }

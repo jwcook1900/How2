@@ -1335,44 +1335,27 @@
 
     renderLiveSpot(cur);
 
-    // Keep the step's context visible: on desktop the spotlight sits inline
-    // under its card, so centre that pair; on mobile centre the card above
-    // the pinned spotlight.
-    var scrollTo = liveSpotInline() ? (cur.nextSibling || cur) : cur;
+    // Centre the card + its question card together.
+    var scrollTo = (cur && cur.nextSibling) || cur;
     if (scrollTo && scrollTo.scrollIntoView) {
       setTimeout(function () { scrollTo.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
     }
   }
 
-  // Desktop: the question card sits in the document, right under the section
-  // it's filling (a bottom-pinned bar there is a football field away from the
-  // content). Mobile keeps the pinned bar — that's where thumbs and the
-  // keyboard are.
-  function liveSpotInline() {
-    return window.matchMedia("(min-width: 720px)").matches;
-  }
-  var liveResizeWired = false;
-  function wireLiveResize() {
-    if (liveResizeWired) return;
-    liveResizeWired = true;
-    var wasInline = liveSpotInline();
-    window.addEventListener("resize", function () {
-      if (currentStepKey !== "live") return;
-      var nowInline = liveSpotInline();
-      if (nowInline !== wasInline) { wasInline = nowInline; renderLive(); }
-    });
-  }
-
+  // The question card always sits IN the document, right under the section
+  // it's filling. (An earlier build pinned it position:fixed to the bottom on
+  // phones — iOS shifts fixed elements when the keyboard opens, so taps on
+  // the input were landing on the ghost cards behind it and teleporting the
+  // spotlight. Inline has no overlay to misalign, and iOS scrolls the focused
+  // field into view natively.)
   function renderLiveSpot(activeEl) {
-    wireLiveResize();
     var fixedSpot = $("lfSpot");
     var s = liveSteps[liveIdx];
     stopMic();
     fixedSpot.innerHTML = "";
-    var inline = liveSpotInline();
-    fixedSpot.hidden = inline;
+    fixedSpot.hidden = true; // legacy container, kept empty
     var spot = fixedSpot;
-    if (inline && activeEl) {
+    if (activeEl) {
       spot = document.createElement("div");
       spot.className = "lf-inline-spot";
       activeEl.parentNode.insertBefore(spot, activeEl.nextSibling);
@@ -1550,28 +1533,32 @@
     if (!el || reduce) { done(); return; }
     var W = el.offsetWidth, H = el.offsetHeight;
     if (!W || !H) { done(); return; }
-    var radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
-    el.classList.add("lf-tracing");
-    var NS = "http://www.w3.org/2000/svg";
-    var svg = document.createElementNS(NS, "svg");
-    svg.setAttribute("class", "lf-trace-svg");
-    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
-    var rect = document.createElementNS(NS, "rect");
-    rect.setAttribute("x", 1.5); rect.setAttribute("y", 1.5);
-    rect.setAttribute("width", W - 3); rect.setAttribute("height", H - 3);
-    rect.setAttribute("rx", Math.max(4, radius - 2));
-    rect.setAttribute("fill", "none");
-    rect.setAttribute("stroke", "#1B7F4B");
-    rect.setAttribute("stroke-width", "3");
-    svg.appendChild(rect);
-    el.appendChild(svg);
-    var len = rect.getTotalLength();
-    rect.style.strokeDasharray = len;
-    rect.style.strokeDashoffset = len;
-    rect.style.transition = "stroke-dashoffset 0.45s ease-in-out";
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
-    });
+    // Belt and braces: the card's own border flashes green too, so "saved"
+    // reads even where the SVG line animation can't run.
+    el.classList.add("lf-tracing", "lf-saved");
+    try {
+      var radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "lf-trace-svg");
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      var rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("x", 1.5); rect.setAttribute("y", 1.5);
+      rect.setAttribute("width", W - 3); rect.setAttribute("height", H - 3);
+      rect.setAttribute("rx", Math.max(4, radius - 2));
+      rect.setAttribute("fill", "none");
+      rect.setAttribute("stroke", "#1B7F4B");
+      rect.setAttribute("stroke-width", "3");
+      svg.appendChild(rect);
+      el.appendChild(svg);
+      var len = rect.getTotalLength();
+      rect.style.strokeDasharray = len;
+      rect.style.strokeDashoffset = len;
+      rect.style.transition = "stroke-dashoffset 0.45s ease-in-out";
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
+      });
+    } catch (e) { /* the border flash still shows */ }
     setTimeout(done, 560); // renderLive rebuilds the doc, clearing the overlay
   }
   // The card the current step is writing into (cover for title/photo steps).

@@ -2692,6 +2692,31 @@ textarea.lf-input { resize: none; }
   45%  { transform: translate(-50%, -50%) scale(1.35) rotate(8deg); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(0.55) rotate(20deg); opacity: 0; }
 }
+/* "Drag to frame" invitation, bobbing on the fresh cover photo */
+.lf-drag-hint {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.48);
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: lfDragBob 1.3s ease-in-out infinite;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+.lf-drag-hint-gone { opacity: 0; }
+@keyframes lfDragBob {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50%      { transform: translate(-44%, -56%); }
+}
 /* End-cap: the ghost publish button that marks the flow's finish line */
 .lf-endcap { text-align: center; margin: 18px 0 4px; pointer-events: none; }
 .lf-endcap-btn {

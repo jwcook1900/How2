@@ -1325,8 +1325,8 @@
     cap.className = "lf-endcap";
     cap.setAttribute("aria-hidden", "true");
     cap.innerHTML =
-      '<div class="lf-endcap-btn">Save &amp; publish →</div>' +
-      '<div class="lf-endcap-note">the finish line, once your answers are in</div>';
+      '<div class="lf-endcap-btn">🏁 Review &amp; publish</div>' +
+      '<div class="lf-endcap-note">your final step, once the questions are done</div>';
     doc.appendChild(cap);
 
     // Centre whatever is open.
@@ -1545,6 +1545,20 @@
   // plus a centre control. Runs only during the photo step.
   function enableLiveReframe(el) {
     el.classList.add("lf-reframe");
+    // The photo itself invites the drag: a bobbing "👆 Drag to frame" pill
+    // sits on it until the first touch (or a few seconds pass). Text below a
+    // photo goes unread; a finger on the photo doesn't.
+    var hint = document.createElement("div");
+    hint.className = "lf-drag-hint";
+    hint.textContent = "👆 Drag to frame";
+    el.appendChild(hint);
+    function killHint() {
+      if (!hint) return;
+      var h = hint; hint = null;
+      h.classList.add("lf-drag-hint-gone");
+      setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, 320);
+    }
+    setTimeout(killHint, 3400);
     var parts = (state.liveCoverPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
     var posX = parseFloat(parts[0]); if (isNaN(posX)) posX = 50;
     var posY = parseFloat(parts[1]); if (isNaN(posY)) posY = 50;
@@ -1552,6 +1566,7 @@
     el.addEventListener("pointerdown", function (e) {
       if (e.target.closest(".lf-centre-btn")) return;
       e.preventDefault();
+      killHint(); // they've got it — the invitation has done its job
       dragging = true; startX = e.clientX; startY = e.clientY; baseX = posX; baseY = posY;
       el.setPointerCapture && el.setPointerCapture(e.pointerId);
     });
@@ -1590,7 +1605,7 @@
     panel.className = "lf-card lf-open lf-photo-panel";
     panel.innerHTML =
       '<div class="lf-q">📸 Looking good! Keep this photo?</div>' +
-      '<div class="lf-hint">Drag the photo to frame it — the ' +
+      '<div class="lf-hint">Drag the photo until it looks right. The ' +
         '<span class="lf-hint-ico">' + MOVE_ICON_SVG + "</span> button centres it.</div>" +
       '<div class="lf-row lf-btn-row">' +
         '<button class="btn btn-ghost" id="lfPhotoAdd" type="button">Change photo</button>' +

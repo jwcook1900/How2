@@ -2607,6 +2607,9 @@ textarea.lf-input { resize: none; }
    it's filling — same card styling, no fixed bar. */
 .lf-inline-spot { margin: -4px 0 16px; }
 .lf-inline-spot .lf-spot-card { max-width: none; box-shadow: var(--shadow); }
+/* "Saved" trace: a green line draws itself around the completed card */
+.lf-tracing { position: relative; }
+.lf-trace-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 .sg-card {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px;

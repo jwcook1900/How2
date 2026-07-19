@@ -1416,7 +1416,17 @@
         });
         input.click();
       });
-      $("lfPhotoSkip").addEventListener("click", function () { liveAdvance(); });
+      $("lfPhotoSkip").addEventListener("click", function () {
+        if (liveBusy) return;
+        // "Keep it →" after adding a photo earns the saved-trace too;
+        // a plain "Later" just moves on.
+        if (state.liveCover) {
+          liveBusy = true;
+          traceSaved(liveActiveCard(), function () { liveBusy = false; liveAdvance(); });
+        } else {
+          liveAdvance();
+        }
+      });
       return;
     }
 
@@ -1532,9 +1542,58 @@
     var field = $("lfField");
     if (field) state.answers[s.q.id] = field.value.trim();
   }
+
+  // A green line draws itself around the just-completed card — a half-second
+  // "that's saved" before the spotlight moves on. Skipped for reduced-motion.
+  function traceSaved(el, done) {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!el || reduce) { done(); return; }
+    var W = el.offsetWidth, H = el.offsetHeight;
+    if (!W || !H) { done(); return; }
+    var radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
+    el.classList.add("lf-tracing");
+    var NS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "lf-trace-svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    var rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("x", 1.5); rect.setAttribute("y", 1.5);
+    rect.setAttribute("width", W - 3); rect.setAttribute("height", H - 3);
+    rect.setAttribute("rx", Math.max(4, radius - 2));
+    rect.setAttribute("fill", "none");
+    rect.setAttribute("stroke", "#1B7F4B");
+    rect.setAttribute("stroke-width", "3");
+    svg.appendChild(rect);
+    el.appendChild(svg);
+    var len = rect.getTotalLength();
+    rect.style.strokeDasharray = len;
+    rect.style.strokeDashoffset = len;
+    rect.style.transition = "stroke-dashoffset 0.45s ease-in-out";
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
+    });
+    setTimeout(done, 560); // renderLive rebuilds the doc, clearing the overlay
+  }
+  // The card the current step is writing into (cover for title/photo steps).
+  function liveActiveCard() {
+    var doc = $("lfDoc");
+    return doc.querySelector(".lf-glow") || doc.querySelector(".lf-cover");
+  }
+
+  var liveBusy = false; // ignore taps while the save-trace plays
   function liveNext() {
+    if (liveBusy) return;
+    var s = liveSteps[liveIdx];
     liveCapture();
-    liveAdvance();
+    var answered = s && s.kind === "q" && (state.answers[s.q.id] || "").trim();
+    if (!answered) { liveAdvance(); return; }
+    liveBusy = true;
+    var nextBtn = $("lfNext");
+    if (nextBtn) nextBtn.disabled = true;
+    traceSaved(liveActiveCard(), function () {
+      liveBusy = false;
+      liveAdvance();
+    });
   }
   function liveAdvance() {
     stopMic();

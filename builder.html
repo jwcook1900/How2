@@ -131,6 +131,20 @@
         </div>
       </section>
 
+      <!-- STEP 2 (live variant) — the guide builds itself on screen as each
+           answer lands; one spotlighted question at a time pinned above the
+           keyboard. Classic wizard remains at ?flow=classic. -->
+      <section class="step" id="stepLive" data-step="2">
+        <div class="lf-top">
+          <span class="step-eyebrow">Your guide — building live</span>
+          <p class="lf-count" id="lfCount"></p>
+        </div>
+        <div class="guide-doc lf-doc" id="lfDoc"><!-- ghost/lit cards injected --></div>
+        <!-- fixed to the viewport bottom, but inside the section so step
+             switching shows/hides it with everything else -->
+        <div class="lf-spot" id="lfSpot"><!-- spotlight question card --></div>
+      </section>
+
       <!-- STEP 3 — Preview & edit -->
       <section class="step" id="step3" data-step="3">
         <span class="step-eyebrow">Step 3 of 4</span>

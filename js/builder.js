@@ -227,7 +227,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var steps = {
     1: $("step1"), start: $("stepStart"), 2: $("step2"), building: $("stepBuilding"),
-    3: $("step3"), 4: $("step4")
+    live: $("stepLive"), 3: $("step3"), 4: $("step4")
   };
   var toast = $("toast");
   var currentStepKey = 1;
@@ -554,8 +554,14 @@
     }
   }
 
+  // The "lights up as you answer" flow is the default scratch experience;
+  // ?flow=classic keeps the old one-question-per-screen wizard reachable
+  // (comparison, and an escape hatch if the live flow misbehaves somewhere).
+  var LIVE_FLOW = !/[?&]flow=classic\b/.test(location.search);
+
   function startFromScratch() {
     GotItStore.event("start_scratch"); // analytics (best-effort)
+    if (LIVE_FLOW) { startLiveFlow(0); return; }
     state.qIndex = 0;
     renderQuestion();
     showStep(2);
@@ -1189,6 +1195,310 @@
     return "a how-to guide";
   }
 
+  /* ---------- "Lights up as you answer" scratch flow ----------
+     The guide skeleton (ghost cover + dashed ghost sections, derived from the
+     category's questions) is on screen from the first keystroke; one
+     spotlighted question at a time sits pinned above the keyboard, and each
+     answer visibly fills its section. Same answers, same buildGuide() at the
+     end — this is a different front door to the identical guide. */
+  var LIVE_KEY = "gotit_live_v1";
+  var LIVE_MAX_AGE = 7 * 86400000;
+  var liveSteps = [];   // [{kind:"q", q} | {kind:"photo"}] in order
+  var liveIdx = 0;
+  var liveSkipped = {}; // qid -> true (kept ghost, but flow moved past it)
+
+  function liveTitleFor(cat) {
+    var t = null;
+    cat.questions.forEach(function (q) {
+      if (q.target === "title" && state.answers[q.id]) t = state.answers[q.id] + (q.titleSuffix || "");
+    });
+    return t;
+  }
+  function buildLiveSteps(cat) {
+    liveSteps = [];
+    cat.questions.forEach(function (q) {
+      liveSteps.push({ kind: "q", q: q });
+      // The cover-photo offer rides the wave right after naming the guide —
+      // the moment the cover just lit up with their name (one-tap skippable;
+      // the publish-time nudge stays as the safety net for skippers).
+      if (q.target === "title") liveSteps.push({ kind: "photo" });
+    });
+  }
+
+  function saveLiveLocal() {
+    try {
+      localStorage.setItem(LIVE_KEY, JSON.stringify({
+        cat: state.category.id, answers: state.answers, idx: liveIdx,
+        skipped: liveSkipped, cover: state.liveCover || null, savedAt: Date.now()
+      }));
+    } catch (e) { /* storage full (likely the photo) — flow still works */ }
+  }
+  function clearLiveLocal() { try { localStorage.removeItem(LIVE_KEY); } catch (e) {} }
+  function loadLiveLocal() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LIVE_KEY) || "null");
+      if (!d || !d.cat) return null;
+      if (Date.now() - (d.savedAt || 0) > LIVE_MAX_AGE) { clearLiveLocal(); return null; }
+      return d;
+    } catch (e) { return null; }
+  }
+
+  function startLiveFlow(atIdx) {
+    buildLiveSteps(state.category);
+    liveIdx = Math.max(0, Math.min(atIdx || 0, liveSteps.length - 1));
+    GotItStore.event("live_open", state.category.id);
+    renderLive();
+    showStep("live");
+  }
+
+  function liveAnswerCount() {
+    var n = 0;
+    liveSteps.forEach(function (s) {
+      if (s.kind === "q" && (state.answers[s.q.id] || "").trim()) n++;
+    });
+    return n;
+  }
+
+  // Truncated, escaped preview of an answer for a lit card body.
+  function livePreview(text) {
+    var t = String(text).trim();
+    if (t.length > 220) t = t.slice(0, 220) + "…";
+    return esc(t).replace(/\n/g, "<br />");
+  }
+
+  function renderLive() {
+    var cat = state.category;
+    var qSteps = liveSteps.filter(function (s) { return s.kind === "q"; });
+    var total = qSteps.length;
+    var done = liveAnswerCount();
+    var current = liveSteps[liveIdx];
+
+    // Progress line
+    var qNum = 0;
+    for (var i = 0; i <= liveIdx && i < liveSteps.length; i++) if (liveSteps[i].kind === "q") qNum++;
+    $("lfCount").textContent = current && current.kind === "photo"
+      ? (done + " of " + total + " answered ✓")
+      : ("Question " + Math.max(1, qNum) + " of " + total + (done ? " · " + done + " done ✓" : ""));
+
+    // ---- the live document ----
+    var doc = $("lfDoc");
+    var name = liveTitleFor(cat);
+    var coverLit = !!name;
+    var html =
+      '<div class="guide-cover lf-cover' + (coverLit ? " lf-lit" : " lf-ghost-cover") +
+        (state.liveCover ? " has-cover" : "") + '" data-jump="title"' +
+        (state.liveCover ? ' style="background-image:url(' + state.liveCover + ')"' : "") + ">" +
+        '<div class="cover-text">' +
+          '<span class="cover-emoji">' + esc(cat.emoji) + "</span>" +
+          '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
+          '<div class="cover-sub">' + esc(coverLit ? cat.coverSub : "This page becomes real as you answer") + "</div>" +
+        "</div>" +
+      "</div>";
+
+    liveSteps.forEach(function (s, idx) {
+      if (s.kind !== "q" || s.q.target === "title") return;
+      var q = s.q;
+      var val = (state.answers[q.id] || "").trim();
+      var isCurrent = idx === liveIdx;
+      var cls = val ? "lf-lit" : "lf-ghost";
+      if (isCurrent) cls += " lf-glow";
+      var icon = q.target === "emergency" ? "🚨" : (q.icon || "📄");
+      var title = q.target === "emergency" ? "Emergency contacts"
+        : fillName(q.sectionTitle || q.q).replace(/\bthem\b/, name ? name : "…");
+      html += '<div class="lf-card ' + cls + '" data-jump="' + idx + '">' +
+        '<div class="lf-card-head"><span class="lf-card-icon">' + icon + "</span>" +
+          '<span class="lf-card-title">' + esc(title) + "</span></div>" +
+        (val ? '<div class="lf-card-body">' + livePreview(val) + "</div>" : "") +
+      "</div>";
+    });
+    doc.innerHTML = html;
+
+    // Tap any card (or the cover) to jump the spotlight there.
+    Array.prototype.forEach.call(doc.querySelectorAll("[data-jump]"), function (el) {
+      el.addEventListener("click", function () {
+        var j = el.getAttribute("data-jump");
+        if (j === "title") {
+          for (var k = 0; k < liveSteps.length; k++) {
+            if (liveSteps[k].kind === "q" && liveSteps[k].q.target === "title") { liveIdx = k; break; }
+          }
+        } else {
+          liveIdx = +j;
+        }
+        renderLive();
+      });
+    });
+
+    renderLiveSpot();
+
+    // Keep the in-focus card visible above the spotlight.
+    var cur = doc.querySelector(".lf-glow") || (current && current.kind === "photo" ? doc.querySelector(".lf-cover") : null);
+    if (!cur && current && current.kind === "q" && current.q.target === "title") cur = doc.querySelector(".lf-cover");
+    if (cur && cur.scrollIntoView) {
+      setTimeout(function () { cur.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+    }
+  }
+
+  function renderLiveSpot() {
+    var spot = $("lfSpot");
+    var s = liveSteps[liveIdx];
+    stopMic();
+    if (!s) { spot.innerHTML = ""; return; }
+
+    if (s.kind === "photo") {
+      var name = liveTitleFor(state.category);
+      var short = "";
+      state.category.questions.forEach(function (q) {
+        if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
+      });
+      var isPet = state.category.id === "pet" || state.category.id === "kids" || state.category.id === "care";
+      var ask = state.liveCover
+        ? "Looking good! Keep this photo?"
+        : (isPet && short ? "Put a photo of " + short + " on the cover?"
+                          : "Put a photo on the cover?");
+      spot.innerHTML =
+        '<div class="lf-spot-card">' +
+          '<div class="lf-q">📸 ' + esc(ask) + "</div>" +
+          '<div class="lf-hint">It makes the guide instantly recognisable — you can change it any time.</div>' +
+          '<div class="lf-row">' +
+            '<button class="btn btn-primary" id="lfPhotoAdd" type="button">' + (state.liveCover ? "Change photo" : "Add a photo") + "</button>" +
+            '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">' + (state.liveCover ? "Keep it →" : "Later") + "</button>" +
+          "</div>" +
+        "</div>";
+      $("lfPhotoAdd").addEventListener("click", function () {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.addEventListener("change", function () {
+          var file = input.files[0];
+          if (!file) return;
+          var btn = $("lfPhotoAdd");
+          btn.disabled = true; btn.textContent = "Adding…";
+          compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
+            state.liveCover = dataUrl;
+            saveLiveLocal();
+            renderLive(); // cover repaints with the photo; offer flips to keep/change
+          });
+        });
+        input.click();
+      });
+      $("lfPhotoSkip").addEventListener("click", function () { liveAdvance(); });
+      return;
+    }
+
+    var q = s.q;
+    var isArea = q.type === "textarea";
+    var isLast = liveIdx === liveSteps.length - 1;
+    var val = state.answers[q.id] || "";
+    spot.innerHTML =
+      '<div class="lf-spot-card">' +
+        '<div class="lf-q">' + esc(fillName(q.q)) + "</div>" +
+        (q.hint ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
+        '<div class="lf-row lf-field-row"></div>' +
+        '<div class="lf-row">' +
+          '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">← Back</button>' +
+          '<span class="lf-flex"></span>' +
+          (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
+          '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "Finish my guide →" : "Next →") + "</button>" +
+        "</div>" +
+      "</div>";
+
+    var fieldRow = spot.querySelector(".lf-field-row");
+    var container = document.createElement("div");
+    container.className = "field-with-mic lf-field-wrap";
+    var field;
+    if (isArea) {
+      field = document.createElement("textarea");
+      field.className = "q-textarea lf-input";
+      field.rows = 3;
+    } else {
+      field = document.createElement("input");
+      field.type = "text";
+      field.className = "q-input lf-input";
+    }
+    field.id = "lfField";
+    field.placeholder = q.ph || "";
+    field.value = val;
+    container.appendChild(field);
+    attachMic(container, field, isArea);
+    fieldRow.appendChild(container);
+
+    field.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
+    });
+    $("lfNext").addEventListener("click", liveNext);
+    var skipBtn = $("lfSkip");
+    if (skipBtn) skipBtn.addEventListener("click", function () {
+      liveSkipped[q.id] = true;
+      GotItStore.event("live_skip", state.category.id + "/" + q.id);
+      liveAdvance();
+    });
+    $("lfBack").addEventListener("click", function () {
+      liveCapture();
+      if (liveIdx > 0) { liveIdx--; renderLive(); }
+      else showStart();
+    });
+    setTimeout(function () { field.focus(); }, 80);
+  }
+
+  function liveCapture() {
+    var s = liveSteps[liveIdx];
+    if (!s || s.kind !== "q") return;
+    var field = $("lfField");
+    if (field) state.answers[s.q.id] = field.value.trim();
+  }
+  function liveNext() {
+    liveCapture();
+    liveAdvance();
+  }
+  function liveAdvance() {
+    stopMic();
+    if (liveIdx < liveSteps.length - 1) {
+      liveIdx++;
+      saveLiveLocal();
+      renderLive();
+    } else {
+      buildGuide(); // identical construction path to the classic wizard
+    }
+  }
+
+  // Fresh builder open with a half-finished live flow → offer to pick it up.
+  function offerLiveResume() {
+    var d = loadLiveLocal();
+    if (!d) return;
+    var cat = catById(d.cat);
+    if (!cat) { clearLiveLocal(); return; }
+    var step1 = steps[1];
+    if (!step1 || $("liveBanner")) return;
+    var nm = "";
+    cat.questions.forEach(function (q) { if (q.target === "title" && d.answers[q.id]) nm = d.answers[q.id]; });
+    var banner = document.createElement("div");
+    banner.className = "draft-banner";
+    banner.id = "liveBanner";
+    banner.innerHTML =
+      '<p class="draft-banner-text">👋 You were partway through <b>' +
+        esc(cat.emoji) + " " + esc(nm || ("a " + cat.name + " guide")) + "</b> — pick it back up?</p>" +
+      '<div class="draft-banner-actions">' +
+        '<button class="btn btn-primary btn-sm" id="liveResume" type="button">▶ Keep going</button>' +
+        '<button class="btn btn-ghost btn-sm" id="liveDiscard" type="button">Discard</button>' +
+      "</div>";
+    var heading = step1.querySelector(".step-heading");
+    step1.insertBefore(banner, heading ? heading.nextSibling : step1.firstChild);
+    $("liveResume").addEventListener("click", function () {
+      state.category = cat;
+      state.answers = d.answers || {};
+      state.media = {};
+      liveSkipped = d.skipped || {};
+      state.liveCover = d.cover || null;
+      banner.remove();
+      startLiveFlow(d.idx || 0);
+    });
+    $("liveDiscard").addEventListener("click", function () {
+      if (!window.confirm("Discard this unfinished guide?")) return;
+      clearLiveLocal();
+      banner.remove();
+    });
+  }
+
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
     showStep("building");
@@ -1227,7 +1537,8 @@
       emoji: cat.emoji,
       title: title,
       subtitle: cat.coverSub,
-      cover: null,
+      // The live flow may have collected a cover photo already.
+      cover: state.liveCover || null,
       sections: sections,
       contacts: contacts,
       logs: [],
@@ -1239,6 +1550,8 @@
       branding: true,
       createdAt: Date.now()
     };
+    state.liveCover = null;
+    clearLiveLocal(); // the answers now live in the guide draft itself
     GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
 
     // brief "building" pause for effect
@@ -3809,5 +4122,5 @@
   if (!(editSlug && editToken)) GotItStore.event("builder_open");
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
   else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
-  else { showStep(1); offerDraftResume(); }
+  else { showStep(1); offerDraftResume(); offerLiveResume(); }
 })();

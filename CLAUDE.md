@@ -16,9 +16,9 @@ Colours are tokens (defined in `css/styles.css :root`), never hardcoded hex:
 - `--color-ink` #1A1A1A - text and dark surfaces
 - `--color-orange` #ED7446 - accent only, never body text
 - `--color-cream` #FAFAF8 - default page background
-- Legacy: the `--coral` family (#FF6B35) predates the 2026 guidelines and still
-  drives most UI. Do not add NEW uses of coral; repointing coral at
-  `--color-orange` is a pending owner decision.
+- `--coral` is a legacy alias that now points at `--color-orange` (repointed
+  July 2026, owner-approved); `--coral-dark` #D65F33 is the hover/darker shade.
+  Prefer the `--color-*` tokens in new code.
 
 Typeface is Plus Jakarta Sans everywhere (`--font-brand`). Headlines Bold, body Medium/Regular.
 

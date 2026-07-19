@@ -157,7 +157,7 @@ export function injectMeta(
 
 const W = 1200, H = 630;
 const INK = "#1A1A1A", MUTED = "#8B847C", LINE = "#EDE8E2";
-const CORAL = "#FF6B35", AMBER = "#FFB347", PAPER = "#FFFDFB";
+const CORAL = "#ED7446", AMBER = "#FFB347", PAPER = "#FFFDFB";
 
 // Strip a twemoji SVG's outer tag and place it at (x,y) sized to `px`.
 function emojiAt(svg: string | null, x: number, y: number, px: number): string {
@@ -250,7 +250,7 @@ export function buildCardSvg(p: Preview, art: CardArt): string {
   return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + H + '">' +
     "<defs>" +
       '<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">' +
-        '<stop offset="0" stop-color="#FF9A5C"/><stop offset="0.6" stop-color="' + CORAL + '"/><stop offset="1" stop-color="#F0570F"/>' +
+        '<stop offset="0" stop-color="#F79E6B"/><stop offset="0.6" stop-color="' + CORAL + '"/><stop offset="1" stop-color="#D65F33"/>' +
       "</linearGradient>" +
       '<linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">' +
         '<stop offset="0" stop-color="' + CORAL + '"/><stop offset="1" stop-color="' + AMBER + '"/>' +

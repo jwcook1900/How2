@@ -322,7 +322,7 @@ window.GotItStore = (function () {
        the cover stores `coverColor`. Applied as a tasteful accent: a coloured
        edge + soft header tint, text stays dark. */
     palette: [
-      { key: "coral",  accent: "#FF6B35", soft: "#FFE7DC" },
+      { key: "coral",  accent: "#ED7446", soft: "#FFE7DC" },
       { key: "red",    accent: "#E5484D", soft: "#FBE3E4" },
       { key: "amber",  accent: "#F59E0B", soft: "#FCEFD3" },
       { key: "green",  accent: "#22A06B", soft: "#DEF3E9" },

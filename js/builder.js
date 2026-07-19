@@ -1277,160 +1277,51 @@
     var qNum = 0;
     for (var i = 0; i <= liveIdx && i < liveSteps.length; i++) if (liveSteps[i].kind === "q") qNum++;
     $("lfCount").textContent = current && current.kind === "photo"
-      ? (done + " of " + total + " answered ✓")
-      : ("Question " + Math.max(1, qNum) + " of " + total + (done ? " · " + done + " done ✓" : ""));
+      ? (done + " of " + total + " answered \u2713")
+      : ("Question " + Math.max(1, qNum) + " of " + total + (done ? " \u00B7 " + done + " done \u2713" : ""));
 
-    // ---- the live document ----
+    stopMic();
     var doc = $("lfDoc");
-    var name = liveTitleFor(cat);
-    var coverLit = !!name;
-    var html =
-      '<div class="guide-cover lf-cover' + (coverLit ? " lf-lit" : " lf-ghost-cover") +
-        (state.liveCover ? " has-cover" : "") + '" data-jump="title"' +
-        (state.liveCover ? ' style="background-image:url(' + state.liveCover + ')"' : "") + ">" +
-        '<div class="cover-text">' +
-          '<span class="cover-emoji">' + esc(cat.emoji) + "</span>" +
-          '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
-          '<div class="cover-sub">' + esc(coverLit ? cat.coverSub : "This page becomes real as you answer") + "</div>" +
-        "</div>" +
-      "</div>";
+    doc.innerHTML = "";
+    $("lfSpot").hidden = true; // legacy container from the overlay design
 
+    var name = liveTitleFor(cat);
+    // The current step lives INSIDE its card: the section (or the cover, for
+    // the name/photo steps) expands into the input — nothing floats.
+    var coverActive = current && (current.kind === "photo" ||
+      (current.kind === "q" && current.q.target === "title"));
+
+    doc.appendChild(buildLiveCover(coverActive ? current : null, name));
     liveSteps.forEach(function (s, idx) {
       if (s.kind !== "q" || s.q.target === "title") return;
-      var q = s.q;
-      var val = (state.answers[q.id] || "").trim();
-      var isCurrent = idx === liveIdx;
-      var cls = val ? "lf-lit" : "lf-ghost";
-      if (isCurrent) cls += " lf-glow";
-      var icon = q.target === "emergency" ? "🚨" : (q.icon || "📄");
-      var title = q.target === "emergency" ? "Emergency contacts"
-        : fillName(q.sectionTitle || q.q).replace(/\bthem\b/, name ? name : "…");
-      html += '<div class="lf-card ' + cls + '" data-jump="' + idx + '">' +
-        '<div class="lf-card-head"><span class="lf-card-icon">' + icon + "</span>" +
-          '<span class="lf-card-title">' + esc(title) + "</span></div>" +
-        (val ? '<div class="lf-card-body">' + livePreview(val) + "</div>" : "") +
-      "</div>";
-    });
-    doc.innerHTML = html;
-
-    // Tap any card (or the cover) to jump the spotlight there.
-    Array.prototype.forEach.call(doc.querySelectorAll("[data-jump]"), function (el) {
-      el.addEventListener("click", function () {
-        var j = el.getAttribute("data-jump");
-        if (j === "title") {
-          for (var k = 0; k < liveSteps.length; k++) {
-            if (liveSteps[k].kind === "q" && liveSteps[k].q.target === "title") { liveIdx = k; break; }
-          }
-        } else {
-          liveIdx = +j;
-        }
-        renderLive();
-      });
+      doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
 
-    // The element the current step belongs to (cover for the title/photo
-    // steps, otherwise the glowing section card).
-    var cur = doc.querySelector(".lf-glow");
-    if (!cur) cur = doc.querySelector(".lf-cover");
-
-    renderLiveSpot(cur);
-
-    // Centre the card + its question card together.
-    var scrollTo = (cur && cur.nextSibling) || cur;
-    if (scrollTo && scrollTo.scrollIntoView) {
-      setTimeout(function () { scrollTo.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+    // Centre whatever is open.
+    var cur = doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
+    if (cur && cur.scrollIntoView) {
+      setTimeout(function () { cur.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
     }
   }
 
-  // The question card always sits IN the document, right under the section
-  // it's filling. (An earlier build pinned it position:fixed to the bottom on
-  // phones — iOS shifts fixed elements when the keyboard opens, so taps on
-  // the input were landing on the ghost cards behind it and teleporting the
-  // spotlight. Inline has no overlay to misalign, and iOS scrolls the focused
-  // field into view natively.)
-  function renderLiveSpot(activeEl) {
-    var fixedSpot = $("lfSpot");
-    var s = liveSteps[liveIdx];
-    stopMic();
-    fixedSpot.innerHTML = "";
-    fixedSpot.hidden = true; // legacy container, kept empty
-    var spot = fixedSpot;
-    if (activeEl) {
-      spot = document.createElement("div");
-      spot.className = "lf-inline-spot";
-      activeEl.parentNode.insertBefore(spot, activeEl.nextSibling);
-    }
-    if (!s) { spot.innerHTML = ""; return; }
-
-    if (s.kind === "photo") {
-      var name = liveTitleFor(state.category);
-      var short = "";
-      state.category.questions.forEach(function (q) {
-        if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
-      });
-      var isPet = state.category.id === "pet" || state.category.id === "kids" || state.category.id === "care";
-      var ask = state.liveCover
-        ? "Looking good! Keep this photo?"
-        : (isPet && short ? "Put a photo of " + short + " on the cover?"
-                          : "Put a photo on the cover?");
-      spot.innerHTML =
-        '<div class="lf-spot-card">' +
-          '<div class="lf-q">📸 ' + esc(ask) + "</div>" +
-          '<div class="lf-hint">It makes the guide instantly recognisable — you can change it any time.</div>' +
-          '<div class="lf-row">' +
-            '<button class="btn btn-primary" id="lfPhotoAdd" type="button">' + (state.liveCover ? "Change photo" : "Add a photo") + "</button>" +
-            '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">' + (state.liveCover ? "Keep it →" : "Later") + "</button>" +
-          "</div>" +
-        "</div>";
-      $("lfPhotoAdd").addEventListener("click", function () {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/*";
-        input.addEventListener("change", function () {
-          var file = input.files[0];
-          if (!file) return;
-          var btn = $("lfPhotoAdd");
-          btn.disabled = true; btn.textContent = "Adding…";
-          compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
-            state.liveCover = dataUrl;
-            saveLiveLocal();
-            renderLive(); // cover repaints with the photo; offer flips to keep/change
-          });
-        });
-        input.click();
-      });
-      $("lfPhotoSkip").addEventListener("click", function () {
-        if (liveBusy) return;
-        // "Keep it →" after adding a photo earns the saved-trace too;
-        // a plain "Later" just moves on.
-        if (state.liveCover) {
-          liveBusy = true;
-          traceSaved(liveActiveCard(), function () { liveBusy = false; liveAdvance(); });
-        } else {
-          liveAdvance();
-        }
-      });
-      return;
-    }
-
-    var q = s.q;
+  // The shared "question inside the card" block: prompt, hint, field, tools,
+  // Back / Skip / Next. Returns the wrapper; wires everything.
+  function buildLiveEmbed(q, isLast) {
+    var wrap = document.createElement("div");
+    wrap.className = "lf-embed";
     var isArea = q.type === "textarea";
-    var isLast = liveIdx === liveSteps.length - 1;
-    var val = state.answers[q.id] || "";
-    spot.innerHTML =
-      '<div class="lf-spot-card">' +
-        '<div class="lf-q">' + esc(fillName(q.q)) + "</div>" +
-        (q.hint ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
-        '<div class="lf-row lf-field-row"></div>' +
-        '<div class="lf-row">' +
-          '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">← Back</button>' +
-          '<span class="lf-flex"></span>' +
-          (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
-          '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "Finish my guide →" : "Next →") + "</button>" +
-        "</div>" +
+    wrap.innerHTML =
+      '<div class="lf-q">' + esc(fillName(q.q)) + "</div>" +
+      (q.hint ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
+      '<div class="lf-row lf-field-row"></div>' +
+      '<div class="lf-row lf-btn-row">' +
+        '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">\u2190 Back</button>' +
+        '<span class="lf-flex"></span>' +
+        (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
+        '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "Finish my guide \u2192" : "Next \u2192") + "</button>" +
       "</div>";
 
-    var fieldRow = spot.querySelector(".lf-field-row");
+    var fieldRow = wrap.querySelector(".lf-field-row");
     var container = document.createElement("div");
     container.className = "field-with-mic lf-field-wrap";
     var field;
@@ -1445,16 +1336,15 @@
     }
     field.id = "lfField";
     field.placeholder = q.ph || "";
-    field.value = val;
+    field.value = state.answers[q.id] || "";
     container.appendChild(field);
     attachMic(container, field, isArea);
     fieldRow.appendChild(container);
 
-    // Same per-question tools as the classic wizard: AI polish, and (on
-    // section questions) the Add menu for a file / photo / video.
+    // Same per-question tools as the classic wizard.
     var actions = document.createElement("div");
     actions.className = "field-actions lf-actions";
-    var fileItem = { label: "📎 File", onClick: function (trigger) {
+    var fileItem = { label: "\uD83D\uDCCE File", onClick: function (trigger) {
       readFileIntoField({
         btn: trigger, question: fillName(q.q),
         get: function () { return field.value; },
@@ -1464,8 +1354,8 @@
     if (q.target === "section") {
       actions.appendChild(makeAddMenu([
         fileItem,
-        { label: "📷 Photo", onClick: function () { pickStepPhoto(q.id); } },
-        { label: "🎬 Video", onClick: function () {
+        { label: "\uD83D\uDCF7 Photo", onClick: function () { pickStepPhoto(q.id); } },
+        { label: "\uD83C\uDFAC Video", onClick: function () {
           openVideoModal(function (embed) {
             (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
             renderStepMedia(q.id);
@@ -1476,47 +1366,149 @@
       var fileBtn = document.createElement("button");
       fileBtn.type = "button";
       fileBtn.className = "tool-btn";
-      fileBtn.textContent = "📎 Add a file";
+      fileBtn.textContent = "\uD83D\uDCCE Add a file";
       fileBtn.addEventListener("click", function () { fileItem.onClick(fileBtn); });
       actions.appendChild(fileBtn);
     }
     var polishBtn = document.createElement("button");
     polishBtn.type = "button";
     polishBtn.className = "tool-btn";
-    polishBtn.textContent = "✨ Polish";
+    polishBtn.textContent = "\u2728 Polish";
     polishBtn.addEventListener("click", function () {
       polishInto(function () { return field.value; },
         function (v) { field.value = v; }, polishBtn, aiCtx(fillName(q.q)));
     });
     actions.appendChild(polishBtn);
-    // Between the field and the Back/Skip/Next row.
-    var card = spot.querySelector(".lf-spot-card");
-    card.insertBefore(actions, card.lastElementChild);
-
+    var btnRow = wrap.querySelector(".lf-btn-row");
+    wrap.insertBefore(actions, btnRow);
     if (q.target === "section") {
       var mediaWrap = document.createElement("div");
       mediaWrap.className = "q-media";
       mediaWrap.id = "qMedia";
-      card.insertBefore(mediaWrap, card.lastElementChild);
+      wrap.insertBefore(mediaWrap, btnRow);
       renderStepMedia(q.id);
     }
 
     field.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
     });
-    $("lfNext").addEventListener("click", liveNext);
-    var skipBtn = $("lfSkip");
+    wrap.querySelector("#lfNext").addEventListener("click", liveNext);
+    var skipBtn = wrap.querySelector("#lfSkip");
     if (skipBtn) skipBtn.addEventListener("click", function () {
       liveSkipped[q.id] = true;
       GotItStore.event("live_skip", state.category.id + "/" + q.id);
       liveAdvance();
     });
-    $("lfBack").addEventListener("click", function () {
+    wrap.querySelector("#lfBack").addEventListener("click", function () {
       liveCapture();
       if (liveIdx > 0) { liveIdx--; renderLive(); }
       else showStart();
     });
     setTimeout(function () { field.focus(); }, 80);
+    return wrap;
+  }
+
+  // Cover tile. When the current step is the name or the photo offer, the
+  // question expands inside the cover itself.
+  function buildLiveCover(currentStep, name) {
+    var cat = state.category;
+    var lit = !!name;
+    var el = document.createElement("div");
+    el.className = "guide-cover lf-cover" +
+      (lit ? " lf-lit" : " lf-ghost-cover") +
+      (state.liveCover ? " has-cover" : "") +
+      (currentStep ? " lf-open" : "");
+    if (state.liveCover) el.style.backgroundImage = "url(" + state.liveCover + ")";
+    el.innerHTML =
+      '<div class="cover-text">' +
+        '<span class="cover-emoji">' + esc(cat.emoji) + "</span>" +
+        '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
+        '<div class="cover-sub">' + esc(lit ? cat.coverSub : "This page becomes real as you answer") + "</div>" +
+      "</div>";
+
+    if (currentStep && currentStep.kind === "q") {
+      el.appendChild(buildLiveEmbed(currentStep.q, liveIdx === liveSteps.length - 1));
+    } else if (currentStep && currentStep.kind === "photo") {
+      var short = "";
+      cat.questions.forEach(function (q) {
+        if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
+      });
+      var personal = cat.id === "pet" || cat.id === "kids" || cat.id === "care";
+      var ask = state.liveCover
+        ? "Looking good! Keep this photo?"
+        : (personal && short ? "Put a photo of " + short + " on the cover?" : "Put a photo on the cover?");
+      var wrap = document.createElement("div");
+      wrap.className = "lf-embed";
+      wrap.innerHTML =
+        '<div class="lf-q">\uD83D\uDCF8 ' + esc(ask) + "</div>" +
+        '<div class="lf-hint">It makes the guide instantly recognisable \u2014 you can change it any time.</div>' +
+        '<div class="lf-row lf-btn-row">' +
+          '<button class="btn btn-primary" id="lfPhotoAdd" type="button">' + (state.liveCover ? "Change photo" : "Add a photo") + "</button>" +
+          '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">' + (state.liveCover ? "Keep it \u2192" : "Later") + "</button>" +
+        "</div>";
+      el.appendChild(wrap);
+      wrap.querySelector("#lfPhotoAdd").addEventListener("click", function () {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.addEventListener("change", function () {
+          var file = input.files[0];
+          if (!file) return;
+          var btn = $("lfPhotoAdd");
+          btn.disabled = true; btn.textContent = "Adding\u2026";
+          compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
+            state.liveCover = dataUrl;
+            saveLiveLocal();
+            renderLive();
+          });
+        });
+        input.click();
+      });
+      wrap.querySelector("#lfPhotoSkip").addEventListener("click", function () {
+        if (liveBusy) return;
+        if (state.liveCover) {
+          liveBusy = true;
+          traceSaved(liveActiveCard(), function () { liveBusy = false; liveAdvance(); });
+        } else {
+          liveAdvance();
+        }
+      });
+    } else {
+      // Not the current step: tapping the cover jumps back to the name.
+      el.addEventListener("click", function () {
+        for (var k = 0; k < liveSteps.length; k++) {
+          if (liveSteps[k].kind === "q" && liveSteps[k].q.target === "title") { liveIdx = k; break; }
+        }
+        renderLive();
+      });
+    }
+    return el;
+  }
+
+  // A section/emergency card. The current one expands into its input;
+  // answered ones show a preview + \u2713; ghosts stay dashed. Tapping any
+  // collapsed card jumps the flow there.
+  function buildLiveCard(s, idx, isCurrent) {
+    var q = s.q;
+    var name = liveTitleFor(state.category);
+    var val = (state.answers[q.id] || "").trim();
+    var el = document.createElement("div");
+    var cls = "lf-card " + (val ? "lf-lit" : "lf-ghost");
+    if (isCurrent) cls += " lf-open";
+    el.className = cls;
+    var icon = q.target === "emergency" ? "\uD83D\uDEA8" : (q.icon || "\uD83D\uDCC4");
+    var title = q.target === "emergency" ? "Emergency contacts"
+      : fillName(q.sectionTitle || q.q).replace(/\bthem\b/, name ? name : "\u2026");
+    el.innerHTML =
+      '<div class="lf-card-head"><span class="lf-card-icon">' + icon + "</span>" +
+        '<span class="lf-card-title">' + esc(title) + "</span></div>" +
+      (val && !isCurrent ? '<div class="lf-card-body">' + livePreview(val) + "</div>" : "");
+    if (isCurrent) {
+      el.appendChild(buildLiveEmbed(q, idx === liveSteps.length - 1));
+    } else {
+      el.addEventListener("click", function () { liveIdx = idx; renderLive(); });
+    }
+    return el;
   }
 
   function liveCapture() {
@@ -1564,7 +1556,7 @@
   // The card the current step is writing into (cover for title/photo steps).
   function liveActiveCard() {
     var doc = $("lfDoc");
-    return doc.querySelector(".lf-glow") || doc.querySelector(".lf-cover");
+    return doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
   }
 
   var liveBusy = false; // ignore taps while the save-trace plays

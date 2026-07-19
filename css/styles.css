@@ -2577,35 +2577,35 @@ body.dragging-active * {
   display: flex; align-items: center; justify-content: center;
 }
 .lf-cover.lf-lit::after { top: 12px; right: 14px; }
-/* The card the spotlight is pointing at */
-.lf-glow { opacity: 1; border-style: solid; border-color: transparent;
-  box-shadow: 0 0 0 3px var(--coral), 0 10px 30px rgba(214, 95, 51, 0.22); }
-/* Spotlight question card, pinned above the keyboard */
-.lf-spot {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--bg) 82%, rgba(250, 250, 248, 0));
-}
-.lf-spot-card {
-  max-width: 648px; margin: 0 auto;
-  background: var(--white);
+/* The current step: its card expands into the input — no overlay, the
+   section IS the question. */
+.lf-card.lf-open {
+  opacity: 1; cursor: default;
   border: 1.5px solid var(--coral);
-  border-radius: var(--radius);
-  padding: 16px 18px;
-  box-shadow: 0 -6px 30px rgba(26, 26, 26, 0.10);
+  box-shadow: 0 0 0 3px rgba(237, 116, 70, 0.18), var(--shadow);
 }
-.lf-q { font-weight: 800; font-size: 1.05rem; }
+.lf-cover.lf-open { cursor: default; }
+.lf-open .lf-card-title { color: var(--ink); }
+/* The question block that lives inside the open card/cover */
+.lf-embed { margin-top: 12px; text-align: left; }
+.lf-cover .lf-embed {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--ink);
+  text-shadow: none;
+}
+.lf-q { font-weight: 800; font-size: 1.02rem; }
 .lf-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 3px 0 0; }
-.lf-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.lf-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.lf-btn-row .btn { flex: 0 0 auto; }
 .lf-flex { flex: 1; }
-.lf-field-wrap { flex: 1; }
+.lf-field-wrap { flex: 1; min-width: 200px; }
 .lf-input { width: 100%; box-sizing: border-box; }
 textarea.lf-input { resize: none; }
-.lf-actions { margin-top: 8px; }
-/* Desktop: the question card sits IN the document, right under the section
-   it's filling — same card styling, no fixed bar. */
-.lf-inline-spot { margin: -4px 0 16px; }
-.lf-inline-spot .lf-spot-card { max-width: none; box-shadow: var(--shadow); }
+.lf-actions { margin-top: 8px; justify-content: flex-end; }
+/* Legacy overlay container (unused; kept for markup compatibility) */
+.lf-spot { display: none; }
 /* "Saved" trace: a green line draws itself around the completed card */
 .lf-tracing { position: relative; }
 .lf-trace-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }

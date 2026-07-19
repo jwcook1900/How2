@@ -1136,6 +1136,9 @@
     if (o) o.hidden = !on;
   }
   function polishInto(getText, setText, btn, ctx) {
+    // Dictation must end the moment Polish is tapped — otherwise the mic
+    // keeps listening (and appending) underneath the polish.
+    stopMic();
     var text = (getText() || "").trim();
     if (!text || text === "Tap to add details…") { showToast("Nothing to polish yet."); return; }
     // Dim the whole screen with a centred sparkle while the AI works, rather
@@ -1315,6 +1318,16 @@
       if (s.kind !== "q" || s.q.target === "title") return;
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
+
+    // End-cap: a ghost publish button marks the finish line, so a scroll-ahead
+    // ("how long is this going to take?") finds a visible end, not a void.
+    var cap = document.createElement("div");
+    cap.className = "lf-endcap";
+    cap.setAttribute("aria-hidden", "true");
+    cap.innerHTML =
+      '<div class="lf-endcap-btn">Save &amp; publish →</div>' +
+      '<div class="lf-endcap-note">the finish line, once your answers are in</div>';
+    doc.appendChild(cap);
 
     // Centre whatever is open.
     var cur = doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
@@ -3364,6 +3377,37 @@
   }
   function closeCoverAsk() { $("coverAskModal").hidden = true; }
 
+  // The publish moment earns more ceremony than a button saying "Saving…":
+  // dim the screen, float the guide's emoji among sparkles while it stores,
+  // then flip to the payoff line before revealing the share step. Held on
+  // screen for at least ~a second so a fast save still lands as a moment.
+  function showPublishOverlay(first) {
+    var o = document.createElement("div");
+    o.className = "pub-overlay";
+    o.innerHTML =
+      '<div class="pub-card">' +
+        '<div class="pub-emoji">' + esc((state.guide && state.guide.emoji) || "📘") + "</div>" +
+        '<div class="pub-text">' + (first ? "Publishing your guide…" : "Saving your changes…") + "</div>" +
+        '<div class="pub-sparks" aria-hidden="true"><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span></div>' +
+      "</div>";
+    document.body.appendChild(o);
+    var t0 = Date.now();
+    return {
+      success: function () {
+        var wait = Math.max(0, 950 - (Date.now() - t0));
+        setTimeout(function () {
+          o.classList.add("pub-done");
+          o.querySelector(".pub-text").textContent = first ? "It's live 🎉" : "Saved ✓";
+          setTimeout(function () {
+            o.classList.add("pub-fade");
+            setTimeout(function () { if (o.parentNode) o.parentNode.removeChild(o); }, 340);
+          }, 850);
+        }, wait);
+      },
+      fail: function () { if (o.parentNode) o.parentNode.removeChild(o); }
+    };
+  }
+
   function doPublish() {
     var g = state.guide;
     if (!state.editToken) state.editToken = makeToken();
@@ -3379,6 +3423,7 @@
     var btn = $("publishBtn");
     btn.disabled = true;
     btn.textContent = "Saving…";
+    var overlay = showPublishOverlay(!state.created);
 
     // Funnel: distinguish "never tried to publish" from "tried and failed".
     if (!state.created) GotItStore.event("publish_tap", g.slug || null);
@@ -3402,9 +3447,11 @@
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       logFeatureUsage(g, locked); // which features this guide uses (deduped by slug)
       renderGuideEditor(); // reflect any auto-resized images in the editor
-      showShare(g, res && res.cloud, locked);
+      showShare(g, res && res.cloud, locked); // lands behind the overlay
       touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
+      overlay.success(); // "It's live 🎉" beat, then fade to the share step
     }).catch(function (err) {
+      overlay.fail();
       // Failed attempts otherwise look like abandoned drafts in the funnel.
       GotItStore.event("publish_err", state.guide.slug || null);
       if (err && err.message === "__HANDLED__") { /* toast already shown */ }

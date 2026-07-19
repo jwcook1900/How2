@@ -1464,7 +1464,7 @@
         // itself survives for share previews and the dashboard.)
         (state.liveCover ? "" : '<span class="cover-emoji">' + esc(cat.emoji) + "</span>") +
         '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
-        '<div class="cover-sub">' + esc(lit ? cat.coverSub : "This page becomes real as you answer") + "</div>" +
+        '<div class="cover-sub">' + esc(lit ? cat.coverSub : "A private draft only you can see, until you publish") + "</div>" +
       "</div>";
 
     if (currentStep && currentStep.kind === "q") {

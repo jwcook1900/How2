@@ -1360,7 +1360,16 @@
     attachMic(container, field, isArea);
     fieldRow.appendChild(container);
 
-    // Same per-question tools as the classic wizard.
+    // Same per-question tools as the classic wizard \u2014 except the name
+    // question, where "add a file" and "polish" are just noise.
+    if (q.target === "title") {
+      field.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
+      });
+      wireLiveEmbedButtons(wrap, q);
+      setTimeout(function () { field.focus(); }, 80);
+      return wrap;
+    }
     var actions = document.createElement("div");
     actions.className = "field-actions lf-actions";
     var fileItem = { label: "\uD83D\uDCCE File", onClick: function (trigger) {
@@ -1411,6 +1420,12 @@
     field.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
     });
+    wireLiveEmbedButtons(wrap, q);
+    setTimeout(function () { field.focus(); }, 80);
+    return wrap;
+  }
+
+  function wireLiveEmbedButtons(wrap, q) {
     wrap.querySelector("#lfNext").addEventListener("click", liveNext);
     var skipBtn = wrap.querySelector("#lfSkip");
     if (skipBtn) skipBtn.addEventListener("click", function () {
@@ -1423,8 +1438,6 @@
       if (liveIdx > 0) { liveIdx--; renderLive(); }
       else showStart();
     });
-    setTimeout(function () { field.focus(); }, 80);
-    return wrap;
   }
 
   // Cover tile. When the current step is the name or the photo offer, the
@@ -1443,7 +1456,10 @@
     }
     el.innerHTML =
       '<div class="cover-text">' +
-        '<span class="cover-emoji">' + esc(cat.emoji) + "</span>" +
+        // Once a photo is on the cover the emoji bows out — it crowds the
+        // photo, and the name + subtitle re-centre in its place. (The emoji
+        // itself survives for share previews and the dashboard.)
+        (state.liveCover ? "" : '<span class="cover-emoji">' + esc(cat.emoji) + "</span>") +
         '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
         '<div class="cover-sub">' + esc(lit ? cat.coverSub : "This page becomes real as you answer") + "</div>" +
       "</div>";
@@ -1756,8 +1772,12 @@
       title: title,
       subtitle: cat.coverSub,
       // The live flow may have collected a cover photo (and framing) already.
+      // With a photo, the cover emoji stays hidden (coverEmojiOff) — but
+      // g.emoji is kept, so share cards and the dashboard still show it, and
+      // the editor's "Add cover icon" can bring it back.
       cover: state.liveCover || null,
       coverPos: state.liveCoverPos || null,
+      coverEmojiOff: !!state.liveCover,
       sections: sections,
       contacts: contacts,
       logs: [],

@@ -1673,8 +1673,23 @@
     } catch (e) { /* fall through to the flash-only path */ }
     // No draw (old browser)? Flash immediately so "saved" still reads.
     var flashAt = drew ? 850 : 0;
-    setTimeout(function () { el.classList.add("lf-saved"); }, flashAt);
-    setTimeout(done, flashAt + 220); // renderLive rebuilds the doc, clearing the overlay
+    setTimeout(function () {
+      el.classList.add("lf-saved");
+      // A little burst right where the loop closes — the full stop on "saved".
+      try {
+        var radius2 = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
+        var spark = document.createElement("span");
+        spark.className = "lf-spark";
+        spark.textContent = "✨";
+        spark.style.left = (radius2 + 2) + "px";
+        spark.style.top = "1px";
+        el.appendChild(spark);
+        var s2 = spark.cloneNode(true);
+        s2.classList.add("lf-spark-2");
+        el.appendChild(s2);
+      } catch (e) { /* decoration only */ }
+    }, flashAt);
+    setTimeout(done, flashAt + 380); // renderLive rebuilds the doc, clearing the sparkle
   }
   // The card the current step is writing into (cover for title/photo steps).
   function liveActiveCard() {

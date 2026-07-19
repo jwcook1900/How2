@@ -2668,9 +2668,30 @@ textarea.lf-input { resize: none; }
 /* "Saved" trace: a green line draws itself around the completed card */
 .lf-tracing { position: relative; }
 .lf-trace-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
-/* Companion flash on the card itself while the line draws */
+/* Companion flash on the card itself when the loop closes */
 .lf-card.lf-saved { border-color: #1B7F4B; box-shadow: 0 0 0 1px #1B7F4B, 0 6px 22px rgba(27, 127, 75, 0.18); transition: border-color 0.2s, box-shadow 0.2s; }
 .lf-cover.lf-saved { box-shadow: 0 0 0 3px #1B7F4B, var(--shadow); transition: box-shadow 0.2s; }
+/* Sparkle burst at the point where the trace completes */
+.lf-spark {
+  position: absolute;
+  z-index: 6;
+  font-size: 17px;
+  line-height: 1;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: lfSparkPop 0.38s ease-out forwards;
+}
+.lf-spark-2 {
+  font-size: 11px;
+  margin-left: 16px;
+  margin-top: 7px;
+  animation-delay: 0.08s;
+}
+@keyframes lfSparkPop {
+  0%   { transform: translate(-50%, -50%) scale(0) rotate(-20deg); opacity: 0; }
+  45%  { transform: translate(-50%, -50%) scale(1.35) rotate(8deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.55) rotate(20deg); opacity: 0; }
+}
 /* The floating feedback bubble sits over the question card's buttons on small
    screens — hide it while the live flow is the active step. */
 @media (max-width: 720px) {

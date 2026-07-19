@@ -14,8 +14,8 @@
   --color-cream: #FAFAF8;
   --font-brand: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  --coral: #FF6B35;
-  --coral-dark: #E8521C;
+  --coral: var(--color-orange);
+  --coral-dark: #D65F33;
   --coral-soft: #FFE7DC;
   --amber: #FFB347;
   --bg: var(--color-cream);
@@ -31,7 +31,7 @@
   --radius-lg: 28px;
   --shadow-sm: 0 2px 8px rgba(26, 26, 26, 0.05);
   --shadow: 0 10px 30px rgba(26, 26, 26, 0.08);
-  --shadow-lg: 0 24px 60px rgba(232, 82, 28, 0.18);
+  --shadow-lg: 0 24px 60px rgba(214, 95, 51, 0.18);
 
   --maxw: 1120px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -2412,7 +2412,7 @@ body.dragging-active * {
 .import-link-row .btn { flex: none; padding: 10px 14px; }
 .import-link-note { font-size: 0.84rem; line-height: 1.45; margin: 0 0 12px; }
 .import-link-note.ok { color: var(--green, #2E9E6B); }
-.import-link-note.err { color: var(--coral-dark, #E8521C); }
+.import-link-note.err { color: var(--coral-dark, #D65F33); }
 /* "Talk it out" recorder */
 .import-record { margin: 4px 0 14px; }
 .record-btn.recording { background: #d64545; }

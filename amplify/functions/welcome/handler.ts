@@ -53,9 +53,9 @@ export const handler: Schema["sendWelcome"]["functionHandler"] = async (event) =
     "<li>Share by link or QR: pets, kids, homes, sitters and guests</li>" +
     "</ul>" +
     '<p style="margin:0 0 22px">' +
-    '<a href="' + esc(dashUrl) + '" style="display:inline-block;background:#FF6B35;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px">Open my dashboard →</a>' +
+    '<a href="' + esc(dashUrl) + '" style="display:inline-block;background:#ED7446;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:999px">Open my dashboard →</a>' +
     "</p>" +
-    '<p style="color:#777;font-size:14px;margin:0 0 4px">Or <a href="' + esc(createUrl) + '" style="color:#FF6B35">start a new guide</a>.</p>' +
+    '<p style="color:#777;font-size:14px;margin:0 0 4px">Or <a href="' + esc(createUrl) + '" style="color:#ED7446">start a new guide</a>.</p>' +
     '<p style="color:#999;font-size:13px;margin-top:24px">Creating and sharing guides is always free. — GotIt Guides · guides people get</p>' +
     "</div>";
 

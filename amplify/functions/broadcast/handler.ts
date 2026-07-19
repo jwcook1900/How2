@@ -98,7 +98,7 @@ async function gatherAudience(): Promise<Audience> {
 function bodyHtml(body: string): string {
   return String(body).trim().split(/\n{2,}/).map((para) => {
     const lines = para.split("\n").map((line) =>
-      esc(line).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#E8521C">$1</a>')
+      esc(line).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#D65F33">$1</a>')
     );
     return '<p style="margin:0 0 16px;line-height:1.6">' + lines.join("<br />") + "</p>";
   }).join("");
@@ -112,7 +112,7 @@ function renderEmail(subject: string, body: string, unsubUrl: string) {
   const text = String(body).trim() + footerText;
   const html =
     '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#1A1A1A">' +
-    '<p style="font-size:17px;font-weight:800;margin:0 0 20px">GotIt Guides<span style="color:#FF6B35">.</span></p>' +
+    '<p style="font-size:17px;font-weight:800;margin:0 0 20px">GotIt Guides<span style="color:#ED7446">.</span></p>' +
     bodyHtml(body) +
     '<hr style="border:none;border-top:1px solid #eee;margin:28px 0 14px" />' +
     '<p style="color:#999;font-size:12px;line-height:1.6;margin:0">' +
@@ -149,9 +149,9 @@ const UNSUB_PAGE = (msg: string) =>
   "<title>GotIt Guides</title></head>" +
   "<body style='font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#FAFAF8;color:#1A1A1A;display:flex;align-items:center;justify-content:center;min-height:90vh;margin:0'>" +
   "<div style='text-align:center;padding:24px;max-width:420px'>" +
-  "<p style='font-size:20px;font-weight:800'>GotIt Guides<span style='color:#FF6B35'>.</span></p>" +
+  "<p style='font-size:20px;font-weight:800'>GotIt Guides<span style='color:#ED7446'>.</span></p>" +
   "<p style='font-size:16px;line-height:1.6'>" + msg + "</p>" +
-  "<p style='margin-top:22px'><a href='https://www.gotitguides.com' style='color:#E8521C'>gotitguides.com</a></p>" +
+  "<p style='margin-top:22px'><a href='https://www.gotitguides.com' style='color:#D65F33'>gotitguides.com</a></p>" +
   "</div></body></html>";
 
 async function handleUnsub(qs: Record<string, string>, secret: string) {

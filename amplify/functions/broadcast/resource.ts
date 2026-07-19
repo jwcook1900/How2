@@ -27,6 +27,7 @@ export const broadcastFn = defineFunction({
     STATS_KEY: process.env.STATS_KEY || "",
     RESEND_API_KEY: secret("RESEND_API_KEY"),
     EMAIL_FROM: process.env.EMAIL_FROM || "",
+    SES_FROM: process.env.SES_FROM || "", // legacy sender var, same fallback as the other email fns
     FEEDBACK_TABLE: "", // set from the Feedback table name in backend.ts
     USER_POOL_ID: "",   // set in backend.ts
   },

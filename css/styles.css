@@ -2599,6 +2599,20 @@ body.dragging-active * {
 .lf-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 3px 0 0; }
 .lf-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
 .lf-btn-row .btn { flex: 0 0 auto; }
+/* Small screens: Back + a big Next share the row (primary gets the thumb
+   target); "Skip for now" becomes a quiet centred text link underneath —
+   a deliberate two-line layout instead of an accidental wrap. */
+@media (max-width: 719px) {
+  .lf-btn-row .lf-flex { display: none; }
+  .lf-btn-row #lfBack { order: 1; }
+  .lf-btn-row #lfNext { order: 2; flex: 1 1 auto; }
+  .lf-btn-row #lfSkip {
+    order: 3; flex: 1 0 100%;
+    background: transparent; border: none; box-shadow: none;
+    color: var(--ink-muted); font-weight: 600;
+  }
+  .lf-btn-row #lfPhotoAdd { flex: 1 1 auto; }
+}
 .lf-flex { flex: 1; }
 .lf-field-wrap { flex: 1; min-width: 200px; }
 .lf-input { width: 100%; box-sizing: border-box; }

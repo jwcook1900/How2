@@ -206,7 +206,7 @@ export const handler = async (event: any) => {
 
     const origin = "https://" + ((event.requestContext && event.requestContext.domainName) || "");
     const unsubUrl = (email: string) => origin + "/unsub?e=" + b64u(email) + "&s=" + sig(email, secret);
-    const from = process.env.EMAIL_FROM || "";
+    const from = process.env.EMAIL_FROM || process.env.SES_FROM || "";
 
     if (b.action === "audience") {
       const a = await gatherAudience();

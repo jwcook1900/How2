@@ -974,6 +974,17 @@
     return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
+  // The AI sometimes answers in markdown (**bold**, ### headers) — guide
+  // fields are plain text, so those markers would show as literal asterisks.
+  // Strip the markers, keep the words.
+  function stripMdArtifacts(s) {
+    return String(s)
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/__(.+?)__/g, "$1")
+      .replace(/^#{1,4}\s+/gm, "")
+      .replace(/\*\*/g, "");
+  }
+
   // Keyless cloud AI (knows the category + question for context) → local tidy-up.
   function polish(text, ctx) {
     ctx = ctx || {};
@@ -983,7 +994,7 @@
     }).then(function (res) {
       if (res && typeof res.text === "string" && res.text.trim()) {
         showToast("Polished with AI ✨");
-        return res.text;
+        return stripMdArtifacts(res.text);
       }
       return fallback(); // no cloud backend
     }, fallback);        // cloud errored
@@ -1045,7 +1056,7 @@
       var real = ((res && res.changes) || []).filter(function (c) {
         return c && c.id && byId.hasOwnProperty(c.id) && typeof c.text === "string" &&
           c.text.trim() && c.text.trim() !== byId[c.id].trim();
-      }).map(function (c) { c.before = byId[c.id]; return c; });
+      }).map(function (c) { c.text = stripMdArtifacts(c.text); c.before = byId[c.id]; return c; });
       if (!real.length) { showToast("Your guide already reads well ✨"); return; }
       openPolishReview(real);
     }, function () { done(); showToast("Couldn't polish just now — try again."); });
@@ -1229,7 +1240,8 @@
     try {
       localStorage.setItem(LIVE_KEY, JSON.stringify({
         cat: state.category.id, answers: state.answers, idx: liveIdx,
-        skipped: liveSkipped, cover: state.liveCover || null, savedAt: Date.now()
+        skipped: liveSkipped, cover: state.liveCover || null,
+        pos: state.liveCoverPos || null, savedAt: Date.now()
       }));
     } catch (e) { /* storage full (likely the photo) — flow still works */ }
   }
@@ -1246,6 +1258,7 @@
   function startLiveFlow(atIdx) {
     buildLiveSteps(state.category);
     liveIdx = Math.max(0, Math.min(atIdx || 0, liveSteps.length - 1));
+    liveBuilt = false;
     GotItStore.event("live_open", state.category.id);
     renderLive();
     showStep("live");
@@ -1292,6 +1305,12 @@
       (current.kind === "q" && current.q.target === "title"));
 
     doc.appendChild(buildLiveCover(coverActive ? current : null, name));
+    // Photo step with a photo already on the cover: the keep/change panel
+    // sits BELOW the cover so the full photo stays visible while deciding,
+    // and the cover itself is drag-to-frame.
+    if (current && current.kind === "photo" && state.liveCover) {
+      doc.appendChild(buildLivePhotoPanel());
+    }
     liveSteps.forEach(function (s, idx) {
       if (s.kind !== "q" || s.q.target === "title") return;
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
@@ -1418,7 +1437,10 @@
       (lit ? " lf-lit" : " lf-ghost-cover") +
       (state.liveCover ? " has-cover" : "") +
       (currentStep ? " lf-open" : "");
-    if (state.liveCover) el.style.backgroundImage = "url(" + state.liveCover + ")";
+    if (state.liveCover) {
+      el.style.backgroundImage = "url(" + state.liveCover + ")";
+      el.style.backgroundPosition = state.liveCoverPos || "center";
+    }
     el.innerHTML =
       '<div class="cover-text">' +
         '<span class="cover-emoji">' + esc(cat.emoji) + "</span>" +
@@ -1429,50 +1451,32 @@
     if (currentStep && currentStep.kind === "q") {
       el.appendChild(buildLiveEmbed(currentStep.q, liveIdx === liveSteps.length - 1));
     } else if (currentStep && currentStep.kind === "photo") {
-      var short = "";
-      cat.questions.forEach(function (q) {
-        if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
-      });
-      var personal = cat.id === "pet" || cat.id === "kids" || cat.id === "care";
-      var ask = state.liveCover
-        ? "Looking good! Keep this photo?"
-        : (personal && short ? "Put a photo of " + short + " on the cover?" : "Put a photo on the cover?");
-      var wrap = document.createElement("div");
-      wrap.className = "lf-embed";
-      wrap.innerHTML =
-        '<div class="lf-q">\uD83D\uDCF8 ' + esc(ask) + "</div>" +
-        '<div class="lf-hint">It makes the guide instantly recognisable \u2014 you can change it any time.</div>' +
-        '<div class="lf-row lf-btn-row">' +
-          '<button class="btn btn-primary" id="lfPhotoAdd" type="button">' + (state.liveCover ? "Change photo" : "Add a photo") + "</button>" +
-          '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">' + (state.liveCover ? "Keep it \u2192" : "Later") + "</button>" +
-        "</div>";
-      el.appendChild(wrap);
-      wrap.querySelector("#lfPhotoAdd").addEventListener("click", function () {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/*";
-        input.addEventListener("change", function () {
-          var file = input.files[0];
-          if (!file) return;
-          var btn = $("lfPhotoAdd");
-          btn.disabled = true; btn.textContent = "Adding\u2026";
-          compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
-            state.liveCover = dataUrl;
-            saveLiveLocal();
-            renderLive();
-          });
+      if (state.liveCover) {
+        // Photo already on the cover: keep the tile clean (the decision panel
+        // renders below it) and make the photo drag-to-frame, with a centre
+        // control. The chosen framing carries into the guide as coverPos.
+        enableLiveReframe(el);
+      } else {
+        var short = "";
+        cat.questions.forEach(function (q) {
+          if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
         });
-        input.click();
-      });
-      wrap.querySelector("#lfPhotoSkip").addEventListener("click", function () {
-        if (liveBusy) return;
-        if (state.liveCover) {
-          liveBusy = true;
-          traceSaved(liveActiveCard(), function () { liveBusy = false; liveAdvance(); });
-        } else {
-          liveAdvance();
-        }
-      });
+        var personal = cat.id === "pet" || cat.id === "kids" || cat.id === "care";
+        var ask = personal && short
+          ? "Put a photo of " + short + " on the cover?" : "Put a photo on the cover?";
+        var wrap = document.createElement("div");
+        wrap.className = "lf-embed";
+        wrap.innerHTML =
+          '<div class="lf-q">\uD83D\uDCF8 ' + esc(ask) + "</div>" +
+          '<div class="lf-hint">It makes the guide instantly recognisable \u2014 you can change it any time.</div>' +
+          '<div class="lf-row lf-btn-row">' +
+            '<button class="btn btn-primary" id="lfPhotoAdd" type="button">Add a photo</button>' +
+            '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">Later</button>' +
+          "</div>";
+        el.appendChild(wrap);
+        wrap.querySelector("#lfPhotoAdd").addEventListener("click", livePickPhoto);
+        wrap.querySelector("#lfPhotoSkip").addEventListener("click", function () { liveAdvance(); });
+      }
     } else {
       // Not the current step: tapping the cover jumps back to the name.
       el.addEventListener("click", function () {
@@ -1483,6 +1487,90 @@
       });
     }
     return el;
+  }
+
+  // Open the system picker, compress, and land the photo on the live cover.
+  function livePickPhoto() {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      var btn = $("lfPhotoAdd");
+      if (btn) { btn.disabled = true; btn.textContent = "Adding…"; }
+      compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
+        state.liveCover = dataUrl;
+        state.liveCoverPos = null; // fresh photo, fresh framing
+        saveLiveLocal();
+        renderLive();
+      });
+    });
+    input.click();
+  }
+
+  // Drag the cover photo to frame it (same math as the editor's reposition),
+  // plus a centre control. Runs only during the photo step.
+  function enableLiveReframe(el) {
+    el.classList.add("lf-reframe");
+    var parts = (state.liveCoverPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
+    var posX = parseFloat(parts[0]); if (isNaN(posX)) posX = 50;
+    var posY = parseFloat(parts[1]); if (isNaN(posY)) posY = 50;
+    var startX = 0, startY = 0, baseX = posX, baseY = posY, dragging = false;
+    el.addEventListener("pointerdown", function (e) {
+      if (e.target.closest(".lf-centre-btn")) return;
+      e.preventDefault();
+      dragging = true; startX = e.clientX; startY = e.clientY; baseX = posX; baseY = posY;
+      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var w = el.clientWidth || 1, h = el.clientHeight || 1;
+      posX = Math.max(0, Math.min(100, baseX - (e.clientX - startX) / w * 100));
+      posY = Math.max(0, Math.min(100, baseY - (e.clientY - startY) / h * 100));
+      el.style.backgroundPosition = posX + "% " + posY + "%";
+    });
+    el.addEventListener("pointerup", function () {
+      if (!dragging) return;
+      dragging = false;
+      state.liveCoverPos = posX + "% " + posY + "%";
+      saveLiveLocal();
+    });
+    var centre = document.createElement("button");
+    centre.type = "button";
+    centre.className = "lf-centre-btn";
+    centre.title = "Centre the photo";
+    centre.setAttribute("aria-label", "Centre the photo");
+    centre.innerHTML = MOVE_ICON_SVG;
+    centre.addEventListener("click", function (e) {
+      e.stopPropagation();
+      posX = 50; posY = 50;
+      el.style.backgroundPosition = "50% 50%";
+      state.liveCoverPos = "50% 50%";
+      saveLiveLocal();
+    });
+    el.appendChild(centre);
+  }
+
+  // The keep/change decision, as its own card under the (unobstructed) cover.
+  function buildLivePhotoPanel() {
+    var panel = document.createElement("div");
+    panel.className = "lf-card lf-open lf-photo-panel";
+    panel.innerHTML =
+      '<div class="lf-q">📸 Looking good! Keep this photo?</div>' +
+      '<div class="lf-hint">Drag the photo to frame it — the ' +
+        '<span class="lf-hint-ico">' + MOVE_ICON_SVG + "</span> button centres it.</div>" +
+      '<div class="lf-row lf-btn-row">' +
+        '<button class="btn btn-ghost" id="lfPhotoAdd" type="button">Change photo</button>' +
+        '<button class="btn btn-primary" id="lfPhotoSkip" type="button">Keep it →</button>' +
+      "</div>";
+    panel.querySelector("#lfPhotoAdd").addEventListener("click", livePickPhoto);
+    panel.querySelector("#lfPhotoSkip").addEventListener("click", function () {
+      if (liveBusy) return;
+      liveBusy = true;
+      traceSaved($("lfDoc").querySelector(".lf-cover"), function () { liveBusy = false; liveAdvance(); });
+    });
+    return panel;
   }
 
   // A section/emergency card. The current one expands into its input;
@@ -1574,13 +1662,18 @@
       liveAdvance();
     });
   }
+  var liveBuilt = false; // guards a double-fire on the final step (the guide
+                         // builds behind a short pause; a second tap must not
+                         // rebuild it and lose the collected cover)
   function liveAdvance() {
     stopMic();
+    if (liveBuilt) return;
     if (liveIdx < liveSteps.length - 1) {
       liveIdx++;
       saveLiveLocal();
       renderLive();
     } else {
+      liveBuilt = true;
       buildGuide(); // identical construction path to the classic wizard
     }
   }
@@ -1613,6 +1706,7 @@
       state.media = {};
       liveSkipped = d.skipped || {};
       state.liveCover = d.cover || null;
+      state.liveCoverPos = d.pos || null;
       banner.remove();
       startLiveFlow(d.idx || 0);
     });
@@ -1661,8 +1755,9 @@
       emoji: cat.emoji,
       title: title,
       subtitle: cat.coverSub,
-      // The live flow may have collected a cover photo already.
+      // The live flow may have collected a cover photo (and framing) already.
       cover: state.liveCover || null,
+      coverPos: state.liveCoverPos || null,
       sections: sections,
       contacts: contacts,
       logs: [],
@@ -1675,6 +1770,7 @@
       createdAt: Date.now()
     };
     state.liveCover = null;
+    state.liveCoverPos = null;
     clearLiveLocal(); // the answers now live in the guide draft itself
     GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
 
@@ -1719,6 +1815,7 @@
       "</div>" +
       '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>' +
       '<button class="cover-reposition-btn no-print" type="button" title="Reposition photo" aria-label="Reposition photo">' + MOVE_ICON_SVG + "</button>" +
+      '<button class="cover-textmove-btn no-print" type="button" title="Move the title up or down" aria-label="Move the title up or down">↕</button>' +
       // Hero feature, so it gets a standing invitation right on the tile —
       // not just the entry buried in the dock's 📷 menu. Hidden once a photo
       // is set (applyCover), when reposition/change take over.
@@ -1742,6 +1839,10 @@
     var coverAdd = cover.querySelector(".cover-add-photo");
     if (coverAdd) {
       coverAdd.addEventListener("click", function (e) { e.stopPropagation(); pickCover(cover); });
+    }
+    var textMove = cover.querySelector(".cover-textmove-btn");
+    if (textMove) {
+      textMove.addEventListener("click", function (e) { e.stopPropagation(); startCoverTextMove(cover); });
     }
     var emojiX = cover.querySelector(".cover-emoji-x");
     if (g.coverEmojiOff) emojiX.hidden = true;

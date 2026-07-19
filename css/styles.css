@@ -977,9 +977,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 @media (min-width: 720px) {
   .guide-cover.has-cover { min-height: 420px; }
 }
-/* No icon + a cover photo: lift the title to the top so it sits above the
-   photo's subject (e.g. a pet's face in the middle) instead of over it. */
-.guide-cover.has-cover.no-emoji { justify-content: flex-start; }
+/* No icon: the title block simply re-centres in the freed space (it can be
+   dragged clear of a photo's subject with the ↕ move-title control). */
 .guide-cover.has-cover .cover-emoji,
 .guide-cover.has-cover .cover-title,
 .guide-cover.has-cover .cover-sub {
@@ -1023,6 +1022,26 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .cover-reposition-btn svg { width: 17px; height: 17px; }
 .cover-reposition-btn:hover { background: rgba(0, 0, 0, 0.52); }
+/* ↕ move-title — same frosted button language, tucked under the reposition
+   handle so the two cover controls read as a set. */
+.cover-textmove-btn {
+  position: absolute;
+  top: 48px; left: 10px;
+  width: 30px; height: 30px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.cover-textmove-btn:hover { background: rgba(0, 0, 0, 0.52); }
+.cover-textmove-btn[hidden] { display: none; }
+.guide-cover.repositioning .cover-textmove-btn { display: none; }
 /* Editor-only standing invitation to add a cover photo (a hero feature that
    shouldn't hide in the dock's 📷 menu). In normal flow under the subtitle,
    frosted on the gradient; hidden once a photo is set. */
@@ -2618,6 +2637,31 @@ body.dragging-active * {
 .lf-input { width: 100%; box-sizing: border-box; }
 textarea.lf-input { resize: none; }
 .lf-actions { margin-top: 8px; justify-content: flex-end; }
+/* Photo step: the cover is drag-to-frame; the decision panel sits below it */
+.lf-cover.lf-reframe { cursor: grab; touch-action: none; user-select: none; }
+.lf-cover.lf-reframe:active { cursor: grabbing; }
+.lf-centre-btn {
+  position: absolute;
+  top: 10px; left: 10px;
+  width: 30px; height: 30px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.lf-centre-btn svg { width: 17px; height: 17px; }
+.lf-centre-btn:hover { background: rgba(0, 0, 0, 0.52); }
+.lf-photo-panel { opacity: 1; }
+.lf-hint-ico svg { width: 13px; height: 13px; vertical-align: -2px; display: inline-block; }
+@media (max-width: 719px) {
+  .lf-photo-panel #lfPhotoAdd { order: 1; flex: 0 0 auto; }
+  .lf-photo-panel #lfPhotoSkip { order: 2; flex: 1 1 auto; }
+}
 /* Legacy overlay container (unused; kept for markup compatibility) */
 .lf-spot { display: none; }
 /* "Saved" trace: a green line draws itself around the completed card */

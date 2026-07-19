@@ -1328,20 +1328,55 @@
       });
     });
 
-    renderLiveSpot();
+    // The element the current step belongs to (cover for the title/photo
+    // steps, otherwise the glowing section card).
+    var cur = doc.querySelector(".lf-glow");
+    if (!cur) cur = doc.querySelector(".lf-cover");
 
-    // Keep the in-focus card visible above the spotlight.
-    var cur = doc.querySelector(".lf-glow") || (current && current.kind === "photo" ? doc.querySelector(".lf-cover") : null);
-    if (!cur && current && current.kind === "q" && current.q.target === "title") cur = doc.querySelector(".lf-cover");
-    if (cur && cur.scrollIntoView) {
-      setTimeout(function () { cur.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+    renderLiveSpot(cur);
+
+    // Keep the step's context visible: on desktop the spotlight sits inline
+    // under its card, so centre that pair; on mobile centre the card above
+    // the pinned spotlight.
+    var scrollTo = liveSpotInline() ? (cur.nextSibling || cur) : cur;
+    if (scrollTo && scrollTo.scrollIntoView) {
+      setTimeout(function () { scrollTo.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
     }
   }
 
-  function renderLiveSpot() {
-    var spot = $("lfSpot");
+  // Desktop: the question card sits in the document, right under the section
+  // it's filling (a bottom-pinned bar there is a football field away from the
+  // content). Mobile keeps the pinned bar — that's where thumbs and the
+  // keyboard are.
+  function liveSpotInline() {
+    return window.matchMedia("(min-width: 720px)").matches;
+  }
+  var liveResizeWired = false;
+  function wireLiveResize() {
+    if (liveResizeWired) return;
+    liveResizeWired = true;
+    var wasInline = liveSpotInline();
+    window.addEventListener("resize", function () {
+      if (currentStepKey !== "live") return;
+      var nowInline = liveSpotInline();
+      if (nowInline !== wasInline) { wasInline = nowInline; renderLive(); }
+    });
+  }
+
+  function renderLiveSpot(activeEl) {
+    wireLiveResize();
+    var fixedSpot = $("lfSpot");
     var s = liveSteps[liveIdx];
     stopMic();
+    fixedSpot.innerHTML = "";
+    var inline = liveSpotInline();
+    fixedSpot.hidden = inline;
+    var spot = fixedSpot;
+    if (inline && activeEl) {
+      spot = document.createElement("div");
+      spot.className = "lf-inline-spot";
+      activeEl.parentNode.insertBefore(spot, activeEl.nextSibling);
+    }
     if (!s) { spot.innerHTML = ""; return; }
 
     if (s.kind === "photo") {
@@ -1421,6 +1456,57 @@
     container.appendChild(field);
     attachMic(container, field, isArea);
     fieldRow.appendChild(container);
+
+    // Same per-question tools as the classic wizard: AI polish, and (on
+    // section questions) the Add menu for a file / photo / video.
+    var actions = document.createElement("div");
+    actions.className = "field-actions lf-actions";
+    var fileItem = { label: "📎 File", onClick: function (trigger) {
+      readFileIntoField({
+        btn: trigger, question: fillName(q.q),
+        get: function () { return field.value; },
+        set: function (v) { field.value = v; }
+      });
+    } };
+    if (q.target === "section") {
+      actions.appendChild(makeAddMenu([
+        fileItem,
+        { label: "📷 Photo", onClick: function () { pickStepPhoto(q.id); } },
+        { label: "🎬 Video", onClick: function () {
+          openVideoModal(function (embed) {
+            (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
+            renderStepMedia(q.id);
+          });
+        } }
+      ]));
+    } else {
+      var fileBtn = document.createElement("button");
+      fileBtn.type = "button";
+      fileBtn.className = "tool-btn";
+      fileBtn.textContent = "📎 Add a file";
+      fileBtn.addEventListener("click", function () { fileItem.onClick(fileBtn); });
+      actions.appendChild(fileBtn);
+    }
+    var polishBtn = document.createElement("button");
+    polishBtn.type = "button";
+    polishBtn.className = "tool-btn";
+    polishBtn.textContent = "✨ Polish";
+    polishBtn.addEventListener("click", function () {
+      polishInto(function () { return field.value; },
+        function (v) { field.value = v; }, polishBtn, aiCtx(fillName(q.q)));
+    });
+    actions.appendChild(polishBtn);
+    // Between the field and the Back/Skip/Next row.
+    var card = spot.querySelector(".lf-spot-card");
+    card.insertBefore(actions, card.lastElementChild);
+
+    if (q.target === "section") {
+      var mediaWrap = document.createElement("div");
+      mediaWrap.className = "q-media";
+      mediaWrap.id = "qMedia";
+      card.insertBefore(mediaWrap, card.lastElementChild);
+      renderStepMedia(q.id);
+    }
 
     field.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }

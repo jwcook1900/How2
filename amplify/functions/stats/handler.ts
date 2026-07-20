@@ -9,13 +9,18 @@ const cognito = new CognitoIdentityProviderClient({});
 // every user's creation date, so this is exact from day one, not from when
 // tracking shipped). Also buckets signups into the caller's local days for the
 // "new accounts" timeline. Best-effort: on any failure the page omits it.
-async function countAccounts(tz: number): Promise<{ total: number; week: number; daily: { d: string; v: number }[] } | null> {
+async function countAccounts(
+  tz: number,
+  dayAxis: string[],
+  fromMs: number, // NaN when no window
+  winEnd: number,
+): Promise<{ total: number; week: number; daily: { d: string; v: number }[]; windowed: number | null } | null> {
   const poolId = process.env.USER_POOL_ID;
   if (!poolId) return null;
   try {
-    let total = 0, week = 0;
+    let total = 0, week = 0, windowed = 0;
+    const hasWin = !isNaN(fromMs);
     const weekAgo = Date.now() - 7 * 86400000;
-    const DAYS = 30;
     const byDay: Record<string, number> = {};
     const localDay = (t: number) => new Date(t - tz * 60000).toISOString().slice(0, 10);
     let token: string | undefined = undefined;
@@ -27,17 +32,14 @@ async function countAccounts(tz: number): Promise<{ total: number; week: number;
         total++;
         const created = u.UserCreateDate ? new Date(u.UserCreateDate).getTime() : 0;
         if (created > weekAgo) week++;
+        if (hasWin && created >= fromMs && created < winEnd) windowed++;
         if (created) { const d = localDay(created); byDay[d] = (byDay[d] || 0) + 1; }
       }
       token = res.PaginationToken;
     } while (token);
-    // Same 30-day zero-filled axis as the views chart, so charts line up.
-    const daily: { d: string; v: number }[] = [];
-    for (let i = DAYS - 1; i >= 0; i--) {
-      const d = localDay(Date.now() - i * 86400000);
-      daily.push({ d, v: byDay[d] || 0 });
-    }
-    return { total, week, daily };
+    // Same zero-filled axis as the views chart, so charts line up.
+    const daily = dayAxis.map((d) => ({ d, v: byDay[d] || 0 }));
+    return { total, week, daily, windowed: hasWin ? windowed : null };
   } catch (e) {
     return null;
   }
@@ -60,11 +62,15 @@ export const handler = async (event: any) => {
 
     let raw = event && event.body;
     if (event && event.isBase64Encoded && raw) raw = Buffer.from(raw, "base64").toString("utf8");
-    let key = "", tz = 0;
+    let key = "", tz = 0, fromStr = "", toStr = "";
     try {
       const b = JSON.parse(raw || "{}");
       key = (b.key || "").trim();
       tz = Math.max(-840, Math.min(840, Number(b.tz) || 0)); // caller's Date.getTimezoneOffset()
+      // Optional date window (local YYYY-MM-DD, inclusive): when set, every
+      // aggregate in the response answers for the window instead of all time.
+      if (/^\d{4}-\d{2}-\d{2}$/.test(b.from || "")) fromStr = b.from;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(b.to || "")) toStr = b.to;
     } catch (e) { key = ""; }
 
     const secret = process.env.STATS_KEY || "";
@@ -88,13 +94,38 @@ export const handler = async (event: any) => {
     const firstSeenBySlug: Record<string, string> = {};
     // Daily view timelines, bucketed into the caller's local days.
     const DAYS = 30;
+    const dayMs = 86400000;
     const localDay = (iso: string) => {
       const t = Date.parse(iso);
       return isNaN(t) ? "" : new Date(t - tz * 60000).toISOString().slice(0, 10);
     };
+    // Resolve the optional window into UTC-ms bounds on local-day edges.
+    // Missing/one-sided input degrades sensibly; ranges are capped at 120
+    // days so the axis (one bar per day) stays renderable.
+    const localMidnight = (d: string) => Date.parse(d + "T00:00:00Z") + tz * 60000;
+    let fromMs = fromStr ? localMidnight(fromStr) : NaN;
+    let toMs = toStr ? localMidnight(toStr) : NaN;
+    if (!isNaN(fromMs) && isNaN(toMs)) toMs = localMidnight(localDay(new Date().toISOString()));
+    if (isNaN(fromMs) && !isNaN(toMs)) fromMs = toMs;
+    if (!isNaN(fromMs) && !isNaN(toMs) && fromMs > toMs) { const t = fromMs; fromMs = toMs; toMs = t; }
+    const hasWin = !isNaN(fromMs) && !isNaN(toMs);
+    if (hasWin && (toMs - fromMs) / dayMs >= 120) fromMs = toMs - 119 * dayMs;
+    const winEnd = toMs + dayMs; // exclusive
+    const inWin = (ca: string) => {
+      if (!hasWin) return true;
+      const t = Date.parse(ca);
+      return !isNaN(t) && t >= fromMs && t < winEnd;
+    };
+    // Chart axis: the window's days when one is set, else the last 30 days.
     const dayAxis: string[] = [];
-    for (let i = DAYS - 1; i >= 0; i--) {
-      dayAxis.push(new Date(Date.now() - tz * 60000 - i * 86400000).toISOString().slice(0, 10));
+    if (hasWin) {
+      for (let t = fromMs; t < winEnd; t += dayMs) {
+        dayAxis.push(new Date(t - tz * 60000).toISOString().slice(0, 10));
+      }
+    } else {
+      for (let i = DAYS - 1; i >= 0; i--) {
+        dayAxis.push(new Date(Date.now() - tz * 60000 - i * 86400000).toISOString().slice(0, 10));
+      }
     }
     const viewsDayTotal: Record<string, number> = {};
     const viewsDayBySlug: Record<string, Record<string, number>> = {};
@@ -113,12 +144,10 @@ export const handler = async (event: any) => {
     const refBySlug: Record<string, Record<string, number>> = {};
     // Creation funnel: builder opened -> category picked -> method chosen ->
     // draft built (distinct editor slugs) -> published (distinct publish slugs).
+    // Deduped steps count in the window their FIRST event landed in, tracked
+    // all-time in firstEditorBySlug / firstTapByKey / createdBySlug below.
     let builderOpens = 0;
     const catCounts: Record<string, number> = {};
-    const editorSlugs = new Set<string>();
-    // Publish attempts (distinct drafts that tapped the button) and failures —
-    // separates "never tried" from "tried and something went wrong".
-    const tapSlugs = new Set<string>();
     let publishErrors = 0;
     // Daily funnel buckets so campaign waves can be compared by date window.
     // Raw steps (opens, starts) count per event day; deduped steps (drafts,
@@ -143,14 +172,22 @@ export const handler = async (event: any) => {
         const kind = (item.kind && item.kind.S) || "";
         const slug = (item.slug && item.slug.S) || "";
         const ca = (item.createdAt && item.createdAt.S) || "";
+        // Identity trackers are window-independent: created/last-active dates
+        // and each slug's FIRST draft/tap/publish moment (windowed funnel
+        // steps count a guide in the window its first such event landed in).
         if (slug && ca && ca > (lastBySlug[slug] || "")) lastBySlug[slug] = ca;
         if (slug && ca && (!firstSeenBySlug[slug] || ca < firstSeenBySlug[slug])) firstSeenBySlug[slug] = ca;
+        if (kind === "publish" && slug && ca && (!createdBySlug[slug] || ca < createdBySlug[slug])) createdBySlug[slug] = ca;
+        if (kind === "editor" && slug && ca && (!firstEditorBySlug[slug] || ca < firstEditorBySlug[slug])) firstEditorBySlug[slug] = ca;
+        if (kind === "publish_tap") {
+          const tapKey = slug || "?" + Math.random();
+          if (ca && (!firstTapByKey[tapKey] || ca < firstTapByKey[tapKey])) firstTapByKey[tapKey] = ca;
+        }
+        // Everything from here answers for the window (all time when none set).
+        if (!inWin(ca)) continue;
         if (kind === "publish") {
           publishes++;
-          if (slug) {
-            publishesBySlug[slug] = (publishesBySlug[slug] || 0) + 1;
-            if (ca && (!createdBySlug[slug] || ca < createdBySlug[slug])) createdBySlug[slug] = ca;
-          }
+          if (slug) publishesBySlug[slug] = (publishesBySlug[slug] || 0) + 1;
         } else if (kind === "share") {
           shares++;
           if (slug) sharesBySlug[slug] = (sharesBySlug[slug] || 0) + 1;
@@ -181,15 +218,6 @@ export const handler = async (event: any) => {
           if (d) opensByDay[d] = (opensByDay[d] || 0) + 1;
         } else if (kind === "cat") {
           if (slug) catCounts[slug] = (catCounts[slug] || 0) + 1;
-        } else if (kind === "editor") {
-          if (slug) {
-            editorSlugs.add(slug);
-            if (ca && (!firstEditorBySlug[slug] || ca < firstEditorBySlug[slug])) firstEditorBySlug[slug] = ca;
-          }
-        } else if (kind === "publish_tap") {
-          const key = slug || "?" + Math.random();
-          tapSlugs.add(key);
-          if (ca && (!firstTapByKey[key] || ca < firstTapByKey[key])) firstTapByKey[key] = ca;
         } else if (kind === "publish_err") {
           publishErrors++;
         } else if (kind === "live_open") {
@@ -218,11 +246,18 @@ export const handler = async (event: any) => {
     const features: Record<string, number> = {};
     for (const f of Object.keys(featSlugs)) features[f] = featSlugs[f].size;
 
-    // Per-guide breakdown: every slug we've seen any event for, with its own
-    // views / shares / publishes / features / last activity. Sorted by views.
+    // First-event-in-window funnel steps (all-time when no window is set).
+    const draftSlugsWin = Object.keys(firstEditorBySlug).filter((s) => inWin(firstEditorBySlug[s]));
+    const triedKeysWin = Object.keys(firstTapByKey).filter((k) => inWin(firstTapByKey[k]));
+    const publishedSlugsWin = Object.keys(createdBySlug).filter((s) => inWin(createdBySlug[s]));
+
+    // Per-guide breakdown: every slug with any activity in the window (plus
+    // guides first published in it, so a wave's new guides appear even with
+    // zero views yet). Sorted by views.
     const slugSet = new Set<string>([
       ...Object.keys(viewsBySlug), ...Object.keys(sharesBySlug),
       ...Object.keys(publishesBySlug), ...Object.keys(featsBySlug),
+      ...publishedSlugsWin,
     ]);
     const guides = Array.from(slugSet)
       .map((slug) => ({
@@ -254,27 +289,27 @@ export const handler = async (event: any) => {
     const funnel = {
       opens: builderOpens,
       starts: startMethods.talk + startMethods.paste + startMethods.scratch + startMethods.photo,
-      drafts: editorSlugs.size,
-      tried: tapSlugs.size,
-      published: Object.keys(publishesBySlug).length,
+      drafts: draftSlugsWin.length,
+      tried: triedKeysWin.length,
+      published: publishedSlugsWin.length,
       errors: publishErrors,
       live: liveOpens,
     };
 
-    // Same zero-filled 30-day axis as the views chart, so the range chips can
+    // Same zero-filled axis as the views chart, so the range chips can
     // slice both. Deduped steps land on the slug's first-event day.
     const draftsByDay: Record<string, number> = {};
-    for (const slug of Object.keys(firstEditorBySlug)) {
+    for (const slug of draftSlugsWin) {
       const d = localDay(firstEditorBySlug[slug]);
       if (d) draftsByDay[d] = (draftsByDay[d] || 0) + 1;
     }
     const triedByDay: Record<string, number> = {};
-    for (const key of Object.keys(firstTapByKey)) {
+    for (const key of triedKeysWin) {
       const d = localDay(firstTapByKey[key]);
       if (d) triedByDay[d] = (triedByDay[d] || 0) + 1;
     }
     const publishedByDay: Record<string, number> = {};
-    for (const slug of Object.keys(createdBySlug)) {
+    for (const slug of publishedSlugsWin) {
       const d = localDay(createdBySlug[slug]);
       if (d) publishedByDay[d] = (publishedByDay[d] || 0) + 1;
     }
@@ -288,9 +323,12 @@ export const handler = async (event: any) => {
       l: liveByDay[d] || 0,
     }));
 
-    const accounts = await countAccounts(tz);
+    const accounts = await countAccounts(tz, dayAxis, hasWin ? fromMs : NaN, winEnd);
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, funnelDaily, cats: catCounts, refs: refCounts, accounts }) };
+    // Echo the effective window (post-clamp) so the page can label itself.
+    const window = hasWin ? { from: dayAxis[0], to: dayAxis[dayAxis.length - 1] } : null;
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, funnelDaily, cats: catCounts, refs: refCounts, accounts, window }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

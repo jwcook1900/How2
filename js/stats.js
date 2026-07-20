@@ -15,11 +15,27 @@
   var DATA = null;
   var sortKey = "views";   // views | unique | created | active
   var newOnly = false;     // only guides created in the last 7 days
-  var range = 30;          // chart window: 7 | 14 | 30 days
+  var range = 30;          // chart window: 7 | 14 | 30 days (all-time mode only)
   var q = "";              // name filter
   var showAllGuides = false; // collapsed by default: top 3 + "Show all"
+  // Whole-page date window: when set, the backend answers every number for
+  // this range and the page labels itself accordingly. null = all time.
+  var win = null;          // {from, to} as local YYYY-MM-DD
+  var winPreset = "all";   // lit chip: all | 7 | 14 | 30 | custom
+  var winActive = false;   // set from the response each paint
+  var statsKeyVal = "";    // held after unlock so window changes can refetch
 
   function render(s) { DATA = s; paint(); }
+
+  function localDayStr(daysAgo) {
+    var tzOff = new Date().getTimezoneOffset();
+    return new Date(Date.now() - tzOff * 60000 - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
+  }
+  function refetch() {
+    if (!statsKeyVal) return;
+    GotItStore.stats(statsKeyVal, win).then(function (s) { if (s) render(s); })
+      .catch(function () { /* keep showing the last good numbers */ });
+  }
 
   function chip(label, on, attrs) {
     return '<button type="button" class="stat-chip' + (on ? " on" : "") + '" ' + attrs + ">" + label + "</button>";
@@ -89,34 +105,65 @@
     var out = $("statsOut");
     out.hidden = false;
 
+    // Whole-page window: present when the backend answered for a date range.
+    var W = s.window || null;
+    winActive = !!W;
+    var winLabel = W ? fmtD(W.from) + " \u2192 " + fmtD(W.to) : "";
+    var today = localDayStr(0);
+    // Axis suffix: only claim "(today)" when the last bar really is today.
+    var endTag = function (axis) {
+      return axis.length && axis[axis.length - 1].d === today ? " (today)" : "";
+    };
+
+    // The window bar drives everything below it: quick ranges hit the
+    // backend for that span; the date pair takes any custom wave window.
+    var winBar =
+      '<div class="stat-winbar">' +
+        chip("All time", winPreset === "all", 'data-win="all"') +
+        chip("7d", winPreset === "7", 'data-win="7"') +
+        chip("14d", winPreset === "14", 'data-win="14"') +
+        chip("30d", winPreset === "30", 'data-win="30"') +
+        '<span class="stat-win-custom">' +
+          '<input type="date" id="winFrom" aria-label="From date" value="' + esc(win && win.from || "") + '" />' +
+          "<span>\u2192</span>" +
+          '<input type="date" id="winTo" aria-label="To date" value="' + esc(win && win.to || "") + '" />' +
+          '<button type="button" class="stat-chip' + (winPreset === "custom" ? " on" : "") + '" id="winApply">Apply</button>' +
+        "</span>" +
+        (W ? '<span class="stat-win-note">Showing ' + esc(winLabel) + "</span>" : "") +
+      "</div>";
+
     var cards =
       '<div class="stat-grid">' +
-        statCard("\uD83D\uDCD8", s.publishes || 0, "Guides published") +
+        statCard("\uD83D\uDCD8", s.publishes || 0, W ? "Publishes" : "Guides published") +
         statCard("\uD83D\uDC40", s.views || 0, "Guide views") +
         statCard("\uD83D\uDC64", s.uniqueVisitors || 0, "Unique visitors") +
         statCard("\uD83D\uDD17", s.shares || 0, "Shares") +
-        // Accounts come straight from the user pool (full history, exact)
+        // Accounts come straight from the user pool (exact); in a window the
+        // card counts accounts CREATED in it, not the running total.
         (s.accounts
-          ? statCard("\uD83E\uDEAA", s.accounts.total || 0, "Accounts" +
-              (s.accounts.week ? " (+" + s.accounts.week + " this week)" : ""))
+          ? (W && s.accounts.windowed != null
+              ? statCard("\uD83E\uDEAA", s.accounts.windowed, "Accounts created")
+              : statCard("\uD83E\uDEAA", s.accounts.total || 0, "Accounts" +
+                  (s.accounts.week ? " (+" + s.accounts.week + " this week)" : "")))
           : "") +
       "</div>";
 
-    // Views per day (window selectable: 7 / 14 / 30, viewer-local days)
+    // Views per day. All-time mode: the 7/14/30 chips slice the last 30 days.
+    // Window mode: the chart IS the window, so the chips bow out.
     var vdAll = s.viewsDaily || [];
-    var vd = vdAll.slice(-range);
+    var vd = W ? vdAll : vdAll.slice(-range);
     var vdTotal = vd.reduce(function (a, x) { return a + x.v; }, 0);
     var vdPeak = vd.reduce(function (a, x) { return Math.max(a, x.v); }, 0);
-    var rangeChips = '<span class="stat-range">' +
+    var rangeChips = W ? "" : '<span class="stat-range">' +
       [7, 14, 30].map(function (r) { return chip(r + "d", range === r, 'data-range="' + r + '"'); }).join("") +
       "</span>";
     var dailyHtml = vdAll.length
-      ? '<h2 class="stat-h2">Views \u2014 last ' + range + " days" +
+      ? '<h2 class="stat-h2">Views \u2014 ' + (W ? esc(winLabel) : "last " + range + " days") +
           ' <span class="stat-sub">(' + vdTotal + " view" + (vdTotal === 1 ? "" : "s") +
           (vdPeak ? " \u00B7 peak " + vdPeak + "/day" : "") + ")</span>" + rangeChips + "</h2>" +
         bars(vd, "stat-chart") +
         (vd.length ? '<div class="stat-chart-axis"><span>' + esc(fmtD(vd[0].d)) + "</span><span>" +
-          esc(fmtD(vd[vd.length - 1].d)) + " (today)</span></div>" : "")
+          esc(fmtD(vd[vd.length - 1].d)) + endTag(vd) + "</span></div>" : "")
       : "";
 
     // New guides per day (from each guide's first-publish date, bucketed into
@@ -130,29 +177,29 @@
       var d = new Date(t - tzOff * 60000).toISOString().slice(0, 10);
       createdByDay[d] = (createdByDay[d] || 0) + 1;
     });
-    var ng = vdAll.slice(-range).map(function (x) { return { d: x.d, v: createdByDay[x.d] || 0 }; });
+    var ng = (W ? vdAll : vdAll.slice(-range)).map(function (x) { return { d: x.d, v: createdByDay[x.d] || 0 }; });
     var ngTotal = ng.reduce(function (a, x) { return a + x.v; }, 0);
     var newGuidesHtml = ngTotal
-      ? '<h2 class="stat-h2">New guides — last ' + range + ' days' +
+      ? '<h2 class="stat-h2">New guides — ' + (W ? esc(winLabel) : "last " + range + " days") +
           ' <span class="stat-sub">(' + ngTotal + " guide" + (ngTotal === 1 ? "" : "s") + ")</span></h2>" +
         bars(ng, "stat-chart", "guide") +
         '<div class="stat-chart-axis"><span>' + esc(fmtD(ng[0].d)) + "</span><span>" +
-          esc(fmtD(ng[ng.length - 1].d)) + " (today)</span></div>"
+          esc(fmtD(ng[ng.length - 1].d)) + endTag(ng) + "</span></div>"
       : "";
 
     // New accounts per day (exact — straight from the user pool's creation
     // stamps; same axis + range chips as the other timelines)
     var acctsHtml = "";
     if (s.accounts && s.accounts.daily) {
-      var ac = s.accounts.daily.slice(-range);
+      var ac = W ? s.accounts.daily : s.accounts.daily.slice(-range);
       var acTotal = ac.reduce(function (a, x) { return a + x.v; }, 0);
       if (acTotal) {
         acctsHtml =
-          '<h2 class="stat-h2">New accounts — last ' + range + " days" +
+          '<h2 class="stat-h2">New accounts — ' + (W ? esc(winLabel) : "last " + range + " days") +
             ' <span class="stat-sub">(' + acTotal + " account" + (acTotal === 1 ? "" : "s") + ")</span></h2>" +
           bars(ac, "stat-chart", "account") +
           '<div class="stat-chart-axis"><span>' + esc(fmtD(ac[0].d)) + "</span><span>" +
-            esc(fmtD(ac[ac.length - 1].d)) + " (today)</span></div>";
+            esc(fmtD(ac[ac.length - 1].d)) + endTag(ac) + "</span></div>";
       }
     }
 
@@ -174,7 +221,7 @@
     var fu = s.funnel || {};
     // Windowed funnel: the same 7/14/30 chips as the views chart slice a daily
     // series, so campaign waves (e.g. Facebook posts) can be compared by date.
-    var fdAll = s.funnelDaily || [];
+    var fdAll = W ? [] : (s.funnelDaily || []); // whole page is the window already
     var fd = fdAll.slice(-range);
     var fw = { o: 0, s: 0, dr: 0, t: 0, p: 0, l: 0 };
     fd.forEach(function (x) {
@@ -192,7 +239,8 @@
         : "no builder activity in this window.") +
       "</p>";
     var funnelHtml = (fu.opens || fu.starts || fu.drafts || fu.published)
-      ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before \u00B7 the \u201Clast N days\u201D line follows the view chips)</span></h2>' +
+      ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before' +
+          (W ? "" : " \u00B7 the \u201Clast N days\u201D line follows the view chips") + ")</span></h2>" +
         '<div class="stat-grid">' +
           statCard("\uD83D\uDEAA", fu.opens || 0, "Builder opened") +
           statCard("\uD83D\uDC46", fu.starts || 0, "Method chosen" + pct(fu.starts, fu.opens)) +
@@ -283,8 +331,11 @@
         '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = cards + dailyHtml + newGuidesHtml + acctsHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
-      '<p class="stat-foot">Counts everything since analytics went live. No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. ' +
+    out.innerHTML = winBar + cards + dailyHtml + newGuidesHtml + acctsHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
+      '<p class="stat-foot">' +
+      (W ? "Every number above answers for " + esc(winLabel) + " only (drafts and publishes count in the window their first event landed in). "
+         : "Counts everything since analytics went live. ") +
+      "No personal data is collected \u2014 visitors are an anonymous random id in their own browser, so unique counts start from when that shipped. " +
       "Start-method and feature stats only include activity after this update. Daily charts use your local timezone.</p>";
 
     // Wire the controls (repainted each time)
@@ -301,6 +352,15 @@
     applyNameFilter();
     Array.prototype.forEach.call(out.querySelectorAll(".stat-chip"), function (c) {
       c.addEventListener("click", function () {
+        // Whole-page window chips refetch from the backend for that range.
+        var w = c.getAttribute("data-win");
+        if (w) {
+          if (w === "all") { win = null; winPreset = "all"; }
+          else { win = { from: localDayStr(+w - 1), to: localDayStr(0) }; winPreset = w; }
+          c.textContent = "…";
+          refetch();
+          return;
+        }
         if (c.getAttribute("data-csv")) { exportCsv(sortedGuides()); return; }
         var r = c.getAttribute("data-range");
         if (r) { range = +r; paint(); return; }
@@ -308,6 +368,16 @@
         var sKey = c.getAttribute("data-sort");
         if (sKey) { sortKey = sKey; paint(); }
       });
+    });
+    var wa = $("winApply");
+    if (wa) wa.addEventListener("click", function () {
+      var f = ($("winFrom").value || "").trim();
+      var t = ($("winTo").value || "").trim();
+      if (!f && !t) return;
+      win = { from: f || t, to: t || f };
+      winPreset = "custom";
+      wa.textContent = "…";
+      refetch();
     });
   }
 
@@ -364,8 +434,8 @@
         metric("🔗", g.shares, "shares") + metric("📘", g.publishes, "publishes") +
       "</div>" +
       srcChips(g.refs) +
-      // Sparkline follows the same 7/14/30-day window as the main chart.
-      (g.daily ? bars(g.daily.slice(-range), "sg-daily") : "") +
+      // Sparkline follows the chart chips (all-time mode) or spans the window.
+      (g.daily ? bars(winActive ? g.daily : g.daily.slice(-range), "sg-daily") : "") +
       (feats ? '<div class="sg-feats">' + feats + "</div>" : "") +
     "</div>";
   }
@@ -527,9 +597,9 @@
     var btn = $("statsGo"), err = $("statsErr");
     err.hidden = true;
     btn.disabled = true; btn.textContent = "Loading…";
-    GotItStore.stats(key).then(function (s) {
+    GotItStore.stats(key, win).then(function (s) {
       if (!s) { err.textContent = "Stats backend isn't available here (publish online to use it)."; err.hidden = false; }
-      else { render(s); initBroadcast(key); startAutoRefresh(key); }
+      else { statsKeyVal = key; render(s); initBroadcast(key); startAutoRefresh(key); }
     }).catch(function () {
       err.textContent = "Wrong passphrase, or stats aren't configured yet.";
       err.hidden = false;
@@ -547,7 +617,8 @@
       if (document.hidden) return;
       var ae = document.activeElement;
       if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
-      GotItStore.stats(key).then(function (s) { if (s) render(s); })
+      // Refreshes honour whatever window is active at the time.
+      GotItStore.stats(key, win).then(function (s) { if (s) render(s); })
         .catch(function () { /* keep showing the last good numbers */ });
     }, 180000);
   }

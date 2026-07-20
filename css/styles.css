@@ -114,9 +114,6 @@ ul { margin: 0; padding: 0; list-style: none; }
 .btn-block { width: 100%; }
 
 /* ───────── Header ───────── */
-/* In-page anchors must clear the sticky header instead of tucking under it */
-section[id] { scroll-margin-top: 76px; }
-
 .site-header {
   position: sticky;
   top: 0;

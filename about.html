@@ -143,8 +143,9 @@
 
     // Anchor links (about.html#privacy) land before the web font loads; when
     // Plus Jakarta Sans swaps in, the text above the target reflows taller and
-    // the section drifts down past the scroll position. Re-anchor once things
-    // settle — unless the reader has already started scrolling themselves.
+    // the section drifts down past the scroll position. load/fonts.ready alone
+    // proved unreliable on iOS Safari, so chase EVERY late reflow for the
+    // first few seconds — unless the reader has started scrolling themselves.
     (function () {
       if (!location.hash) return;
       var userMoved = false;
@@ -159,6 +160,11 @@
       };
       window.addEventListener("load", reanchor);
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(reanchor);
+      if (window.ResizeObserver) {
+        var ro = new ResizeObserver(reanchor); // fires on observe + every body resize
+        ro.observe(document.body);
+        setTimeout(function () { ro.disconnect(); }, 4000);
+      }
     })();
   </script>
 </body>

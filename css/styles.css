@@ -2747,12 +2747,19 @@ textarea.lf-input { resize: none; }
   font-weight: 600;
   color: var(--ink);
   background: var(--white);
-  border: 1px solid var(--line);
+  /* Dashed like the box around it: these are proposals, not items yet.
+     Real routine items render solid — the border is the tell. */
+  border: 1.5px dashed var(--line-dark, var(--line));
   border-radius: 999px;
   padding: 7px 13px;
   cursor: pointer;
 }
-.routine-suggest-chip:hover { border-color: var(--coral); color: var(--coral-dark); }
+.routine-suggest-chip .rsc-plus {
+  color: var(--coral-dark);
+  font-weight: 800;
+  margin-right: 5px;
+}
+.routine-suggest-chip:hover { border-color: var(--coral); border-style: solid; color: var(--coral-dark); }
 .routine-suggest-actions { display: flex; gap: 12px; align-items: center; flex-basis: 100%; margin-top: 4px; }
 
 /* Privacy bubble (kids flow): quiet, expandable, never blocking */

@@ -565,6 +565,7 @@
   function startFromScratch() {
     GotItStore.event("start_scratch"); // analytics (best-effort)
     if (LIVE_FLOW) { startLiveFlow(0); return; }
+    state.liveOrigin = false;
     state.qIndex = 0;
     renderQuestion();
     showStep(2);
@@ -795,6 +796,7 @@
 
   // Maps the AI's import result (or a fallback) into a fresh editable guide.
   function buildGuideFromAI(ai, cat, rawText) {
+    state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
     var sections = (ai.sections || []).map(function (s) {
       return {
         id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
@@ -1267,11 +1269,12 @@
     } catch (e) { return null; }
   }
 
-  function startLiveFlow(atIdx) {
+  function startLiveFlow(atIdx, quiet) {
     buildLiveSteps(state.category);
     liveIdx = Math.max(0, Math.min(atIdx || 0, liveSteps.length - 1));
     liveBuilt = false;
-    GotItStore.event("live_open", state.category.id);
+    state.liveOrigin = true; // review's "Back to questions" returns HERE, not the classic wizard
+    if (!quiet) GotItStore.event("live_open", state.category.id);
     renderLive();
     showStep("live");
   }
@@ -3136,7 +3139,7 @@
       sug.className = "routine-suggest";
       var st = document.createElement("div");
       st.className = "routine-suggest-t";
-      st.textContent = "✨ Spotted in your answers — tap to add:";
+      st.textContent = "✨ Spotted in your answers. Nothing is added until you tap it:";
       sug.appendChild(st);
       var chipWrap = document.createElement("div");
       chipWrap.className = "routine-suggest-chips";
@@ -3159,7 +3162,13 @@
           var c = document.createElement("button");
           c.type = "button";
           c.className = "routine-suggest-chip";
-          c.textContent = s.icon + " " + s.label + " · " + fmt12(s.time) + " ＋";
+          // Leading "+" (same affordance as "+ Add routine item" below) — a
+          // trailing one read as a remove "×" on already-added items.
+          var plus = document.createElement("span");
+          plus.className = "rsc-plus";
+          plus.textContent = "＋";
+          c.appendChild(plus);
+          c.appendChild(document.createTextNode(s.icon + " " + s.label + " · " + fmt12(s.time)));
           c.addEventListener("click", function () { acceptSuggestion(s); });
           chipWrap.appendChild(c);
         });
@@ -4208,6 +4217,16 @@
     else startRecording();
   });
   $("previewBack").addEventListener("click", function () {
+    if (state.liveOrigin && state.category) {
+      // buildGuide consumed the live cover into the draft — hand it back so
+      // the flow still shows the photo and a rebuild doesn't lose it.
+      if (state.guide && state.guide.cover && !state.liveCover) {
+        state.liveCover = state.guide.cover;
+        state.liveCoverPos = state.guide.coverPos || null;
+      }
+      startLiveFlow(9999, true); // clamps to the last question; quiet = no second live_open
+      return;
+    }
     state.qIndex = state.category.questions.length - 1;
     renderQuestion();
     showStep(2);
@@ -4516,6 +4535,7 @@
     });
   }
   function finishEnterEdit(guide, token, slug) {
+    state.liveOrigin = false; // editing an existing guide — nothing to go "back" to in the live flow
     // The record id (the slug in the edit link) IS the guide's identity.
     // A duplicated or re-linked LOCKED guide still carries its original slug
     // inside the encrypted payload — trusting that would make the next

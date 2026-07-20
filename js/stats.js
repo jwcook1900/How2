@@ -172,8 +172,27 @@
 
     // Creation funnel (each % is of the step before)
     var fu = s.funnel || {};
+    // Windowed funnel: the same 7/14/30 chips as the views chart slice a daily
+    // series, so campaign waves (e.g. Facebook posts) can be compared by date.
+    var fdAll = s.funnelDaily || [];
+    var fd = fdAll.slice(-range);
+    var fw = { o: 0, s: 0, dr: 0, t: 0, p: 0, l: 0 };
+    fd.forEach(function (x) {
+      fw.o += x.o || 0; fw.s += x.s || 0; fw.dr += x.dr || 0;
+      fw.t += x.t || 0; fw.p += x.p || 0; fw.l += x.l || 0;
+    });
+    var windowHtml = !fdAll.length ? "" :
+      '<p class="stat-window" id="funnelWindow">Last ' + range + " days: " +
+      ((fw.o || fw.s || fw.dr || fw.p)
+        ? "<b>" + fw.o + "</b> opened \u2192 <b>" + fw.s + "</b> started \u2192 <b>" + fw.dr +
+          "</b> draft" + (fw.dr === 1 ? "" : "s") +
+          (fw.t ? " \u2192 <b>" + fw.t + "</b> tried" : "") +
+          " \u2192 <b>" + fw.p + "</b> published" + pct(fw.p, fw.o) +
+          (fw.l ? " \u00B7 <b>" + fw.l + "</b> via the new flow" : "")
+        : "no builder activity in this window.") +
+      "</p>";
     var funnelHtml = (fu.opens || fu.starts || fu.drafts || fu.published)
-      ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before)</span></h2>' +
+      ? '<h2 class="stat-h2">Creation funnel <span class="stat-sub">(each % is of the step before \u00B7 the \u201Clast N days\u201D line follows the view chips)</span></h2>' +
         '<div class="stat-grid">' +
           statCard("\uD83D\uDEAA", fu.opens || 0, "Builder opened") +
           statCard("\uD83D\uDC46", fu.starts || 0, "Method chosen" + pct(fu.starts, fu.opens)) +
@@ -181,7 +200,10 @@
           // "Tried to publish" only exists for events after publish_tap shipped
           (fu.tried ? statCard("\uD83C\uDFAF", fu.tried, "Tried to publish" + pct(fu.tried, fu.drafts)) : "") +
           statCard("\uD83D\uDE80", fu.published || 0, "Published" + pct(fu.published, fu.tried || fu.drafts)) +
+          // Live-flow share: only exists once the new scratch flow is deployed
+          (fu.live ? statCard("\u26A1", fu.live, "New flow opened" + pct(fu.live, fu.starts)) : "") +
         "</div>" +
+        windowHtml +
         (fu.errors
           ? '<p class="stat-empty" style="margin:-14px 0 26px">\u26A0\uFE0F ' + fu.errors +
             " publish attempt" + (fu.errors === 1 ? "" : "s") +

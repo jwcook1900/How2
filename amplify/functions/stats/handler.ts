@@ -120,6 +120,17 @@ export const handler = async (event: any) => {
     // separates "never tried" from "tried and something went wrong".
     const tapSlugs = new Set<string>();
     let publishErrors = 0;
+    // Daily funnel buckets so campaign waves can be compared by date window.
+    // Raw steps (opens, starts) count per event day; deduped steps (drafts,
+    // tried, published) count on the day of that slug's FIRST such event.
+    const opensByDay: Record<string, number> = {};
+    const startsByDay: Record<string, number> = {};
+    const firstEditorBySlug: Record<string, string> = {};
+    const firstTapByKey: Record<string, string> = {};
+    // The live "lights up as you answer" flow announces itself with live_open;
+    // the classic wizard never does, so this is the flow-version split.
+    let liveOpens = 0;
+    const liveByDay: Record<string, number> = {};
     let startKey: Record<string, any> | undefined = undefined;
     do {
       const res: any = await ddb.send(new ScanCommand({
@@ -166,17 +177,30 @@ export const handler = async (event: any) => {
           }
         } else if (kind === "builder_open") {
           builderOpens++;
+          const d = localDay(ca);
+          if (d) opensByDay[d] = (opensByDay[d] || 0) + 1;
         } else if (kind === "cat") {
           if (slug) catCounts[slug] = (catCounts[slug] || 0) + 1;
         } else if (kind === "editor") {
-          if (slug) editorSlugs.add(slug);
+          if (slug) {
+            editorSlugs.add(slug);
+            if (ca && (!firstEditorBySlug[slug] || ca < firstEditorBySlug[slug])) firstEditorBySlug[slug] = ca;
+          }
         } else if (kind === "publish_tap") {
-          tapSlugs.add(slug || "?" + Math.random());
+          const key = slug || "?" + Math.random();
+          tapSlugs.add(key);
+          if (ca && (!firstTapByKey[key] || ca < firstTapByKey[key])) firstTapByKey[key] = ca;
         } else if (kind === "publish_err") {
           publishErrors++;
+        } else if (kind === "live_open") {
+          liveOpens++;
+          const d = localDay(ca);
+          if (d) liveByDay[d] = (liveByDay[d] || 0) + 1;
         } else if (kind.indexOf("start_") === 0) {
           const m = kind.slice(6);
           if (m in startMethods) startMethods[m]++;
+          const d = localDay(ca);
+          if (d) startsByDay[d] = (startsByDay[d] || 0) + 1;
         } else if (kind.indexOf("feat_") === 0) {
           const f = kind.slice(5);
           (featSlugs[f] || (featSlugs[f] = new Set())).add(slug || "?" + Math.random());
@@ -234,11 +258,39 @@ export const handler = async (event: any) => {
       tried: tapSlugs.size,
       published: Object.keys(publishesBySlug).length,
       errors: publishErrors,
+      live: liveOpens,
     };
+
+    // Same zero-filled 30-day axis as the views chart, so the range chips can
+    // slice both. Deduped steps land on the slug's first-event day.
+    const draftsByDay: Record<string, number> = {};
+    for (const slug of Object.keys(firstEditorBySlug)) {
+      const d = localDay(firstEditorBySlug[slug]);
+      if (d) draftsByDay[d] = (draftsByDay[d] || 0) + 1;
+    }
+    const triedByDay: Record<string, number> = {};
+    for (const key of Object.keys(firstTapByKey)) {
+      const d = localDay(firstTapByKey[key]);
+      if (d) triedByDay[d] = (triedByDay[d] || 0) + 1;
+    }
+    const publishedByDay: Record<string, number> = {};
+    for (const slug of Object.keys(createdBySlug)) {
+      const d = localDay(createdBySlug[slug]);
+      if (d) publishedByDay[d] = (publishedByDay[d] || 0) + 1;
+    }
+    const funnelDaily = dayAxis.map((d) => ({
+      d,
+      o: opensByDay[d] || 0,
+      s: startsByDay[d] || 0,
+      dr: draftsByDay[d] || 0,
+      t: triedByDay[d] || 0,
+      p: publishedByDay[d] || 0,
+      l: liveByDay[d] || 0,
+    }));
 
     const accounts = await countAccounts(tz);
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, cats: catCounts, refs: refCounts, accounts }) };
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, funnelDaily, cats: catCounts, refs: refCounts, accounts }) };
   } catch (e) {
     return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ error: "failed" }) };
   }

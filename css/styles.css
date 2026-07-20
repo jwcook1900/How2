@@ -977,9 +977,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 @media (min-width: 720px) {
   .guide-cover.has-cover { min-height: 420px; }
 }
-/* No icon + a cover photo: lift the title to the top so it sits above the
-   photo's subject (e.g. a pet's face in the middle) instead of over it. */
-.guide-cover.has-cover.no-emoji { justify-content: flex-start; }
+/* No icon: the title block simply re-centres in the freed space (it can be
+   dragged clear of a photo's subject with the ↕ move-title control). */
 .guide-cover.has-cover .cover-emoji,
 .guide-cover.has-cover .cover-title,
 .guide-cover.has-cover .cover-sub {
@@ -1023,6 +1022,26 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .cover-reposition-btn svg { width: 17px; height: 17px; }
 .cover-reposition-btn:hover { background: rgba(0, 0, 0, 0.52); }
+/* ↕ move-title — same frosted button language, tucked under the reposition
+   handle so the two cover controls read as a set. */
+.cover-textmove-btn {
+  position: absolute;
+  top: 48px; left: 10px;
+  width: 30px; height: 30px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.cover-textmove-btn:hover { background: rgba(0, 0, 0, 0.52); }
+.cover-textmove-btn[hidden] { display: none; }
+.guide-cover.repositioning .cover-textmove-btn { display: none; }
 /* Editor-only standing invitation to add a cover photo (a hero feature that
    shouldn't hide in the dock's 📷 menu). In normal flow under the subtitle,
    frosted on the gradient; hidden once a photo is set. */
@@ -2536,6 +2555,307 @@ body.dragging-active * {
 .log-perm { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 0.88rem; color: var(--ink-soft); cursor: pointer; }
 .log-perm-hint { color: var(--ink-muted); font-size: 0.8rem; }
 .log-readonly { color: var(--ink-muted); font-size: 0.88rem; margin: 10px 0 0; }
+
+/* ============================================================
+   "Lights up as you answer" scratch flow (stepLive)
+   The guide skeleton is on screen from the start: ghost cards turn real as
+   answers land; one spotlighted question is pinned above the keyboard.
+   ============================================================ */
+.lf-top { text-align: center; margin-bottom: 14px; }
+.lf-count { font-size: 0.82rem; color: var(--ink-muted); margin-top: 4px; }
+/* The spotlight is inline (under its card) on every screen size, so the doc
+   only needs a little breathing room at the bottom. */
+.lf-doc { padding-bottom: 80px; }
+/* Cover states */
+.lf-cover { cursor: pointer; min-height: 150px; padding: 30px 20px; }
+.lf-cover .cover-emoji { font-size: 2.4rem; }
+.lf-cover .cover-title { font-size: 1.5rem; }
+.lf-ghost-cover {
+  background: linear-gradient(135deg, #F4EDE6, #EFE7DD);
+  box-shadow: none;
+}
+.lf-ghost-cover .cover-emoji { opacity: 0.55; }
+.lf-ghost-cover .cover-title, .lf-ghost-cover .cover-sub { color: var(--ink-muted); text-shadow: none; }
+.lf-cover.has-cover { background-size: cover; background-position: center; }
+/* Section cards */
+.lf-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.lf-card-head { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.lf-card-icon { font-size: 1.1rem; }
+.lf-card-body { margin-top: 8px; color: var(--ink-soft); font-size: 0.93rem; line-height: 1.55; }
+.lf-ghost { opacity: 0.5; border: 1.5px dashed var(--line); box-shadow: none; }
+.lf-ghost .lf-card-title { color: var(--ink-muted); }
+/* Just-completed ✓ badge */
+.lf-lit { position: relative; }
+.lf-lit::after {
+  content: "✓";
+  position: absolute; top: 10px; right: 12px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #1B7F4B; color: var(--white);
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.lf-cover.lf-lit::after { top: 12px; right: 14px; }
+/* The current step: its card expands into the input — no overlay, the
+   section IS the question. */
+.lf-card.lf-open {
+  opacity: 1; cursor: default;
+  border: 1.5px solid var(--coral);
+  box-shadow: 0 0 0 3px rgba(237, 116, 70, 0.18), var(--shadow);
+}
+.lf-cover.lf-open { cursor: default; }
+.lf-open .lf-card-title { color: var(--ink); }
+/* The question block that lives inside the open card/cover */
+.lf-embed { margin-top: 12px; text-align: left; }
+.lf-cover .lf-embed {
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--ink);
+  text-shadow: none;
+}
+.lf-q { font-weight: 800; font-size: 1.02rem; }
+.lf-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 3px 0 0; }
+.lf-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.lf-btn-row .btn { flex: 0 0 auto; }
+/* Small screens: Back + a big Next share the row (primary gets the thumb
+   target); "Skip for now" becomes a quiet centred text link underneath —
+   a deliberate two-line layout instead of an accidental wrap. */
+@media (max-width: 719px) {
+  .lf-btn-row .lf-flex { display: none; }
+  .lf-btn-row #lfBack { order: 1; }
+  .lf-btn-row #lfNext { order: 2; flex: 1 1 auto; }
+  .lf-btn-row #lfSkip {
+    order: 3; flex: 1 0 100%;
+    background: transparent; border: none; box-shadow: none;
+    color: var(--ink-muted); font-weight: 600;
+  }
+  .lf-btn-row #lfPhotoAdd { flex: 1 1 auto; }
+}
+.lf-flex { flex: 1; }
+.lf-field-wrap { flex: 1; min-width: 200px; }
+.lf-input { width: 100%; box-sizing: border-box; }
+textarea.lf-input { resize: none; }
+.lf-actions { margin-top: 8px; justify-content: flex-end; }
+.lf-finish-hint { text-align: center; margin-top: 12px; }
+/* Photo step: the cover is drag-to-frame; the decision panel sits below it */
+.lf-cover.lf-reframe { cursor: grab; touch-action: none; user-select: none; }
+.lf-cover.lf-reframe:active { cursor: grabbing; }
+.lf-centre-btn {
+  position: absolute;
+  top: 10px; left: 10px;
+  width: 30px; height: 30px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.34);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 4;
+}
+.lf-centre-btn svg { width: 17px; height: 17px; }
+.lf-centre-btn:hover { background: rgba(0, 0, 0, 0.52); }
+.lf-photo-panel { opacity: 1; }
+.lf-hint-ico svg { width: 13px; height: 13px; vertical-align: -2px; display: inline-block; }
+@media (max-width: 719px) {
+  .lf-photo-panel #lfPhotoAdd { order: 1; flex: 0 0 auto; }
+  .lf-photo-panel #lfPhotoSkip { order: 2; flex: 1 1 auto; }
+}
+/* Legacy overlay container (unused; kept for markup compatibility) */
+.lf-spot { display: none; }
+/* "Saved" trace: a green line draws itself around the completed card */
+.lf-tracing { position: relative; }
+.lf-trace-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+/* Companion flash on the card itself when the loop closes */
+.lf-card.lf-saved { border-color: #1B7F4B; box-shadow: 0 0 0 1px #1B7F4B, 0 6px 22px rgba(27, 127, 75, 0.18); transition: border-color 0.2s, box-shadow 0.2s; }
+.lf-cover.lf-saved { box-shadow: 0 0 0 3px #1B7F4B, var(--shadow); transition: box-shadow 0.2s; }
+/* Sparkle burst at the point where the trace completes */
+.lf-spark {
+  position: absolute;
+  z-index: 6;
+  font-size: 17px;
+  line-height: 1;
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: lfSparkPop 0.38s ease-out forwards;
+}
+.lf-spark-2 {
+  font-size: 11px;
+  margin-left: 16px;
+  margin-top: 7px;
+  animation-delay: 0.08s;
+}
+@keyframes lfSparkPop {
+  0%   { transform: translate(-50%, -50%) scale(0) rotate(-20deg); opacity: 0; }
+  45%  { transform: translate(-50%, -50%) scale(1.35) rotate(8deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.55) rotate(20deg); opacity: 0; }
+}
+/* Building loader: floating emoji among sparkles (shares pub-* keyframes) */
+.building-fx { position: relative; display: inline-block; padding: 10px 44px 6px; margin-bottom: 6px; }
+.building-emoji { font-size: 54px; line-height: 1; display: inline-block; animation: pubFloat 1.5s ease-in-out infinite; }
+.building-fx .pub-sparks span { position: absolute; font-size: 15px; opacity: 0; animation: pubSpark 1.7s ease-in-out infinite; }
+.building-fx .pub-sparks span:nth-child(1) { top: 0;    left: 16%; animation-delay: 0s; }
+.building-fx .pub-sparks span:nth-child(2) { top: 22%;  right: 6%; animation-delay: 0.3s; font-size: 12px; }
+.building-fx .pub-sparks span:nth-child(3) { bottom: 18%; left: 4%; animation-delay: 0.6s; }
+.building-fx .pub-sparks span:nth-child(4) { bottom: 0;  right: 18%; animation-delay: 0.9s; }
+.building-fx .pub-sparks span:nth-child(5) { top: 46%;  left: -4%; animation-delay: 1.2s; font-size: 12px; }
+.building-fx .pub-sparks span:nth-child(6) { top: -8%;  right: 34%; animation-delay: 1.5s; }
+
+/* "Drag to frame" invitation, bobbing on the fresh cover photo */
+.lf-drag-hint {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.48);
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: lfDragBob 1.3s ease-in-out infinite;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+.lf-drag-hint-gone { opacity: 0; }
+@keyframes lfDragBob {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50%      { transform: translate(-44%, -56%); }
+}
+/* Routine suggestions mined from the answers: tap-to-confirm chips */
+.routine-suggest {
+  background: var(--bg-tint);
+  border: 1.5px dashed var(--coral);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin: 12px 0 4px;
+}
+.routine-suggest-t { font-size: 0.86rem; font-weight: 700; color: var(--coral-dark); margin-bottom: 9px; }
+.routine-suggest-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.routine-suggest-chip {
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--white);
+  /* Dashed like the box around it: these are proposals, not items yet.
+     Real routine items render solid — the border is the tell. */
+  border: 1.5px dashed var(--line-dark, var(--line));
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+.routine-suggest-chip .rsc-plus {
+  color: var(--coral-dark);
+  font-weight: 800;
+  margin-right: 5px;
+}
+.routine-suggest-chip:hover { border-color: var(--coral); border-style: solid; color: var(--coral-dark); }
+.routine-suggest-actions { display: flex; gap: 12px; align-items: center; flex-basis: 100%; margin-top: 4px; }
+
+/* Privacy bubble (kids flow): quiet, expandable, never blocking */
+.lf-privacy {
+  margin: 0 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-tint);
+  padding: 0;
+}
+.lf-privacy summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 11px 16px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.lf-privacy summary::-webkit-details-marker { display: none; }
+.lf-privacy summary::after { content: "▾"; float: right; color: var(--ink-muted); transition: transform 0.2s; }
+.lf-privacy[open] summary::after { transform: rotate(180deg); }
+.lf-privacy-body {
+  padding: 0 16px 13px;
+  font-size: 0.87rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+.lf-privacy-body a { color: var(--coral-dark); font-weight: 600; text-decoration: underline; }
+
+/* End-cap: the ghost publish button that marks the flow's finish line */
+.lf-endcap { text-align: center; margin: 18px 0 4px; pointer-events: none; }
+.lf-endcap-btn {
+  display: inline-block;
+  padding: 13px 26px;
+  border: 1.5px dashed var(--coral);
+  border-radius: 999px;
+  color: var(--coral-dark);
+  font-weight: 700;
+  opacity: 0.55;
+  background: var(--bg-tint);
+}
+.lf-endcap-note { margin-top: 7px; font-size: 0.8rem; color: var(--ink-muted); }
+
+/* Publish ceremony: dim screen, floating emoji among sparkles, payoff beat */
+.pub-overlay {
+  position: fixed; inset: 0; z-index: 220;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26, 26, 26, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 1;
+  transition: opacity 0.32s ease;
+}
+.pub-overlay.pub-fade { opacity: 0; }
+.pub-card { position: relative; text-align: center; color: var(--white); padding: 34px 46px; }
+.pub-emoji { font-size: 58px; line-height: 1; animation: pubFloat 1.5s ease-in-out infinite; }
+.pub-text { margin-top: 16px; font-weight: 800; font-size: 1.18rem; }
+.pub-done .pub-emoji { animation: pubPop 0.5s var(--ease); }
+.pub-sparks span {
+  position: absolute; font-size: 17px; opacity: 0;
+  animation: pubSpark 1.7s ease-in-out infinite;
+}
+.pub-sparks span:nth-child(1) { top: 6%;  left: 12%; animation-delay: 0s; }
+.pub-sparks span:nth-child(2) { top: 18%; right: 8%;  animation-delay: 0.3s; font-size: 13px; }
+.pub-sparks span:nth-child(3) { bottom: 30%; left: 2%; animation-delay: 0.6s; }
+.pub-sparks span:nth-child(4) { bottom: 12%; right: 16%; animation-delay: 0.9s; }
+.pub-sparks span:nth-child(5) { top: 40%; left: -6%; animation-delay: 1.2s; font-size: 13px; }
+.pub-sparks span:nth-child(6) { top: -4%; right: 30%; animation-delay: 1.5s; }
+.pub-done .pub-sparks span { animation: pubSparkBurst 0.55s ease-out forwards; opacity: 1; }
+@keyframes pubFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-9px) scale(1.05); }
+}
+@keyframes pubPop {
+  0%   { transform: scale(0.82); }
+  55%  { transform: scale(1.32); }
+  100% { transform: scale(1); }
+}
+@keyframes pubSpark {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50%      { opacity: 1; transform: scale(1.1); }
+}
+@keyframes pubSparkBurst {
+  0%   { opacity: 1; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.5) rotate(12deg); }
+  100% { opacity: 0; transform: scale(0.8) rotate(24deg); }
+}
+/* The floating feedback bubble sits over the question card's buttons on small
+   screens — hide it while the live flow is the active step. */
+@media (max-width: 720px) {
+  body:has(#stepLive.active) .feedback-fab { display: none; }
+}
 .sg-card {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 14px 16px;

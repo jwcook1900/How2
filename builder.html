@@ -122,13 +122,31 @@
         </div>
       </section>
 
-      <!-- Building loader -->
+      <!-- Building loader: the guide's emoji floats among sparkles (same
+           visual language as the publish ceremony) while the work happens -->
       <section class="step" id="stepBuilding" data-step="2">
         <div class="building">
-          <div class="spinner"></div>
+          <div class="building-fx" aria-hidden="true">
+            <span class="building-emoji" id="buildingEmoji">✨</span>
+            <div class="pub-sparks"><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span></div>
+          </div>
           <div class="building-title">Building your guide…</div>
           <p class="building-sub">Structuring your answers into something beautiful.</p>
         </div>
+      </section>
+
+      <!-- STEP 2 (live variant) — the guide builds itself on screen as each
+           answer lands; one spotlighted question at a time pinned above the
+           keyboard. Classic wizard remains at ?flow=classic. -->
+      <section class="step" id="stepLive" data-step="2">
+        <div class="lf-top">
+          <span class="step-eyebrow">Watch your guide build itself</span>
+          <p class="lf-count" id="lfCount"></p>
+        </div>
+        <div class="guide-doc lf-doc" id="lfDoc"><!-- ghost/lit cards injected --></div>
+        <!-- fixed to the viewport bottom, but inside the section so step
+             switching shows/hides it with everything else -->
+        <div class="lf-spot" id="lfSpot"><!-- spotlight question card --></div>
       </section>
 
       <!-- STEP 3 — Preview & edit -->

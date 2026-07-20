@@ -64,7 +64,10 @@
       coverSub: "Everything the carer needs to know",
       questions: [
         { id: "name", q: "Whose guide is this?", hint: "A child's name, or 'The Kids'.", ph: "e.g. Mia & Leo", type: "text", target: "title", titleSuffix: "'s Guide" },
-        { id: "routine", q: "What's the daily routine?", hint: "Meals, naps, school, bedtime.", ph: "Lunch 12pm, nap 1pm, bed 7pm…", type: "textarea", target: "section", icon: "🕐", sectionTitle: "Routine & Bedtime" },
+        // "Sleep & Feeding", not "Routine" — kids guides also get the timed
+        // Daily Routine widget, and two blocks both named routine read as a
+        // duplicate. This section holds the how/what; the widget holds the when.
+        { id: "routine", q: "What's the sleep & feeding routine?", hint: "Naps, bedtime, meals, bottles.", ph: "Nap after lunch. Dinner 5:30, bath then bed at 7 with a story…", type: "textarea", target: "section", icon: "🍼", sectionTitle: "Sleep & Feeding" },
         { id: "food", q: "Food, allergies & dislikes?", hint: "What they eat — and must avoid.", ph: "Allergic to peanuts. Loves pasta…", type: "textarea", target: "section", icon: "🍎", sectionTitle: "Food & Allergies" },
         { id: "rules", q: "House rules & screen time?", hint: "Boundaries that help.", ph: "Max 30 min TV, no snacks after 6…", type: "textarea", target: "section", icon: "📺", sectionTitle: "Rules & Screen Time" },
         { id: "emergency", q: "Emergency contacts?", hint: "Parents, a backup, doctor.", ph: "Mum: …\nDad: …\nDoctor: …", type: "textarea", target: "emergency" },
@@ -227,7 +230,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var steps = {
     1: $("step1"), start: $("stepStart"), 2: $("step2"), building: $("stepBuilding"),
-    3: $("step3"), 4: $("step4")
+    live: $("stepLive"), 3: $("step3"), 4: $("step4")
   };
   var toast = $("toast");
   var currentStepKey = 1;
@@ -554,8 +557,15 @@
     }
   }
 
+  // The "lights up as you answer" flow is the default scratch experience;
+  // ?flow=classic keeps the old one-question-per-screen wizard reachable
+  // (comparison, and an escape hatch if the live flow misbehaves somewhere).
+  var LIVE_FLOW = !/[?&]flow=classic\b/.test(location.search);
+
   function startFromScratch() {
     GotItStore.event("start_scratch"); // analytics (best-effort)
+    if (LIVE_FLOW) { startLiveFlow(0); return; }
+    state.liveOrigin = false;
     state.qIndex = 0;
     renderQuestion();
     showStep(2);
@@ -670,6 +680,8 @@
     steps.building.querySelector(".building-sub").textContent = files.length > 1
       ? "Reading your photos and turning them into a guide."
       : "Turning what you have into a guide.";
+    var be2 = $("buildingEmoji");
+    if (be2 && state.category) be2.textContent = state.category.emoji;
     showStep("building");
 
     getFilePayloads(files).then(function (agg) {
@@ -784,6 +796,7 @@
 
   // Maps the AI's import result (or a fallback) into a fresh editable guide.
   function buildGuideFromAI(ai, cat, rawText) {
+    state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
     var sections = (ai.sections || []).map(function (s) {
       return {
         id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
@@ -817,6 +830,10 @@
       createdAt: Date.now()
     };
     state.created = false;
+    // Imported notes are the richest source of times of all ("kibble 7am and
+    // 6pm") — mine the raw text plus what the AI structured from it.
+    state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(
+      (rawText || "") + "\n" + sections.map(function (s) { return s.body; }).join("\n"), cat);
     GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
   }
 
@@ -968,6 +985,17 @@
     return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
   }
 
+  // The AI sometimes answers in markdown (**bold**, ### headers) — guide
+  // fields are plain text, so those markers would show as literal asterisks.
+  // Strip the markers, keep the words.
+  function stripMdArtifacts(s) {
+    return String(s)
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/__(.+?)__/g, "$1")
+      .replace(/^#{1,4}\s+/gm, "")
+      .replace(/\*\*/g, "");
+  }
+
   // Keyless cloud AI (knows the category + question for context) → local tidy-up.
   function polish(text, ctx) {
     ctx = ctx || {};
@@ -977,7 +1005,7 @@
     }).then(function (res) {
       if (res && typeof res.text === "string" && res.text.trim()) {
         showToast("Polished with AI ✨");
-        return res.text;
+        return stripMdArtifacts(res.text);
       }
       return fallback(); // no cloud backend
     }, fallback);        // cloud errored
@@ -1039,7 +1067,7 @@
       var real = ((res && res.changes) || []).filter(function (c) {
         return c && c.id && byId.hasOwnProperty(c.id) && typeof c.text === "string" &&
           c.text.trim() && c.text.trim() !== byId[c.id].trim();
-      }).map(function (c) { c.before = byId[c.id]; return c; });
+      }).map(function (c) { c.text = stripMdArtifacts(c.text); c.before = byId[c.id]; return c; });
       if (!real.length) { showToast("Your guide already reads well ✨"); return; }
       openPolishReview(real);
     }, function () { done(); showToast("Couldn't polish just now — try again."); });
@@ -1119,6 +1147,9 @@
     if (o) o.hidden = !on;
   }
   function polishInto(getText, setText, btn, ctx) {
+    // Dictation must end the moment Polish is tapped — otherwise the mic
+    // keeps listening (and appending) underneath the polish.
+    stopMic();
     var text = (getText() || "").trim();
     if (!text || text === "Tap to add details…") { showToast("Nothing to polish yet."); return; }
     // Dim the whole screen with a centred sparkle while the AI works, rather
@@ -1189,8 +1220,679 @@
     return "a how-to guide";
   }
 
+  /* ---------- "Lights up as you answer" scratch flow ----------
+     The guide skeleton (ghost cover + dashed ghost sections, derived from the
+     category's questions) is on screen from the first keystroke; one
+     spotlighted question at a time sits pinned above the keyboard, and each
+     answer visibly fills its section. Same answers, same buildGuide() at the
+     end — this is a different front door to the identical guide. */
+  var LIVE_KEY = "gotit_live_v1";
+  var LIVE_MAX_AGE = 7 * 86400000;
+  var liveSteps = [];   // [{kind:"q", q} | {kind:"photo"}] in order
+  var liveIdx = 0;
+  var liveSkipped = {}; // qid -> true (kept ghost, but flow moved past it)
+
+  function liveTitleFor(cat) {
+    var t = null;
+    cat.questions.forEach(function (q) {
+      if (q.target === "title" && state.answers[q.id]) t = state.answers[q.id] + (q.titleSuffix || "");
+    });
+    return t;
+  }
+  function buildLiveSteps(cat) {
+    liveSteps = [];
+    cat.questions.forEach(function (q) {
+      liveSteps.push({ kind: "q", q: q });
+      // The cover-photo offer rides the wave right after naming the guide —
+      // the moment the cover just lit up with their name (one-tap skippable;
+      // the publish-time nudge stays as the safety net for skippers).
+      if (q.target === "title") liveSteps.push({ kind: "photo" });
+    });
+  }
+
+  function saveLiveLocal() {
+    try {
+      localStorage.setItem(LIVE_KEY, JSON.stringify({
+        cat: state.category.id, answers: state.answers, idx: liveIdx,
+        skipped: liveSkipped, cover: state.liveCover || null,
+        pos: state.liveCoverPos || null, savedAt: Date.now()
+      }));
+    } catch (e) { /* storage full (likely the photo) — flow still works */ }
+  }
+  function clearLiveLocal() { try { localStorage.removeItem(LIVE_KEY); } catch (e) {} }
+  function loadLiveLocal() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LIVE_KEY) || "null");
+      if (!d || !d.cat) return null;
+      if (Date.now() - (d.savedAt || 0) > LIVE_MAX_AGE) { clearLiveLocal(); return null; }
+      return d;
+    } catch (e) { return null; }
+  }
+
+  function startLiveFlow(atIdx, quiet) {
+    buildLiveSteps(state.category);
+    liveIdx = Math.max(0, Math.min(atIdx || 0, liveSteps.length - 1));
+    liveBuilt = false;
+    state.liveOrigin = true; // review's "Back to questions" returns HERE, not the classic wizard
+    if (!quiet) GotItStore.event("live_open", state.category.id);
+    renderLive();
+    showStep("live");
+  }
+
+  function liveAnswerCount() {
+    var n = 0;
+    liveSteps.forEach(function (s) {
+      if (s.kind === "q" && (state.answers[s.q.id] || "").trim()) n++;
+    });
+    return n;
+  }
+
+  // Truncated, escaped preview of an answer for a lit card body.
+  function livePreview(text) {
+    var t = String(text).trim();
+    if (t.length > 220) t = t.slice(0, 220) + "…";
+    return esc(t).replace(/\n/g, "<br />");
+  }
+
+  function renderLive() {
+    var cat = state.category;
+    var qSteps = liveSteps.filter(function (s) { return s.kind === "q"; });
+    var total = qSteps.length;
+    var done = liveAnswerCount();
+    var current = liveSteps[liveIdx];
+
+    // Progress line
+    var qNum = 0;
+    for (var i = 0; i <= liveIdx && i < liveSteps.length; i++) if (liveSteps[i].kind === "q") qNum++;
+    $("lfCount").textContent = current && current.kind === "photo"
+      ? (done + " of " + total + " answered \u2713")
+      : ("Question " + Math.max(1, qNum) + " of " + total + (done ? " \u00B7 " + done + " done \u2713" : ""));
+
+    stopMic();
+    var doc = $("lfDoc");
+    doc.innerHTML = "";
+    $("lfSpot").hidden = true; // legacy container from the overlay design
+
+    var name = liveTitleFor(cat);
+    // The current step lives INSIDE its card: the section (or the cover, for
+    // the name/photo steps) expands into the input — nothing floats.
+    var coverActive = current && (current.kind === "photo" ||
+      (current.kind === "q" && current.q.target === "title"));
+
+    doc.appendChild(buildLiveCover(coverActive ? current : null, name));
+    // Photo step with a photo already on the cover: the keep/change panel
+    // sits BELOW the cover so the full photo stays visible while deciding,
+    // and the cover itself is drag-to-frame.
+    if (current && current.kind === "photo" && state.liveCover) {
+      doc.appendChild(buildLivePhotoPanel());
+    }
+    // Kids guides carry the most sensitive details (school, address,
+    // medical), so this flow gets a quiet, expandable privacy note early.
+    // A bubble, not a gate: nothing to accept, nothing blocking.
+    if (cat.id === "kids") {
+      var pb = document.createElement("details");
+      pb.className = "lf-privacy";
+      pb.innerHTML =
+        "<summary>🛡 A note about privacy and your data</summary>" +
+        '<div class="lf-privacy-body">' +
+          "While you build, this guide is a private draft only you can see. " +
+          "When you publish, it's unlisted: only people you give the link to can open it. " +
+          "For anything sensitive you can lock the guide with a code at publish time; locked guides are encrypted so even we can't read them. " +
+          "Everything is stored in Australia and never sold or shared. " +
+          '<a href="about.html#privacy" target="_blank" rel="noopener">Read more in About &amp; privacy</a>.' +
+        "</div>";
+      doc.appendChild(pb);
+    }
+
+    liveSteps.forEach(function (s, idx) {
+      if (s.kind !== "q" || s.q.target === "title") return;
+      doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
+    });
+
+    // End-cap: a ghost of the finish button marks the end of the flow, so a
+    // scroll-ahead ("how long is this going to take?") finds a visible end.
+    // On the last question the REAL "Review & publish" button is on screen,
+    // so the ghost bows out rather than doubling it.
+    if (liveIdx < liveSteps.length - 1) {
+      var cap = document.createElement("div");
+      cap.className = "lf-endcap";
+      cap.setAttribute("aria-hidden", "true");
+      cap.innerHTML =
+        '<div class="lf-endcap-btn">🏁 Review &amp; publish</div>' +
+        '<div class="lf-endcap-note">your final step, once the questions are done</div>';
+      doc.appendChild(cap);
+    }
+
+    // Centre whatever is open.
+    var cur = doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
+    if (cur && cur.scrollIntoView) {
+      setTimeout(function () { cur.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+    }
+  }
+
+  // The shared "question inside the card" block: prompt, hint, field, tools,
+  // Back / Skip / Next. Returns the wrapper; wires everything.
+  function buildLiveEmbed(q, isLast) {
+    var wrap = document.createElement("div");
+    wrap.className = "lf-embed";
+    var isArea = q.type === "textarea";
+    wrap.innerHTML =
+      '<div class="lf-q">' + esc(fillName(q.q)) + "</div>" +
+      (q.hint ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
+      '<div class="lf-row lf-field-row"></div>' +
+      '<div class="lf-row lf-btn-row">' +
+        '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">\u2190 Back</button>' +
+        '<span class="lf-flex"></span>' +
+        (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
+        '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "\ud83c\udfc1 Review & publish \u2192" : "Next \u2192") + "</button>" +
+      "</div>" +
+      // The last button takes the end-cap's identity (one finish control, not
+      // two), and must not feel like a commitment: the full editor is next.
+      (isLast ? '<div class="lf-hint lf-finish-hint">Want to say more? Reviewing opens your full guide, where you can add extra sections, photos and how-to videos before you publish.</div>' : "");
+
+    var fieldRow = wrap.querySelector(".lf-field-row");
+    var container = document.createElement("div");
+    container.className = "field-with-mic lf-field-wrap";
+    var field;
+    if (isArea) {
+      field = document.createElement("textarea");
+      field.className = "q-textarea lf-input";
+      field.rows = 3;
+    } else {
+      field = document.createElement("input");
+      field.type = "text";
+      field.className = "q-input lf-input";
+    }
+    field.id = "lfField";
+    field.placeholder = q.ph || "";
+    field.value = state.answers[q.id] || "";
+    container.appendChild(field);
+    attachMic(container, field, isArea);
+    fieldRow.appendChild(container);
+
+    // Same per-question tools as the classic wizard \u2014 except the name
+    // question, where "add a file" and "polish" are just noise.
+    if (q.target === "title") {
+      field.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
+      });
+      wireLiveEmbedButtons(wrap, q);
+      setTimeout(function () { field.focus(); }, 80);
+      return wrap;
+    }
+    var actions = document.createElement("div");
+    actions.className = "field-actions lf-actions";
+    var fileItem = { label: "\uD83D\uDCCE File", onClick: function (trigger) {
+      readFileIntoField({
+        btn: trigger, question: fillName(q.q),
+        get: function () { return field.value; },
+        set: function (v) { field.value = v; }
+      });
+    } };
+    if (q.target === "section") {
+      actions.appendChild(makeAddMenu([
+        fileItem,
+        { label: "\uD83D\uDCF7 Photo", onClick: function () { pickStepPhoto(q.id); } },
+        { label: "\uD83C\uDFAC Video", onClick: function () {
+          openVideoModal(function (embed) {
+            (state.media[q.id] = state.media[q.id] || {}).videoEmbed = embed;
+            renderStepMedia(q.id);
+          });
+        } }
+      ]));
+    } else {
+      var fileBtn = document.createElement("button");
+      fileBtn.type = "button";
+      fileBtn.className = "tool-btn";
+      fileBtn.textContent = "\uD83D\uDCCE Add a file";
+      fileBtn.addEventListener("click", function () { fileItem.onClick(fileBtn); });
+      actions.appendChild(fileBtn);
+    }
+    var polishBtn = document.createElement("button");
+    polishBtn.type = "button";
+    polishBtn.className = "tool-btn";
+    polishBtn.textContent = "\u2728 Polish";
+    polishBtn.addEventListener("click", function () {
+      polishInto(function () { return field.value; },
+        function (v) { field.value = v; }, polishBtn, aiCtx(fillName(q.q)));
+    });
+    actions.appendChild(polishBtn);
+    var btnRow = wrap.querySelector(".lf-btn-row");
+    wrap.insertBefore(actions, btnRow);
+    if (q.target === "section") {
+      var mediaWrap = document.createElement("div");
+      mediaWrap.className = "q-media";
+      mediaWrap.id = "qMedia";
+      wrap.insertBefore(mediaWrap, btnRow);
+      renderStepMedia(q.id);
+    }
+
+    field.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !isArea) { e.preventDefault(); liveNext(); }
+    });
+    wireLiveEmbedButtons(wrap, q);
+    setTimeout(function () { field.focus(); }, 80);
+    return wrap;
+  }
+
+  function wireLiveEmbedButtons(wrap, q) {
+    wrap.querySelector("#lfNext").addEventListener("click", liveNext);
+    var skipBtn = wrap.querySelector("#lfSkip");
+    if (skipBtn) skipBtn.addEventListener("click", function () {
+      liveSkipped[q.id] = true;
+      GotItStore.event("live_skip", state.category.id + "/" + q.id);
+      liveAdvance();
+    });
+    wrap.querySelector("#lfBack").addEventListener("click", function () {
+      liveCapture();
+      if (liveIdx > 0) { liveIdx--; renderLive(); }
+      else showStart();
+    });
+  }
+
+  // Cover tile. When the current step is the name or the photo offer, the
+  // question expands inside the cover itself.
+  function buildLiveCover(currentStep, name) {
+    var cat = state.category;
+    var lit = !!name;
+    var el = document.createElement("div");
+    el.className = "guide-cover lf-cover" +
+      (lit ? " lf-lit" : " lf-ghost-cover") +
+      (state.liveCover ? " has-cover" : "") +
+      (currentStep ? " lf-open" : "");
+    if (state.liveCover) {
+      el.style.backgroundImage = "url(" + state.liveCover + ")";
+      el.style.backgroundPosition = state.liveCoverPos || "center";
+    }
+    el.innerHTML =
+      '<div class="cover-text">' +
+        // Once a photo is on the cover the emoji bows out — it crowds the
+        // photo, and the name + subtitle re-centre in its place. (The emoji
+        // itself survives for share previews and the dashboard.)
+        (state.liveCover ? "" : '<span class="cover-emoji">' + esc(cat.emoji) + "</span>") +
+        '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
+        '<div class="cover-sub">' + esc(lit ? cat.coverSub : "A private draft only you can see, until you publish") + "</div>" +
+      "</div>";
+
+    if (currentStep && currentStep.kind === "q") {
+      el.appendChild(buildLiveEmbed(currentStep.q, liveIdx === liveSteps.length - 1));
+    } else if (currentStep && currentStep.kind === "photo") {
+      if (state.liveCover) {
+        // Photo already on the cover: keep the tile clean (the decision panel
+        // renders below it) and make the photo drag-to-frame, with a centre
+        // control. The chosen framing carries into the guide as coverPos.
+        enableLiveReframe(el);
+      } else {
+        var short = "";
+        cat.questions.forEach(function (q) {
+          if (q.target === "title" && state.answers[q.id]) short = state.answers[q.id];
+        });
+        var personal = cat.id === "pet" || cat.id === "kids" || cat.id === "care";
+        var ask = personal && short
+          ? "Put a photo of " + short + " on the cover?" : "Put a photo on the cover?";
+        var wrap = document.createElement("div");
+        wrap.className = "lf-embed";
+        wrap.innerHTML =
+          '<div class="lf-q">\uD83D\uDCF8 ' + esc(ask) + "</div>" +
+          '<div class="lf-hint">It makes the guide instantly recognisable \u2014 you can change it any time.</div>' +
+          '<div class="lf-row lf-btn-row">' +
+            '<button class="btn btn-primary" id="lfPhotoAdd" type="button">Add a photo</button>' +
+            '<button class="btn btn-ghost" id="lfPhotoSkip" type="button">Later</button>' +
+          "</div>";
+        el.appendChild(wrap);
+        wrap.querySelector("#lfPhotoAdd").addEventListener("click", livePickPhoto);
+        wrap.querySelector("#lfPhotoSkip").addEventListener("click", function () { liveAdvance(); });
+      }
+    } else {
+      // Not the current step: tapping the cover jumps back to the name.
+      el.addEventListener("click", function () {
+        for (var k = 0; k < liveSteps.length; k++) {
+          if (liveSteps[k].kind === "q" && liveSteps[k].q.target === "title") { liveIdx = k; break; }
+        }
+        renderLive();
+      });
+    }
+    return el;
+  }
+
+  // Open the system picker, compress, and land the photo on the live cover.
+  function livePickPhoto() {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      var btn = $("lfPhotoAdd");
+      if (btn) { btn.disabled = true; btn.textContent = "Adding…"; }
+      compressImage(file, 1600, 0.82, 320000).then(function (dataUrl) {
+        state.liveCover = dataUrl;
+        state.liveCoverPos = null; // fresh photo, fresh framing
+        saveLiveLocal();
+        renderLive();
+      });
+    });
+    input.click();
+  }
+
+  // Drag the cover photo to frame it (same math as the editor's reposition),
+  // plus a centre control. Runs only during the photo step.
+  function enableLiveReframe(el) {
+    el.classList.add("lf-reframe");
+    // The photo itself invites the drag: a bobbing "👆 Drag to frame" pill
+    // sits on it until the first touch (or a few seconds pass). Text below a
+    // photo goes unread; a finger on the photo doesn't.
+    var hint = document.createElement("div");
+    hint.className = "lf-drag-hint";
+    hint.textContent = "👆 Drag to frame";
+    el.appendChild(hint);
+    function killHint() {
+      if (!hint) return;
+      var h = hint; hint = null;
+      h.classList.add("lf-drag-hint-gone");
+      setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, 320);
+    }
+    setTimeout(killHint, 3400);
+    var parts = (state.liveCoverPos || "50% 50%").replace(/center/g, "50%").split(/\s+/);
+    var posX = parseFloat(parts[0]); if (isNaN(posX)) posX = 50;
+    var posY = parseFloat(parts[1]); if (isNaN(posY)) posY = 50;
+    var startX = 0, startY = 0, baseX = posX, baseY = posY, dragging = false;
+    el.addEventListener("pointerdown", function (e) {
+      if (e.target.closest(".lf-centre-btn")) return;
+      e.preventDefault();
+      killHint(); // they've got it — the invitation has done its job
+      dragging = true; startX = e.clientX; startY = e.clientY; baseX = posX; baseY = posY;
+      el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      var w = el.clientWidth || 1, h = el.clientHeight || 1;
+      posX = Math.max(0, Math.min(100, baseX - (e.clientX - startX) / w * 100));
+      posY = Math.max(0, Math.min(100, baseY - (e.clientY - startY) / h * 100));
+      el.style.backgroundPosition = posX + "% " + posY + "%";
+    });
+    el.addEventListener("pointerup", function () {
+      if (!dragging) return;
+      dragging = false;
+      state.liveCoverPos = posX + "% " + posY + "%";
+      saveLiveLocal();
+    });
+    var centre = document.createElement("button");
+    centre.type = "button";
+    centre.className = "lf-centre-btn";
+    centre.title = "Centre the photo";
+    centre.setAttribute("aria-label", "Centre the photo");
+    centre.innerHTML = MOVE_ICON_SVG;
+    centre.addEventListener("click", function (e) {
+      e.stopPropagation();
+      posX = 50; posY = 50;
+      el.style.backgroundPosition = "50% 50%";
+      state.liveCoverPos = "50% 50%";
+      saveLiveLocal();
+    });
+    el.appendChild(centre);
+  }
+
+  // The keep/change decision, as its own card under the (unobstructed) cover.
+  function buildLivePhotoPanel() {
+    var panel = document.createElement("div");
+    panel.className = "lf-card lf-open lf-photo-panel";
+    panel.innerHTML =
+      '<div class="lf-q">📸 Looking good! Keep this photo?</div>' +
+      '<div class="lf-hint">Drag the photo until it looks right. The ' +
+        '<span class="lf-hint-ico">' + MOVE_ICON_SVG + "</span> button centres it.</div>" +
+      '<div class="lf-row lf-btn-row">' +
+        '<button class="btn btn-ghost" id="lfPhotoAdd" type="button">Change photo</button>' +
+        '<button class="btn btn-primary" id="lfPhotoSkip" type="button">Keep it →</button>' +
+      "</div>";
+    panel.querySelector("#lfPhotoAdd").addEventListener("click", livePickPhoto);
+    panel.querySelector("#lfPhotoSkip").addEventListener("click", function () {
+      if (liveBusy) return;
+      liveBusy = true;
+      traceSaved($("lfDoc").querySelector(".lf-cover"), function () { liveBusy = false; liveAdvance(); });
+    });
+    return panel;
+  }
+
+  // A section/emergency card. The current one expands into its input;
+  // answered ones show a preview + \u2713; ghosts stay dashed. Tapping any
+  // collapsed card jumps the flow there.
+  function buildLiveCard(s, idx, isCurrent) {
+    var q = s.q;
+    var name = liveTitleFor(state.category);
+    var val = (state.answers[q.id] || "").trim();
+    var el = document.createElement("div");
+    var cls = "lf-card " + (val ? "lf-lit" : "lf-ghost");
+    if (isCurrent) cls += " lf-open";
+    el.className = cls;
+    var icon = q.target === "emergency" ? "\uD83D\uDEA8" : (q.icon || "\uD83D\uDCC4");
+    var title = q.target === "emergency" ? "Emergency contacts"
+      : fillName(q.sectionTitle || q.q).replace(/\bthem\b/, name ? name : "\u2026");
+    el.innerHTML =
+      '<div class="lf-card-head"><span class="lf-card-icon">' + icon + "</span>" +
+        '<span class="lf-card-title">' + esc(title) + "</span></div>" +
+      (val && !isCurrent ? '<div class="lf-card-body">' + livePreview(val) + "</div>" : "");
+    if (isCurrent) {
+      el.appendChild(buildLiveEmbed(q, idx === liveSteps.length - 1));
+    } else {
+      el.addEventListener("click", function () { liveIdx = idx; renderLive(); });
+    }
+    return el;
+  }
+
+  function liveCapture() {
+    var s = liveSteps[liveIdx];
+    if (!s || s.kind !== "q") return;
+    var field = $("lfField");
+    if (field) state.answers[s.q.id] = field.value.trim();
+  }
+
+  // A green line draws itself around the just-completed card — a half-second
+  // "that's saved" before the spotlight moves on. Skipped for reduced-motion.
+  function traceSaved(el, done) {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!el || reduce) { done(); return; }
+    var W = el.offsetWidth, H = el.offsetHeight;
+    if (!W || !H) { done(); return; }
+    // The line starts at the top corner, traces the full perimeter (~0.9s)
+    // and, the moment the loop closes, the card's border flashes green as
+    // the "saved" beat — then the flow moves on.
+    el.classList.add("lf-tracing");
+    var drew = false;
+    try {
+      var radius = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "lf-trace-svg");
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      var rect = document.createElementNS(NS, "rect");
+      rect.setAttribute("x", 1.5); rect.setAttribute("y", 1.5);
+      rect.setAttribute("width", W - 3); rect.setAttribute("height", H - 3);
+      rect.setAttribute("rx", Math.max(4, radius - 2));
+      rect.setAttribute("fill", "none");
+      rect.setAttribute("stroke", "#1B7F4B");
+      rect.setAttribute("stroke-width", "3");
+      rect.setAttribute("stroke-linecap", "round");
+      svg.appendChild(rect);
+      el.appendChild(svg);
+      var len = rect.getTotalLength();
+      rect.style.strokeDasharray = len;
+      rect.style.strokeDashoffset = len;
+      if (rect.animate) {
+        // Web Animations API: reliable on iOS where CSS transitions on SVG
+        // stroke properties can quietly not run.
+        rect.animate(
+          [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+          { duration: 850, easing: "ease-in-out", fill: "forwards" }
+        );
+      } else {
+        rect.style.transition = "stroke-dashoffset 0.85s ease-in-out";
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { rect.style.strokeDashoffset = "0"; });
+        });
+      }
+      drew = true;
+    } catch (e) { /* fall through to the flash-only path */ }
+    // No draw (old browser)? Flash immediately so "saved" still reads.
+    var flashAt = drew ? 850 : 0;
+    setTimeout(function () {
+      el.classList.add("lf-saved");
+      // A little burst right where the loop closes — the full stop on "saved".
+      try {
+        var radius2 = parseFloat(getComputedStyle(el).borderTopLeftRadius) || 18;
+        var spark = document.createElement("span");
+        spark.className = "lf-spark";
+        spark.textContent = "✨";
+        spark.style.left = (radius2 + 2) + "px";
+        spark.style.top = "1px";
+        el.appendChild(spark);
+        var s2 = spark.cloneNode(true);
+        s2.classList.add("lf-spark-2");
+        el.appendChild(s2);
+      } catch (e) { /* decoration only */ }
+    }, flashAt);
+    setTimeout(done, flashAt + 380); // renderLive rebuilds the doc, clearing the sparkle
+  }
+  // The card the current step is writing into (cover for title/photo steps).
+  function liveActiveCard() {
+    var doc = $("lfDoc");
+    return doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
+  }
+
+  var liveBusy = false; // ignore taps while the save-trace plays
+  function liveNext() {
+    if (liveBusy) return;
+    var s = liveSteps[liveIdx];
+    liveCapture();
+    var answered = s && s.kind === "q" && (state.answers[s.q.id] || "").trim();
+    if (!answered) { liveAdvance(); return; }
+    liveBusy = true;
+    var nextBtn = $("lfNext");
+    if (nextBtn) nextBtn.disabled = true;
+    traceSaved(liveActiveCard(), function () {
+      liveBusy = false;
+      liveAdvance();
+    });
+  }
+  var liveBuilt = false; // guards a double-fire on the final step (the guide
+                         // builds behind a short pause; a second tap must not
+                         // rebuild it and lose the collected cover)
+  function liveAdvance() {
+    stopMic();
+    if (liveBuilt) return;
+    if (liveIdx < liveSteps.length - 1) {
+      liveIdx++;
+      saveLiveLocal();
+      renderLive();
+    } else {
+      liveBuilt = true;
+      buildGuide(); // identical construction path to the classic wizard
+    }
+  }
+
+  // Fresh builder open with a half-finished live flow → offer to pick it up.
+  function offerLiveResume() {
+    var d = loadLiveLocal();
+    if (!d) return;
+    var cat = catById(d.cat);
+    if (!cat) { clearLiveLocal(); return; }
+    var step1 = steps[1];
+    if (!step1 || $("liveBanner")) return;
+    var nm = "";
+    cat.questions.forEach(function (q) { if (q.target === "title" && d.answers[q.id]) nm = d.answers[q.id]; });
+    var banner = document.createElement("div");
+    banner.className = "draft-banner";
+    banner.id = "liveBanner";
+    banner.innerHTML =
+      '<p class="draft-banner-text">👋 You were partway through <b>' +
+        esc(cat.emoji) + " " + esc(nm || ("a " + cat.name + " guide")) + "</b> — pick it back up?</p>" +
+      '<div class="draft-banner-actions">' +
+        '<button class="btn btn-primary btn-sm" id="liveResume" type="button">▶ Keep going</button>' +
+        '<button class="btn btn-ghost btn-sm" id="liveDiscard" type="button">Discard</button>' +
+      "</div>";
+    var heading = step1.querySelector(".step-heading");
+    step1.insertBefore(banner, heading ? heading.nextSibling : step1.firstChild);
+    $("liveResume").addEventListener("click", function () {
+      state.category = cat;
+      state.answers = d.answers || {};
+      state.media = {};
+      liveSkipped = d.skipped || {};
+      state.liveCover = d.cover || null;
+      state.liveCoverPos = d.pos || null;
+      banner.remove();
+      startLiveFlow(d.idx || 0);
+    });
+    $("liveDiscard").addEventListener("click", function () {
+      if (!window.confirm("Discard this unfinished guide?")) return;
+      clearLiveLocal();
+      banner.remove();
+    });
+  }
+
+  /* ---------- Routine suggestions mined from the answers ----------
+     People naturally type times into their section answers ("Dinner 5:30,
+     bed at 7") — asking them to re-enter those as routine steps is asking
+     them to repeat themselves. This scans the answers for clock times and
+     drafts routine items from them. They are only ever SUGGESTIONS the
+     creator confirms per item: a guessed-wrong time in a care guide is far
+     worse than no time, so nothing is added silently, and ambiguous bare
+     hours without a day-part clue are skipped entirely. */
+  function suggestRoutineItems(source, cat) {
+    // `source`: the answers object (scratch flows) or a plain string (import
+    // notes / section bodies).
+    var text = typeof source === "string"
+      ? source
+      : Object.keys(source || {}).map(function (k) { return source[k] || ""; }).join("\n");
+    var out = [], seen = {};
+    var KW = [
+      [/\bnap|sleep|bed(time)?\b/, "😴", "pm"],
+      [/\bbreakfast\b/, "🍽️", "am"],
+      [/\blunch\b/, "🍽️", "pm"],
+      [/\bdinner|evening meal\b/, "🍽️", "pm"],
+      [/\bbath\b/, "🛁", "pm"],
+      [/\bwalk\b/, "🚶", null],
+      [/\bmed(s|ication)?\b|\btablet|pill|dose|insulin\b/, "💊", null],
+      [/\bschool|pick.?up|drop.?off\b/, "🎒", null],
+      [/\bbottle|feed(ing)?\b/, (cat && cat.id === "pet") ? "🦴" : "🍼", null],
+      [/\bkibble|food|meal|snack\b/, (cat && cat.id === "pet") ? "🦴" : "🍽️", null]
+    ];
+    text.split(/[\n.;,]+/).forEach(function (line) {
+      var t = line.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+      if (!t) return;
+      var hour = +t[1], min = t[2] ? +t[2] : 0;
+      var ap = t[3] ? t[3].toLowerCase() : null;
+      if (hour > 23 || min > 59) return;
+      var low = line.toLowerCase();
+      var icon = "⏰", part = null;
+      for (var i = 0; i < KW.length; i++) {
+        if (KW[i][0].test(low)) { icon = KW[i][1]; part = KW[i][2]; break; }
+      }
+      if (!ap && hour <= 12) {
+        if (part) ap = part;
+        else if (t[2] && hour <= 6) ap = "pm"; // "5:30" reads as evening
+        else return; // bare ambiguous hour, no clue — don't guess
+      }
+      if (ap === "pm" && hour < 12) hour += 12;
+      if (ap === "am" && hour === 12) hour = 0;
+      if (hour > 23) return;
+      var time = ("0" + hour).slice(-2) + ":" + ("0" + min).slice(-2);
+      // Label: the words just before the time (or after, if none), tidied.
+      var before = line.slice(0, t.index).replace(/\b(at|around|about|by|is|then)\s*$/i, "").trim();
+      var after = line.slice(t.index + t[0].length).trim();
+      var label = (before || after || "Routine").replace(/^\W+|\W+$/g, "");
+      if (label.length > 30) label = label.slice(label.length - 30).replace(/^\S*\s/, "");
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+      var key = time + "|" + label.toLowerCase();
+      if (!seen[key]) { seen[key] = 1; out.push({ icon: icon, label: label, time: time }); }
+    });
+    out.sort(function (a, b) { return a.time < b.time ? -1 : 1; });
+    return out.slice(0, 8);
+  }
+
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
+    var be = $("buildingEmoji");
+    if (be && state.category) be.textContent = state.category.emoji;
     showStep("building");
 
     var cat = state.category;
@@ -1227,7 +1929,13 @@
       emoji: cat.emoji,
       title: title,
       subtitle: cat.coverSub,
-      cover: null,
+      // The live flow may have collected a cover photo (and framing) already.
+      // With a photo, the cover emoji stays hidden (coverEmojiOff) — but
+      // g.emoji is kept, so share cards and the dashboard still show it, and
+      // the editor's "Add cover icon" can bring it back.
+      cover: state.liveCover || null,
+      coverPos: state.liveCoverPos || null,
+      coverEmojiOff: !!state.liveCover,
       sections: sections,
       contacts: contacts,
       logs: [],
@@ -1239,6 +1947,13 @@
       branding: true,
       createdAt: Date.now()
     };
+    // Draft routine steps from any times already typed into the answers
+    // (offered as tap-to-confirm chips in the routine widget, never auto-added).
+    state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(state.answers, cat);
+
+    state.liveCover = null;
+    state.liveCoverPos = null;
+    clearLiveLocal(); // the answers now live in the guide draft itself
     GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
 
     // brief "building" pause for effect
@@ -1282,6 +1997,7 @@
       "</div>" +
       '<button class="cover-emoji-x no-print" type="button" title="Remove the cover icon" aria-label="Remove the cover icon">✕</button>' +
       '<button class="cover-reposition-btn no-print" type="button" title="Reposition photo" aria-label="Reposition photo">' + MOVE_ICON_SVG + "</button>" +
+      '<button class="cover-textmove-btn no-print" type="button" title="Move the title up or down" aria-label="Move the title up or down">↕</button>' +
       // Hero feature, so it gets a standing invitation right on the tile —
       // not just the entry buried in the dock's 📷 menu. Hidden once a photo
       // is set (applyCover), when reposition/change take over.
@@ -1305,6 +2021,10 @@
     var coverAdd = cover.querySelector(".cover-add-photo");
     if (coverAdd) {
       coverAdd.addEventListener("click", function (e) { e.stopPropagation(); pickCover(cover); });
+    }
+    var textMove = cover.querySelector(".cover-textmove-btn");
+    if (textMove) {
+      textMove.addEventListener("click", function (e) { e.stopPropagation(); startCoverTextMove(cover); });
     }
     var emojiX = cover.querySelector(".cover-emoji-x");
     if (g.coverEmojiOff) emojiX.hidden = true;
@@ -2407,9 +3127,73 @@
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
         "<span>⏰ Daily Routine</span>" +
       "</div>" +
-      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Sitters can add the whole routine to their calendar.</p>';
+      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Your sitter presses one button and the whole routine lands in their calendar as timed reminders.</p>';
     enableDrag(el.querySelector(".drag-handle"), el);
     addBlockRemoveBtn(el.querySelector(".routine-head"), "Remove daily routine", function () { removeWidget("routine", el); });
+
+    // Times mined from the creator's own answers, offered as tap-to-confirm
+    // chips so nobody types their routine twice. Confirm-only: each chip must
+    // be tapped (or "Add all") before it becomes a real routine item.
+    if (state.routineSuggest && state.routineSuggest.length && !g.routine.items.length && !g.routineSuggestOff) {
+      var sug = document.createElement("div");
+      sug.className = "routine-suggest";
+      var st = document.createElement("div");
+      st.className = "routine-suggest-t";
+      st.textContent = "✨ Spotted in your answers. Nothing is added until you tap it:";
+      sug.appendChild(st);
+      var chipWrap = document.createElement("div");
+      chipWrap.className = "routine-suggest-chips";
+      sug.appendChild(chipWrap);
+      function fmt12(t) {
+        var h = +t.slice(0, 2), m = t.slice(3);
+        var ap = h >= 12 ? "pm" : "am";
+        h = h % 12 || 12;
+        return h + (m === "00" ? "" : ":" + m) + ap;
+      }
+      function acceptSuggestion(s) {
+        g.routine.items.push({ id: uid(), icon: s.icon, label: s.label, times: [s.time] });
+        state.routineSuggest = state.routineSuggest.filter(function (x) { return x !== s; });
+        renderItems(); scheduleHistory(); renderChips();
+      }
+      function renderChips() {
+        chipWrap.innerHTML = "";
+        if (!state.routineSuggest || !state.routineSuggest.length) { sug.remove(); return; }
+        state.routineSuggest.forEach(function (s) {
+          var c = document.createElement("button");
+          c.type = "button";
+          c.className = "routine-suggest-chip";
+          // Leading "+" (same affordance as "+ Add routine item" below) — a
+          // trailing one read as a remove "×" on already-added items.
+          var plus = document.createElement("span");
+          plus.className = "rsc-plus";
+          plus.textContent = "＋";
+          c.appendChild(plus);
+          c.appendChild(document.createTextNode(s.icon + " " + s.label + " · " + fmt12(s.time)));
+          c.addEventListener("click", function () { acceptSuggestion(s); });
+          chipWrap.appendChild(c);
+        });
+        var row = document.createElement("div");
+        row.className = "routine-suggest-actions";
+        var all = document.createElement("button");
+        all.type = "button"; all.className = "tool-btn"; all.textContent = "Add all";
+        all.addEventListener("click", function () {
+          (state.routineSuggest || []).slice().forEach(acceptSuggestion);
+        });
+        var dis = document.createElement("button");
+        dis.type = "button"; dis.className = "btn-link"; dis.textContent = "Dismiss";
+        dis.addEventListener("click", function () {
+          state.routineSuggest = null;
+          g.routineSuggestOff = true; // persisted with the guide — dismissed means dismissed
+          sug.remove();
+          scheduleHistory();
+        });
+        row.appendChild(all); row.appendChild(dis);
+        chipWrap.appendChild(row);
+      }
+      renderChips();
+      el.appendChild(sug);
+    }
+
     var list = document.createElement("div");
     list.className = "routine-list";
     el.appendChild(list);
@@ -2436,7 +3220,9 @@
       if (!g.routine.items.length) {
         var empty = document.createElement("p");
         empty.className = "routine-empty";
-        empty.textContent = "No routine yet — add feeding, medication, walks…";
+        empty.textContent = "No routine yet — add " + (
+          { kids: "naps, feeds, bedtime…", care: "medication, meals, rest…", home: "check-out, bins, cleaning…" }
+          [state.guide && state.guide.category] || "feeding, medication, walks…");
         list.appendChild(empty);
       }
       g.routine.items.forEach(function (item) {
@@ -2772,6 +3558,37 @@
   }
   function closeCoverAsk() { $("coverAskModal").hidden = true; }
 
+  // The publish moment earns more ceremony than a button saying "Saving…":
+  // dim the screen, float the guide's emoji among sparkles while it stores,
+  // then flip to the payoff line before revealing the share step. Held on
+  // screen for at least ~a second so a fast save still lands as a moment.
+  function showPublishOverlay(first) {
+    var o = document.createElement("div");
+    o.className = "pub-overlay";
+    o.innerHTML =
+      '<div class="pub-card">' +
+        '<div class="pub-emoji">' + esc((state.guide && state.guide.emoji) || "📘") + "</div>" +
+        '<div class="pub-text">' + (first ? "Publishing your guide…" : "Saving your changes…") + "</div>" +
+        '<div class="pub-sparks" aria-hidden="true"><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span></div>' +
+      "</div>";
+    document.body.appendChild(o);
+    var t0 = Date.now();
+    return {
+      success: function () {
+        var wait = Math.max(0, 950 - (Date.now() - t0));
+        setTimeout(function () {
+          o.classList.add("pub-done");
+          o.querySelector(".pub-text").textContent = first ? "It's live 🎉" : "Saved ✓";
+          setTimeout(function () {
+            o.classList.add("pub-fade");
+            setTimeout(function () { if (o.parentNode) o.parentNode.removeChild(o); }, 340);
+          }, 850);
+        }, wait);
+      },
+      fail: function () { if (o.parentNode) o.parentNode.removeChild(o); }
+    };
+  }
+
   function doPublish() {
     var g = state.guide;
     if (!state.editToken) state.editToken = makeToken();
@@ -2787,6 +3604,7 @@
     var btn = $("publishBtn");
     btn.disabled = true;
     btn.textContent = "Saving…";
+    var overlay = showPublishOverlay(!state.created);
 
     // Funnel: distinguish "never tried to publish" from "tried and failed".
     if (!state.created) GotItStore.event("publish_tap", g.slug || null);
@@ -2810,9 +3628,11 @@
       if (firstPublish) GotItStore.event("publish", g.slug); // analytics (best-effort)
       logFeatureUsage(g, locked); // which features this guide uses (deduped by slug)
       renderGuideEditor(); // reflect any auto-resized images in the editor
-      showShare(g, res && res.cloud, locked);
+      showShare(g, res && res.cloud, locked); // lands behind the overlay
       touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
+      overlay.success(); // "It's live 🎉" beat, then fade to the share step
     }).catch(function (err) {
+      overlay.fail();
       // Failed attempts otherwise look like abandoned drafts in the funnel.
       GotItStore.event("publish_err", state.guide.slug || null);
       if (err && err.message === "__HANDLED__") { /* toast already shown */ }
@@ -3397,6 +4217,16 @@
     else startRecording();
   });
   $("previewBack").addEventListener("click", function () {
+    if (state.liveOrigin && state.category) {
+      // buildGuide consumed the live cover into the draft — hand it back so
+      // the flow still shows the photo and a rebuild doesn't lose it.
+      if (state.guide && state.guide.cover && !state.liveCover) {
+        state.liveCover = state.guide.cover;
+        state.liveCoverPos = state.guide.coverPos || null;
+      }
+      startLiveFlow(9999, true); // clamps to the last question; quiet = no second live_open
+      return;
+    }
     state.qIndex = state.category.questions.length - 1;
     renderQuestion();
     showStep(2);
@@ -3705,6 +4535,7 @@
     });
   }
   function finishEnterEdit(guide, token, slug) {
+    state.liveOrigin = false; // editing an existing guide — nothing to go "back" to in the live flow
     // The record id (the slug in the edit link) IS the guide's identity.
     // A duplicated or re-linked LOCKED guide still carries its original slug
     // inside the encrypted payload — trusting that would make the next
@@ -3717,6 +4548,16 @@
     // This device has proven it holds the edit link — remember the token so
     // the published guide can offer "Edit this guide" here from now on.
     if (GotItStore.rememberToken) GotItStore.rememberToken(guide.slug, token);
+    // Existing guides with an empty routine widget: mine the section text for
+    // times, once — Dismiss sets a flag on the guide so it never nags again.
+    if (!guide.noRoutine && !(guide.routine && guide.routine.items && guide.routine.items.length) &&
+        !guide.routineSuggestOff) {
+      state.routineSuggest = suggestRoutineItems(
+        (guide.sections || []).map(function (s) { return stripHtml(s.body || ""); }).join("\n"),
+        catById(guide.category));
+    } else {
+      state.routineSuggest = null;
+    }
     renderGuideEditor();
     showStep(3);
     initHistory();
@@ -3809,5 +4650,5 @@
   if (!(editSlug && editToken)) GotItStore.event("builder_open");
   if (editSlug && editToken) enterEditMode(editSlug, editToken);
   else if (catParam && catById(catParam)) pickCategory(catById(catParam)); // deep link from the homepage
-  else { showStep(1); offerDraftResume(); }
+  else { showStep(1); offerDraftResume(); offerLiveResume(); }
 })();

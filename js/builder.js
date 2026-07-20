@@ -1837,6 +1837,62 @@
     });
   }
 
+  /* ---------- Routine suggestions mined from the answers ----------
+     People naturally type times into their section answers ("Dinner 5:30,
+     bed at 7") — asking them to re-enter those as routine steps is asking
+     them to repeat themselves. This scans the answers for clock times and
+     drafts routine items from them. They are only ever SUGGESTIONS the
+     creator confirms per item: a guessed-wrong time in a care guide is far
+     worse than no time, so nothing is added silently, and ambiguous bare
+     hours without a day-part clue are skipped entirely. */
+  function suggestRoutineItems(answers, cat) {
+    var text = Object.keys(answers || {}).map(function (k) { return answers[k] || ""; }).join("\n");
+    var out = [], seen = {};
+    var KW = [
+      [/\bnap|sleep|bed(time)?\b/, "😴", "pm"],
+      [/\bbreakfast\b/, "🍽️", "am"],
+      [/\blunch\b/, "🍽️", "pm"],
+      [/\bdinner|evening meal\b/, "🍽️", "pm"],
+      [/\bbath\b/, "🛁", "pm"],
+      [/\bwalk\b/, "🚶", null],
+      [/\bmed(s|ication)?\b|\btablet|pill|dose|insulin\b/, "💊", null],
+      [/\bschool|pick.?up|drop.?off\b/, "🎒", null],
+      [/\bbottle|feed(ing)?\b/, (cat && cat.id === "pet") ? "🦴" : "🍼", null],
+      [/\bkibble|food|meal|snack\b/, (cat && cat.id === "pet") ? "🦴" : "🍽️", null]
+    ];
+    text.split(/[\n.;,]+/).forEach(function (line) {
+      var t = line.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
+      if (!t) return;
+      var hour = +t[1], min = t[2] ? +t[2] : 0;
+      var ap = t[3] ? t[3].toLowerCase() : null;
+      if (hour > 23 || min > 59) return;
+      var low = line.toLowerCase();
+      var icon = "⏰", part = null;
+      for (var i = 0; i < KW.length; i++) {
+        if (KW[i][0].test(low)) { icon = KW[i][1]; part = KW[i][2]; break; }
+      }
+      if (!ap && hour <= 12) {
+        if (part) ap = part;
+        else if (t[2] && hour <= 6) ap = "pm"; // "5:30" reads as evening
+        else return; // bare ambiguous hour, no clue — don't guess
+      }
+      if (ap === "pm" && hour < 12) hour += 12;
+      if (ap === "am" && hour === 12) hour = 0;
+      if (hour > 23) return;
+      var time = ("0" + hour).slice(-2) + ":" + ("0" + min).slice(-2);
+      // Label: the words just before the time (or after, if none), tidied.
+      var before = line.slice(0, t.index).replace(/\b(at|around|about|by|is|then)\s*$/i, "").trim();
+      var after = line.slice(t.index + t[0].length).trim();
+      var label = (before || after || "Routine").replace(/^\W+|\W+$/g, "");
+      if (label.length > 30) label = label.slice(label.length - 30).replace(/^\S*\s/, "");
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+      var key = time + "|" + label.toLowerCase();
+      if (!seen[key]) { seen[key] = 1; out.push({ icon: icon, label: label, time: time }); }
+    });
+    out.sort(function (a, b) { return a.time < b.time ? -1 : 1; });
+    return out.slice(0, 8);
+  }
+
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
     var be = $("buildingEmoji");
@@ -1895,6 +1951,10 @@
       branding: true,
       createdAt: Date.now()
     };
+    // Draft routine steps from any times already typed into the answers
+    // (offered as tap-to-confirm chips in the routine widget, never auto-added).
+    state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(state.answers, cat);
+
     state.liveCover = null;
     state.liveCoverPos = null;
     clearLiveLocal(); // the answers now live in the guide draft itself
@@ -3074,6 +3134,59 @@
       '<p class="routine-hint">Scheduled care like feeding, medication and walks. Sitters can add the whole routine to their calendar.</p>';
     enableDrag(el.querySelector(".drag-handle"), el);
     addBlockRemoveBtn(el.querySelector(".routine-head"), "Remove daily routine", function () { removeWidget("routine", el); });
+
+    // Times mined from the creator's own answers, offered as tap-to-confirm
+    // chips so nobody types their routine twice. Confirm-only: each chip must
+    // be tapped (or "Add all") before it becomes a real routine item.
+    if (state.routineSuggest && state.routineSuggest.length && !g.routine.items.length) {
+      var sug = document.createElement("div");
+      sug.className = "routine-suggest";
+      var st = document.createElement("div");
+      st.className = "routine-suggest-t";
+      st.textContent = "✨ Spotted in your answers — tap to add:";
+      sug.appendChild(st);
+      var chipWrap = document.createElement("div");
+      chipWrap.className = "routine-suggest-chips";
+      sug.appendChild(chipWrap);
+      function fmt12(t) {
+        var h = +t.slice(0, 2), m = t.slice(3);
+        var ap = h >= 12 ? "pm" : "am";
+        h = h % 12 || 12;
+        return h + (m === "00" ? "" : ":" + m) + ap;
+      }
+      function acceptSuggestion(s) {
+        g.routine.items.push({ id: uid(), icon: s.icon, label: s.label, times: [s.time] });
+        state.routineSuggest = state.routineSuggest.filter(function (x) { return x !== s; });
+        renderItems(); scheduleHistory(); renderChips();
+      }
+      function renderChips() {
+        chipWrap.innerHTML = "";
+        if (!state.routineSuggest || !state.routineSuggest.length) { sug.remove(); return; }
+        state.routineSuggest.forEach(function (s) {
+          var c = document.createElement("button");
+          c.type = "button";
+          c.className = "routine-suggest-chip";
+          c.textContent = s.icon + " " + s.label + " · " + fmt12(s.time) + " ＋";
+          c.addEventListener("click", function () { acceptSuggestion(s); });
+          chipWrap.appendChild(c);
+        });
+        var row = document.createElement("div");
+        row.className = "routine-suggest-actions";
+        var all = document.createElement("button");
+        all.type = "button"; all.className = "tool-btn"; all.textContent = "Add all";
+        all.addEventListener("click", function () {
+          (state.routineSuggest || []).slice().forEach(acceptSuggestion);
+        });
+        var dis = document.createElement("button");
+        dis.type = "button"; dis.className = "btn-link"; dis.textContent = "Dismiss";
+        dis.addEventListener("click", function () { state.routineSuggest = null; sug.remove(); });
+        row.appendChild(all); row.appendChild(dis);
+        chipWrap.appendChild(row);
+      }
+      renderChips();
+      el.appendChild(sug);
+    }
+
     var list = document.createElement("div");
     list.className = "routine-list";
     el.appendChild(list);

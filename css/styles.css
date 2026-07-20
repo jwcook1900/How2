@@ -2728,6 +2728,30 @@ textarea.lf-input { resize: none; }
   0%, 100% { transform: translate(-50%, -50%); }
   50%      { transform: translate(-44%, -56%); }
 }
+/* Routine suggestions mined from the answers: tap-to-confirm chips */
+.routine-suggest {
+  background: var(--bg-tint);
+  border: 1.5px dashed var(--coral);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin: 12px 0 4px;
+}
+.routine-suggest-t { font-size: 0.86rem; font-weight: 700; color: var(--coral-dark); margin-bottom: 9px; }
+.routine-suggest-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.routine-suggest-chip {
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+.routine-suggest-chip:hover { border-color: var(--coral); color: var(--coral-dark); }
+.routine-suggest-actions { display: flex; gap: 12px; align-items: center; flex-basis: 100%; margin-top: 4px; }
+
 /* Privacy bubble (kids flow): quiet, expandable, never blocking */
 .lf-privacy {
   margin: 0 0 12px;

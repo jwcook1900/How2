@@ -25,7 +25,46 @@
   var winActive = false;   // set from the response each paint
   var statsKeyVal = "";    // held after unlock so window changes can refetch
 
-  function render(s) { DATA = s; paint(); }
+  /* ---- "since you last checked" deltas ----
+     A snapshot of the all-time headline numbers is kept in localStorage (per
+     device). On unlock, the previous visit's snapshot becomes the baseline;
+     every later all-time fetch updates the stored snapshot, so the next
+     visit compares against the last numbers actually seen. */
+  var SEEN_KEY = "gotit_stats_seen_v1";
+  var baseline = null;       // previous visit's snapshot (read once at unlock)
+  var baselineLoaded = false;
+  var latestTotals = null;   // all-time numbers from the freshest unwindowed fetch
+  function readSeen() { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "null"); } catch (e) { return null; } }
+  function writeSeen(snap) { try { localStorage.setItem(SEEN_KEY, JSON.stringify(snap)); } catch (e) {} }
+  function snapshotOf(s) {
+    return {
+      at: Date.now(),
+      views: s.views || 0,
+      visitors: s.uniqueVisitors || 0,
+      shares: s.shares || 0,
+      guides: (s.funnel && s.funnel.published) || 0,
+      accounts: (s.accounts && s.accounts.total) || 0,
+    };
+  }
+  function fmtWhen(t) {
+    var d = new Date(t);
+    var opts = (Date.now() - t > 6 * 86400000)
+      ? { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }
+      : { weekday: "short", hour: "numeric", minute: "2-digit" };
+    try { return d.toLocaleString(undefined, opts); } catch (e) { return d.toLocaleString(); }
+  }
+
+  function render(s) {
+    DATA = s;
+    // Deltas only ever compare all-time numbers; windowed fetches don't touch
+    // the snapshot (their totals answer a different question).
+    if (!s.window) {
+      if (!baselineLoaded) { baseline = readSeen(); baselineLoaded = true; }
+      latestTotals = snapshotOf(s);
+      writeSeen(latestTotals);
+    }
+    paint();
+  }
 
   function localDayStr(daysAgo) {
     var tzOff = new Date().getTimezoneOffset();
@@ -131,6 +170,27 @@
         "</span>" +
         (W ? '<span class="stat-win-note">Showing ' + esc(winLabel) + "</span>" : "") +
       "</div>";
+
+    // "Since you last checked": all-time deltas vs the previous visit's
+    // snapshot (independent of any window; only changed metrics are listed).
+    var sinceHtml = "";
+    if (baseline && latestTotals && baseline.at) {
+      var moves = [];
+      var addMove = function (n, one, many) {
+        if (!n) return;
+        moves.push("<b>" + (n > 0 ? "+" + n : n) + "</b> " + (Math.abs(n) === 1 ? one : many));
+      };
+      addMove(latestTotals.views - (baseline.views || 0), "view", "views");
+      addMove(latestTotals.visitors - (baseline.visitors || 0), "visitor", "visitors");
+      addMove(latestTotals.guides - (baseline.guides || 0), "guide published", "guides published");
+      addMove(latestTotals.shares - (baseline.shares || 0), "share", "shares");
+      addMove(latestTotals.accounts - (baseline.accounts || 0), "account", "accounts");
+      sinceHtml = '<p class="stat-since" id="statSince">' +
+        (moves.length
+          ? "📈 Since you last checked (" + esc(fmtWhen(baseline.at)) + "): " + moves.join(" · ")
+          : "😴 No new activity since you last checked (" + esc(fmtWhen(baseline.at)) + ").") +
+        "</p>";
+    }
 
     var cards =
       '<div class="stat-grid">' +
@@ -331,7 +391,7 @@
         '<p class="stat-empty">No guide activity yet \u2014 publish or share a guide to see it here.</p>';
     }
 
-    out.innerHTML = winBar + cards + dailyHtml + newGuidesHtml + acctsHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
+    out.innerHTML = winBar + sinceHtml + cards + dailyHtml + newGuidesHtml + acctsHtml + refsHtml + funnelHtml + catsHtml + startHtml + featHtml + guidesHtml +
       '<p class="stat-foot">' +
       (W ? "Every number above answers for " + esc(winLabel) + " only (drafts and publishes count in the window their first event landed in). "
          : "Counts everything since analytics went live. ") +

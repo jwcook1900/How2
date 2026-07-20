@@ -304,7 +304,7 @@
       '<h3 class="gfb-title">💬 Spot something missing?</h3>' +
       '<p class="gfb-lead">Using this guide in real life? If anything is unclear, hard to find, or could be better, send a quick note to whoever made it.</p>' +
       '<textarea class="gfb-text" id="gfbText" rows="3" placeholder="e.g. Couldn\'t find where the spare key is kept…"></textarea>' +
-      '<input type="email" class="gfb-email" id="gfbEmail" placeholder="Your email (optional — only if you\'d like a reply)" autocomplete="email" />' +
+      '<input type="email" class="gfb-email" id="gfbEmail" placeholder="Your email (optional, for a reply)" autocomplete="email" />' +
       '<button class="gfb-send" id="gfbSend" type="button">Send feedback</button>' +
       '<p class="gfb-note" id="gfbNote" hidden></p>' +
     "</div>";

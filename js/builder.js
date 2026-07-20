@@ -3631,6 +3631,13 @@
       showShare(g, res && res.cloud, locked); // lands behind the overlay
       touchDashboard(g, locked); // keep a saved copy's title/lock/updated fresh
       overlay.success(); // "It's live 🎉" beat, then fade to the share step
+      // First publish while signed out: interrupt before the dash-off (Jude's
+      // catch — the save actions sit below the fold, and the excitement of a
+      // live guide navigates away with no way back in). Signed-in creators
+      // are auto-saved to their dashboard, so they're never asked.
+      if (firstPublish && !(window.GotItAuth && GotItAuth.isSignedIn())) {
+        setTimeout(showKeepModal, 1500); // after the ceremony fades
+      }
     }).catch(function (err) {
       overlay.fail();
       // Failed attempts otherwise look like abandoned drafts in the funnel.
@@ -3763,6 +3770,21 @@
     }
     showStep(4);
   }
+
+  /* ---- "Keep a way back in" nudge ----
+     One explicit choice before leaving the share step for the first time:
+     save to the dashboard, copy the edit link, or knowingly skip. */
+  function showKeepModal() {
+    var m = $("keepModal");
+    if (!m) return;
+    $("keepNote").hidden = true;
+    $("keepSkip").textContent = "Skip for now (it stays saved on this device)";
+    m.hidden = false;
+    GotItStore.event("keep_show", state.guide && state.guide.slug);
+    var d = $("keepDash");
+    if (d) d.focus();
+  }
+  function closeKeepModal() { $("keepModal").hidden = true; }
 
   // Builds an absolute URL to another page in the same folder.
   function pageUrl(page, qs) {
@@ -4250,6 +4272,24 @@
     renderGuideEditor();
   });
   $("publishBtn").addEventListener("click", publish);
+  // Keep-your-key nudge: dashboard save reuses the share step's own button
+  // (same sign-in flow); copy flips the modal into a confirmed state; the
+  // skip is only logged as a skip when nothing was copied.
+  if ($("keepDash")) $("keepDash").addEventListener("click", function () {
+    GotItStore.event("keep_dash", state.guide && state.guide.slug);
+    closeKeepModal();
+    $("saveToDash").click();
+  });
+  if ($("keepCopy")) $("keepCopy").addEventListener("click", function () {
+    GotItStore.event("keep_copy", state.guide && state.guide.slug);
+    copyFrom("editUrl", "Edit link copied ✓");
+    $("keepNote").hidden = false;
+    $("keepSkip").textContent = "Done →";
+  });
+  if ($("keepSkip")) $("keepSkip").addEventListener("click", function () {
+    if ($("keepNote").hidden) GotItStore.event("keep_skip", state.guide && state.guide.slug);
+    closeKeepModal();
+  });
   // Cover nudge: skip publishes right away (and never asks again for this
   // guide); add opens the picker and continues straight to publish after the
   // photo lands; ✕/backdrop just close (no publish, will ask next time).
@@ -4465,6 +4505,8 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
+    // Escape on the keep nudge counts as the skip (same logging rules)
+    if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();
   });
 
   // Feedback widget

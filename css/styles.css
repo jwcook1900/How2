@@ -2534,6 +2534,13 @@ body.dragging-active * {
   color: var(--ink);
 }
 .stat-win-note { font-size: 0.85rem; font-weight: 700; color: var(--coral-dark); }
+/* "Since you last checked" delta strip */
+.stat-since {
+  margin: -8px 0 20px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.stat-since b { color: var(--ink); }
 /* Windowed funnel line under the creation funnel grid (follows the range chips) */
 .stat-window {
   margin: -10px 0 26px;

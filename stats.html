@@ -21,14 +21,21 @@
     <div class="container" style="max-width:600px">
       <h1 class="step-heading">GotIt Guides — Stats</h1>
 
-      <div class="lock-row" id="statsGate">
-        <label class="slug-label" for="statsKey">Enter your stats passphrase</label>
-        <input type="password" id="statsKey" class="q-input" placeholder="Passphrase" autocomplete="off" />
+      <!-- A real form with username + current-password autocomplete so phone
+           password managers offer to save and autofill the sign-in. Only the
+           passphrase is checked server-side; the name exists for the keychain. -->
+      <form class="lock-row" id="statsGate" method="post" action="#">
+        <label class="slug-label" for="statsUser">Sign in to your stats</label>
+        <input type="text" id="statsUser" name="username" class="q-input" placeholder="Name"
+          autocomplete="username" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" />
+        <input type="password" id="statsKey" name="password" class="q-input" placeholder="Passphrase"
+          autocomplete="current-password" />
+        <p class="email-links-hint" style="margin-top:8px">The passphrase unlocks the page. The name is whatever you like — it lets your phone save and autofill both.</p>
         <div class="builder-toolbar" style="margin-top:14px">
-          <button class="btn btn-primary" id="statsGo" type="button">View stats</button>
+          <button class="btn btn-primary" id="statsGo" type="submit">View stats</button>
         </div>
         <p class="lock-error" id="statsErr" hidden></p>
-      </div>
+      </form>
 
       <div id="statsOut" hidden></div>
 

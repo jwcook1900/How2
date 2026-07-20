@@ -122,10 +122,14 @@
         </div>
       </section>
 
-      <!-- Building loader -->
+      <!-- Building loader: the guide's emoji floats among sparkles (same
+           visual language as the publish ceremony) while the work happens -->
       <section class="step" id="stepBuilding" data-step="2">
         <div class="building">
-          <div class="spinner"></div>
+          <div class="building-fx" aria-hidden="true">
+            <span class="building-emoji" id="buildingEmoji">✨</span>
+            <div class="pub-sparks"><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span></div>
+          </div>
           <div class="building-title">Building your guide…</div>
           <p class="building-sub">Structuring your answers into something beautiful.</p>
         </div>

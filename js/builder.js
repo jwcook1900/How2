@@ -679,6 +679,8 @@
     steps.building.querySelector(".building-sub").textContent = files.length > 1
       ? "Reading your photos and turning them into a guide."
       : "Turning what you have into a guide.";
+    var be2 = $("buildingEmoji");
+    if (be2 && state.category) be2.textContent = state.category.emoji;
     showStep("building");
 
     getFilePayloads(files).then(function (agg) {
@@ -1317,10 +1319,43 @@
     if (current && current.kind === "photo" && state.liveCover) {
       doc.appendChild(buildLivePhotoPanel());
     }
+    // Kids guides carry the most sensitive details (school, address,
+    // medical), so this flow gets a quiet, expandable privacy note early.
+    // A bubble, not a gate: nothing to accept, nothing blocking.
+    if (cat.id === "kids") {
+      var pb = document.createElement("details");
+      pb.className = "lf-privacy";
+      pb.innerHTML =
+        "<summary>🛡 A note about privacy and your data</summary>" +
+        '<div class="lf-privacy-body">' +
+          "While you build, this guide is a private draft only you can see. " +
+          "When you publish, it's unlisted: only people you give the link to can open it. " +
+          "For anything sensitive you can lock the guide with a code at publish time; locked guides are encrypted so even we can't read them. " +
+          "Everything is stored in Australia and never sold or shared. " +
+          '<a href="about.html#privacy" target="_blank" rel="noopener">Read more in About &amp; privacy</a>.' +
+        "</div>";
+      doc.appendChild(pb);
+    }
+
     liveSteps.forEach(function (s, idx) {
       if (s.kind !== "q" || s.q.target === "title") return;
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
+
+    // Routine categories: tease the flow's hero feature — sitters can load
+    // the whole timed routine into their calendar with one tap. It's set up
+    // in review, so here it's a signpost, not a question.
+    if (!guideBlockDefaults(cat.id).noRoutine) {
+      var rt = document.createElement("div");
+      rt.className = "lf-card lf-ghost lf-routine-tease";
+      rt.innerHTML =
+        '<div class="lf-card-head"><span class="lf-card-icon">⏰</span>' +
+          '<span class="lf-card-title">Daily routine</span></div>' +
+        '<div class="lf-card-body">Coming up in review: add timed steps like ' +
+          (cat.id === "kids" ? "naps, feeds and bedtime" : cat.id === "care" ? "medication, meals and rest" : "feeding, meds and walks") +
+          " — your sitter taps once and the whole routine lands in their calendar as reminders.</div>";
+      doc.appendChild(rt);
+    }
 
     // End-cap: a ghost of the finish button marks the end of the flow, so a
     // scroll-ahead ("how long is this going to take?") finds a visible end.
@@ -1804,6 +1839,8 @@
 
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
+    var be = $("buildingEmoji");
+    if (be && state.category) be.textContent = state.category.emoji;
     showStep("building");
 
     var cat = state.category;

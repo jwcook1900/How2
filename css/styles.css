@@ -2512,6 +2512,28 @@ body.dragging-active * {
 .stat-list li:last-child { border-bottom: none; }
 .stat-list li span { color: var(--ink-muted); font-size: 0.9rem; white-space: nowrap; }
 .stat-empty { color: var(--ink-muted); }
+/* Whole-page date window bar (chips + custom from/to pair) */
+.stat-winbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 22px;
+  padding: 12px 14px;
+  background: var(--bg-tint);
+  border-radius: var(--radius-sm);
+}
+.stat-win-custom { display: inline-flex; align-items: center; gap: 6px; }
+.stat-win-custom input[type="date"] {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+}
+.stat-win-note { font-size: 0.85rem; font-weight: 700; color: var(--coral-dark); }
 /* Windowed funnel line under the creation funnel grid (follows the range chips) */
 .stat-window {
   margin: -10px 0 26px;

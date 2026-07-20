@@ -658,13 +658,18 @@ window.GotItStore = (function () {
 
     // Read aggregate analytics (passphrase-protected Lambda URL). Resolves with
     // the stats object, null if unavailable, or rejects on a wrong passphrase.
-    stats: function (key) {
+    stats: function (key, win) {
       return loadConfig().then(function (cfg) {
         if (!cfg || !cfg.statsUrl) return null;
+        var body = { key: key, tz: new Date().getTimezoneOffset() };
+        // Optional {from, to} local dates: the backend then answers every
+        // aggregate for that window instead of all time.
+        if (win && win.from) body.from = win.from;
+        if (win && win.to) body.to = win.to;
         return fetch(cfg.statsUrl, {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ key: key, tz: new Date().getTimezoneOffset() })
+          body: JSON.stringify(body)
         }).then(function (r) {
           if (r.status === 200) return r.json();
           if (r.status === 401) throw new Error("wrong passphrase");

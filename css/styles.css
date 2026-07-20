@@ -2485,6 +2485,13 @@ body.dragging-active * {
 .stat-list li:last-child { border-bottom: none; }
 .stat-list li span { color: var(--ink-muted); font-size: 0.9rem; white-space: nowrap; }
 .stat-empty { color: var(--ink-muted); }
+/* Windowed funnel line under the creation funnel grid (follows the range chips) */
+.stat-window {
+  margin: -10px 0 26px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.stat-window b { color: var(--ink); }
 .stat-foot { color: var(--ink-muted); font-size: 0.8rem; margin-top: 22px; }
 @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr; } }
 

@@ -828,6 +828,10 @@
       createdAt: Date.now()
     };
     state.created = false;
+    // Imported notes are the richest source of times of all ("kibble 7am and
+    // 6pm") — mine the raw text plus what the AI structured from it.
+    state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(
+      (rawText || "") + "\n" + sections.map(function (s) { return s.body; }).join("\n"), cat);
     GotItStore.event("editor", state.guide.slug); // funnel: a draft now exists
   }
 
@@ -1845,8 +1849,12 @@
      creator confirms per item: a guessed-wrong time in a care guide is far
      worse than no time, so nothing is added silently, and ambiguous bare
      hours without a day-part clue are skipped entirely. */
-  function suggestRoutineItems(answers, cat) {
-    var text = Object.keys(answers || {}).map(function (k) { return answers[k] || ""; }).join("\n");
+  function suggestRoutineItems(source, cat) {
+    // `source`: the answers object (scratch flows) or a plain string (import
+    // notes / section bodies).
+    var text = typeof source === "string"
+      ? source
+      : Object.keys(source || {}).map(function (k) { return source[k] || ""; }).join("\n");
     var out = [], seen = {};
     var KW = [
       [/\bnap|sleep|bed(time)?\b/, "😴", "pm"],
@@ -3138,7 +3146,7 @@
     // Times mined from the creator's own answers, offered as tap-to-confirm
     // chips so nobody types their routine twice. Confirm-only: each chip must
     // be tapped (or "Add all") before it becomes a real routine item.
-    if (state.routineSuggest && state.routineSuggest.length && !g.routine.items.length) {
+    if (state.routineSuggest && state.routineSuggest.length && !g.routine.items.length && !g.routineSuggestOff) {
       var sug = document.createElement("div");
       sug.className = "routine-suggest";
       var st = document.createElement("div");
@@ -3179,7 +3187,12 @@
         });
         var dis = document.createElement("button");
         dis.type = "button"; dis.className = "btn-link"; dis.textContent = "Dismiss";
-        dis.addEventListener("click", function () { state.routineSuggest = null; sug.remove(); });
+        dis.addEventListener("click", function () {
+          state.routineSuggest = null;
+          g.routineSuggestOff = true; // persisted with the guide — dismissed means dismissed
+          sug.remove();
+          scheduleHistory();
+        });
         row.appendChild(all); row.appendChild(dis);
         chipWrap.appendChild(row);
       }
@@ -4530,6 +4543,16 @@
     // This device has proven it holds the edit link — remember the token so
     // the published guide can offer "Edit this guide" here from now on.
     if (GotItStore.rememberToken) GotItStore.rememberToken(guide.slug, token);
+    // Existing guides with an empty routine widget: mine the section text for
+    // times, once — Dismiss sets a flag on the guide so it never nags again.
+    if (!guide.noRoutine && !(guide.routine && guide.routine.items && guide.routine.items.length) &&
+        !guide.routineSuggestOff) {
+      state.routineSuggest = suggestRoutineItems(
+        (guide.sections || []).map(function (s) { return stripHtml(s.body || ""); }).join("\n"),
+        catById(guide.category));
+    } else {
+      state.routineSuggest = null;
+    }
     renderGuideEditor();
     showStep(3);
     initHistory();

@@ -683,7 +683,9 @@
     }, 180000);
   }
 
-  $("statsGo").addEventListener("click", go);
-  $("statsKey").addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+  // Form submission (button tap or Enter in either field) — preventDefault
+  // keeps it a same-page unlock while still signalling password managers
+  // that a sign-in happened, so they offer to save it.
+  $("statsGate").addEventListener("submit", function (e) { e.preventDefault(); go(); });
   setTimeout(function () { $("statsKey").focus(); }, 50);
 })();

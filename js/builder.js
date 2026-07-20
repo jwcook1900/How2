@@ -64,7 +64,10 @@
       coverSub: "Everything the carer needs to know",
       questions: [
         { id: "name", q: "Whose guide is this?", hint: "A child's name, or 'The Kids'.", ph: "e.g. Mia & Leo", type: "text", target: "title", titleSuffix: "'s Guide" },
-        { id: "routine", q: "What's the daily routine?", hint: "Meals, naps, school, bedtime.", ph: "Lunch 12pm, nap 1pm, bed 7pm…", type: "textarea", target: "section", icon: "🕐", sectionTitle: "Routine & Bedtime" },
+        // "Sleep & Feeding", not "Routine" — kids guides also get the timed
+        // Daily Routine widget, and two blocks both named routine read as a
+        // duplicate. This section holds the how/what; the widget holds the when.
+        { id: "routine", q: "What's the sleep & feeding routine?", hint: "Naps, bedtime, meals, bottles.", ph: "Nap after lunch. Dinner 5:30, bath then bed at 7 with a story…", type: "textarea", target: "section", icon: "🍼", sectionTitle: "Sleep & Feeding" },
         { id: "food", q: "Food, allergies & dislikes?", hint: "What they eat — and must avoid.", ph: "Allergic to peanuts. Loves pasta…", type: "textarea", target: "section", icon: "🍎", sectionTitle: "Food & Allergies" },
         { id: "rules", q: "House rules & screen time?", hint: "Boundaries that help.", ph: "Max 30 min TV, no snacks after 6…", type: "textarea", target: "section", icon: "📺", sectionTitle: "Rules & Screen Time" },
         { id: "emergency", q: "Emergency contacts?", hint: "Parents, a backup, doctor.", ph: "Mum: …\nDad: …\nDoctor: …", type: "textarea", target: "emergency" },
@@ -1319,15 +1322,19 @@
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
 
-    // End-cap: a ghost publish button marks the finish line, so a scroll-ahead
-    // ("how long is this going to take?") finds a visible end, not a void.
-    var cap = document.createElement("div");
-    cap.className = "lf-endcap";
-    cap.setAttribute("aria-hidden", "true");
-    cap.innerHTML =
-      '<div class="lf-endcap-btn">🏁 Review &amp; publish</div>' +
-      '<div class="lf-endcap-note">your final step, once the questions are done</div>';
-    doc.appendChild(cap);
+    // End-cap: a ghost of the finish button marks the end of the flow, so a
+    // scroll-ahead ("how long is this going to take?") finds a visible end.
+    // On the last question the REAL "Review & publish" button is on screen,
+    // so the ghost bows out rather than doubling it.
+    if (liveIdx < liveSteps.length - 1) {
+      var cap = document.createElement("div");
+      cap.className = "lf-endcap";
+      cap.setAttribute("aria-hidden", "true");
+      cap.innerHTML =
+        '<div class="lf-endcap-btn">🏁 Review &amp; publish</div>' +
+        '<div class="lf-endcap-note">your final step, once the questions are done</div>';
+      doc.appendChild(cap);
+    }
 
     // Centre whatever is open.
     var cur = doc.querySelector(".lf-open") || doc.querySelector(".lf-cover");
@@ -1350,11 +1357,11 @@
         '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">\u2190 Back</button>' +
         '<span class="lf-flex"></span>' +
         (q.target === "title" ? "" : '<button class="btn btn-ghost btn-sm" id="lfSkip" type="button">Skip for now</button>') +
-        '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "Finish my guide \u2192" : "Next \u2192") + "</button>" +
+        '<button class="btn btn-primary" id="lfNext" type="button">' + (isLast ? "\ud83c\udfc1 Review & publish \u2192" : "Next \u2192") + "</button>" +
       "</div>" +
-      // Finishing must not feel like a commitment: the full editor is next,
-      // and that's where extra sections / photos / videos get added.
-      (isLast ? '<div class="lf-hint lf-finish-hint">Want to say more? Finishing opens your full guide, where you can add extra sections, photos and how-to videos before you share.</div>' : "");
+      // The last button takes the end-cap's identity (one finish control, not
+      // two), and must not feel like a commitment: the full editor is next.
+      (isLast ? '<div class="lf-hint lf-finish-hint">Want to say more? Reviewing opens your full guide, where you can add extra sections, photos and how-to videos before you publish.</div>' : "");
 
     var fieldRow = wrap.querySelector(".lf-field-row");
     var container = document.createElement("div");
@@ -3056,7 +3063,9 @@
       if (!g.routine.items.length) {
         var empty = document.createElement("p");
         empty.className = "routine-empty";
-        empty.textContent = "No routine yet — add feeding, medication, walks…";
+        empty.textContent = "No routine yet — add " + (
+          { kids: "naps, feeds, bedtime…", care: "medication, meals, rest…", home: "check-out, bins, cleaning…" }
+          [state.guide && state.guide.category] || "feeding, medication, walks…");
         list.appendChild(empty);
       }
       g.routine.items.forEach(function (item) {

@@ -1346,21 +1346,6 @@
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
 
-    // Routine categories: tease the flow's hero feature — sitters can load
-    // the whole timed routine into their calendar with one tap. It's set up
-    // in review, so here it's a signpost, not a question.
-    if (!guideBlockDefaults(cat.id).noRoutine) {
-      var rt = document.createElement("div");
-      rt.className = "lf-card lf-ghost lf-routine-tease";
-      rt.innerHTML =
-        '<div class="lf-card-head"><span class="lf-card-icon">⏰</span>' +
-          '<span class="lf-card-title">Daily routine</span></div>' +
-        '<div class="lf-card-body">Coming up in review: add timed steps like ' +
-          (cat.id === "kids" ? "naps, feeds and bedtime" : cat.id === "care" ? "medication, meals and rest" : "feeding, meds and walks") +
-          " — your sitter taps once and the whole routine lands in their calendar as reminders.</div>";
-      doc.appendChild(rt);
-    }
-
     // End-cap: a ghost of the finish button marks the end of the flow, so a
     // scroll-ahead ("how long is this going to take?") finds a visible end.
     // On the last question the REAL "Review & publish" button is on screen,
@@ -3139,7 +3124,7 @@
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
         "<span>⏰ Daily Routine</span>" +
       "</div>" +
-      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Sitters can add the whole routine to their calendar.</p>';
+      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Your sitter presses one button and the whole routine lands in their calendar as timed reminders.</p>';
     enableDrag(el.querySelector(".drag-handle"), el);
     addBlockRemoveBtn(el.querySelector(".routine-head"), "Remove daily routine", function () { removeWidget("routine", el); });
 

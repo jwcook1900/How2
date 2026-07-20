@@ -114,6 +114,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 .btn-block { width: 100%; }
 
 /* ───────── Header ───────── */
+/* In-page anchors must clear the sticky header instead of tucking under it */
+section[id] { scroll-margin-top: 76px; }
+
 .site-header {
   position: sticky;
   top: 0;
@@ -2778,10 +2781,6 @@ textarea.lf-input { resize: none; }
   color: var(--ink-soft);
 }
 .lf-privacy-body a { color: var(--coral-dark); font-weight: 600; text-decoration: underline; }
-
-/* Routine tease: informational ghost — readable, but clearly not a question */
-.lf-routine-tease { opacity: 0.75; cursor: default; pointer-events: none; }
-.lf-routine-tease .lf-card-body { font-size: 0.87rem; }
 
 /* End-cap: the ghost publish button that marks the flow's finish line */
 .lf-endcap { text-align: center; margin: 18px 0 4px; pointer-events: none; }

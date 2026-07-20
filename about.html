@@ -138,6 +138,28 @@
     </div>
   </footer>
 
-  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Anchor links (about.html#privacy) land before the web font loads; when
+    // Plus Jakarta Sans swaps in, the text above the target reflows taller and
+    // the section drifts down past the scroll position. Re-anchor once things
+    // settle — unless the reader has already started scrolling themselves.
+    (function () {
+      if (!location.hash) return;
+      var userMoved = false;
+      var mark = function () { userMoved = true; };
+      ["wheel", "touchstart", "keydown"].forEach(function (ev) {
+        window.addEventListener(ev, mark, { passive: true, once: true });
+      });
+      var reanchor = function () {
+        if (userMoved) return;
+        var t = document.getElementById(location.hash.slice(1));
+        if (t) t.scrollIntoView();
+      };
+      window.addEventListener("load", reanchor);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(reanchor);
+    })();
+  </script>
 </body>
 </html>

@@ -287,9 +287,15 @@ ul { margin: 0; padding: 0; list-style: none; }
   align-items: center;
 }
 .hero-title {
-  font-size: clamp(2.4rem, 6vw, 4rem);
+  /* Sized for the longer category-agnostic headline: big enough to lead,
+     small enough that it doesn't wrap into a word-per-line tower */
+  font-size: clamp(1.9rem, 4.2vw, 3.1rem);
   font-weight: 800;
   margin: 8px 0 20px;
+  max-width: 24ch;
+}
+@media (max-width: 940px) {
+  .hero-title { margin-left: auto; margin-right: auto; }
 }
 .hero-title .accent { color: var(--coral); }
 .hero-sub {
@@ -1865,6 +1871,7 @@ body.dragging-active * {
 /* A section-head used on its own (no grid/cards below it) */
 .section-head--solo { margin-bottom: 0; }
 .section-cta { margin-top: 28px; }
+.section-cta--center { text-align: center; }
 
 /* Hero reassurance ticks under the CTAs */
 .hero-reassure {
@@ -1900,6 +1907,101 @@ body.dragging-active * {
 }
 @media (max-width: 940px) {
   .hero-reassure { justify-content: center; }
+}
+
+/* Hero use-case chips: the four core guide types, tappable in the first
+   viewport so the broad headline lands on something concrete */
+.hero-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.hero-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+.hero-cat:hover, .hero-cat:focus-visible { border-color: var(--color-orange); color: var(--coral-dark); }
+@media (max-width: 940px) {
+  .hero-cats { justify-content: center; }
+}
+
+/* The scattered-instructions picture: familiar fragments gathered into one
+   guide. Flat surfaces only (borders, no shadows or gradients). */
+.frag-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin: 34px auto 0;
+  max-width: 780px;
+}
+.frag-cloud {
+  flex: 1 1 55%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.frag-chip {
+  padding: 8px 13px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--white);
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+}
+/* A hint of the old scatter: alternate chips sit slightly off-kilter */
+.frag-chip:nth-child(odd) { transform: rotate(-1.6deg); }
+.frag-chip:nth-child(even) { transform: rotate(1.2deg); }
+.frag-arrow {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--coral-dark);
+  flex: 0 0 auto;
+}
+.frag-dest {
+  flex: 0 1 240px;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.frag-dest-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+}
+.frag-dest-row {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  padding: 7px 10px;
+  background: var(--bg-tint);
+  border-radius: 10px;
+}
+.frag-dest-row + .frag-dest-row { margin-top: 6px; }
+@media (max-width: 719px) {
+  .frag-flow { flex-direction: column; gap: 14px; }
+  .frag-arrow { transform: rotate(90deg); }
+  .frag-dest { flex-basis: auto; width: min(100%, 300px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frag-chip:nth-child(odd), .frag-chip:nth-child(even) { transform: none; }
 }
 
 /* Bulleted highlights inside the use-case cards */

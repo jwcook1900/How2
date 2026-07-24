@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Turn routines, medication, emergency contacts, photos, videos and house notes into one simple shareable link, ready before your next trip, sitter booking or guest stay. Care guides for pets, kids and homes." />
+  <meta name="description" content="Create one simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, your home, your kids or a loved one. Update once, share one link." />
   <meta name="theme-color" content="#1A1A1A" />
-  <title>GotIt Guides | Create a care guide your sitter can actually follow</title>
+  <title>GotIt Guides | Everything someone needs to care for what matters most</title>
 
   <link rel="canonical" href="https://www.gotitguides.com/" />
 
   <!-- Open Graph / social preview -->
-  <meta property="og:title" content="GotIt Guides | Create a care guide your sitter can actually follow" />
-  <meta property="og:description" content="Turn routines, medication, emergency contacts, photos and house notes into one simple shareable link, ready before your next trip, sitter booking or guest stay." />
+  <meta property="og:title" content="GotIt Guides | Everything someone needs to care for what matters most" />
+  <meta property="og:description" content="One simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, home, kids or a loved one." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.gotitguides.com/" />
   <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="GotIt Guides | Create a care guide your sitter can actually follow" />
-  <meta name="twitter:description" content="Turn routines, medication, emergency contacts, photos and house notes into one simple shareable link, ready before your next trip, sitter booking or guest stay." />
+  <meta name="twitter:title" content="GotIt Guides | Everything someone needs to care for what matters most" />
+  <meta name="twitter:description" content="One simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, home, kids or a loved one." />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -42,7 +42,7 @@
         "url": "https://www.gotitguides.com/",
         "applicationCategory": "LifestyleApplication",
         "operatingSystem": "Any (web)",
-        "description": "Turn routines, medication, emergency contacts, photos, videos and house notes into one simple shareable care guide for pet sitters, family and guests.",
+        "description": "Create one simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, your home, your kids or a loved one.",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" }
       },
       {
@@ -72,7 +72,7 @@
             <a href="/g/whiskeys101-kd8d-wbxx">👀 See a real guide</a>
             <a href="#how">How it works</a>
             <a href="#examples">Examples</a>
-            <a href="#features">Features</a>
+            <a href="#features">Why it's better</a>
             <a href="#pricing">Pricing</a>
             <a href="#about">About</a>
             <a href="dashboard.html">My guides <span class="nav-badge" id="myGuidesBadge" hidden></span></a>
@@ -94,28 +94,31 @@
     <section class="hero">
       <div class="container hero-inner">
         <div class="hero-content reveal">
-          <span class="eyebrow">For pets, kids &amp; homes</span>
-          <h1 class="hero-title">Create a care guide <span class="accent">your sitter can actually follow.</span></h1>
+          <span class="eyebrow">For pets, homes, kids and loved ones</span>
+          <h1 class="hero-title">Everything someone needs to confidently care for <span class="accent">what matters most.</span></h1>
           <p class="hero-sub">
-            For the routines, care notes and home details that matter too much
-            to be scattered across texts, notes and screenshots.
-          </p>
-          <p class="hero-support">
-            Turn medication, emergency contacts, photos, videos and house notes
-            into one simple shareable link, ready before your next trip, sitter
-            booking or guest stay.
+            Whether it's your pet, your home, your kids or a loved one, create
+            one simple guide with the routines, instructions, videos and
+            important details someone needs when they step in.
           </p>
           <div class="hero-cta">
-            <a href="builder.html" class="btn btn-primary btn-lg">Create your free guide</a>
+            <a href="builder.html" class="btn btn-primary btn-lg" data-evt="home_cta" data-evt-slug="create">Create your guide</a>
             <!-- A real, living guide (Whiskey's public copy) beats mockups -->
-            <a href="/g/whiskeys101-kd8d-wbxx" class="btn btn-ghost btn-lg">👀 See a real guide</a>
+            <a href="/g/whiskeys101-kd8d-wbxx" class="btn btn-ghost btn-lg" data-evt="home_cta" data-evt-slug="real_guide">👀 See a real guide</a>
           </div>
           <ul class="hero-reassure">
-            <li>Ready in minutes</li>
+            <li>Takes about 5 minutes</li>
             <li>Update anytime</li>
             <li>Share by link or QR</li>
-            <li>Pets, kids &amp; homes</li>
           </ul>
+          <!-- Concrete use cases in the first viewport, each a real builder
+               category — so the broad headline lands on something specific -->
+          <nav class="hero-cats" aria-label="Guide types">
+            <a class="hero-cat" href="builder.html?cat=pet" data-evt="home_usecase" data-evt-slug="pet">🐶 Pet care</a>
+            <a class="hero-cat" href="builder.html?cat=housesit" data-evt="home_usecase" data-evt-slug="housesit">🏡 Home care</a>
+            <a class="hero-cat" href="builder.html?cat=kids" data-evt="home_usecase" data-evt-slug="kids">👶 Kids &amp; babysitting</a>
+            <a class="hero-cat" href="builder.html?cat=care" data-evt="home_usecase" data-evt-slug="care">🧡 Loved ones</a>
+          </nav>
         </div>
 
         <!-- Decorative phone mockup — swipeable handover-guide examples -->
@@ -164,23 +167,39 @@
       </div>
     </section>
 
-    <!-- ───────────────────────── Paste reassurance (remove the objection) ───────────────────────── -->
+    <!-- ───────────────────────── The problem: scattered instructions ───────────────────────── -->
     <section class="section section-tint" id="paste">
       <div class="container">
         <div class="section-head section-head--solo reveal">
-          <!-- Question + heading read as a pair: "Don't know where to
-               start?" → "Start with the messy notes you already have." -->
-          <span class="eyebrow">Don&rsquo;t know where to start?</span>
-          <h2 class="section-title">Start with the messy notes you already have.</h2>
+          <span class="eyebrow">Sound familiar?</span>
+          <h2 class="section-title">Stop explaining the same things over and over.</h2>
           <p class="section-lead">
-            Most of it already lives on your phone: a note to yourself, a few
-            texts, a screenshot from the vet, an email from school. Paste it all
-            in and GotIt Guides shapes it into a clear, editable guide your sitter
-            can actually follow, in seconds.
+            The important details end up spread across text messages, Google
+            Docs, printed notes, videos and last-minute phone calls. GotIt Guides
+            keeps them together in one place that's easy to update and share.
           </p>
-          <div class="section-cta">
-            <a href="builder.html?start=paste" class="btn btn-ghost">Start with your messy notes</a>
+        </div>
+        <!-- The familiar scatter, gathered into one guide. These tools aren't
+             the enemy — they're where everyone starts. -->
+        <div class="frag-flow reveal" aria-hidden="true">
+          <div class="frag-cloud">
+            <span class="frag-chip">💬 Text threads</span>
+            <span class="frag-chip">📄 Google Docs</span>
+            <span class="frag-chip">🗒️ Notes on the bench</span>
+            <span class="frag-chip">🎥 Videos on your phone</span>
+            <span class="frag-chip">🗣️ &ldquo;Call me if anything happens&rdquo;</span>
           </div>
+          <div class="frag-arrow">→</div>
+          <div class="frag-dest">
+            <div class="frag-dest-head"><span>🐶</span> One guide, one link</div>
+            <div class="frag-dest-row">🕐 Daily routine</div>
+            <div class="frag-dest-row">💊 Medication</div>
+            <div class="frag-dest-row">🚨 Emergency contacts</div>
+          </div>
+        </div>
+        <div class="section-cta section-cta--center reveal">
+          <!-- The paste flow really does this: notes in, structured guide out -->
+          <a href="builder.html?start=paste" class="btn btn-ghost" data-evt="home_cta" data-evt-slug="paste">Start with your messy notes</a>
         </div>
       </div>
     </section>
@@ -190,23 +209,23 @@
       <div class="container">
         <div class="section-head reveal">
           <span class="eyebrow">How it works</span>
-          <h2 class="section-title">From messy notes to a guide they can follow.</h2>
+          <h2 class="section-title">From scattered notes to a guide they can follow.</h2>
         </div>
         <div class="steps">
           <div class="step reveal">
             <div class="step-num">1</div>
-            <h3 class="step-title">Paste or start fresh</h3>
-            <p class="step-text">Paste your notes, or start from a ready-made template for pets, kids or homes.</p>
+            <h3 class="step-title">Create your guide</h3>
+            <p class="step-text">Start from scratch, talk it out, or paste the notes you already have.</p>
           </div>
           <div class="step reveal">
             <div class="step-num">2</div>
-            <h3 class="step-title">Build your living guide</h3>
-            <p class="step-text">Add routines, medication, contacts, photos and videos, as simple or detailed as you like.</p>
+            <h3 class="step-title">Add the details that matter</h3>
+            <p class="step-text">Routines, instructions, photos, videos, contacts and the quirks worth knowing.</p>
           </div>
           <div class="step reveal">
             <div class="step-num">3</div>
-            <h3 class="step-title">Share one link</h3>
-            <p class="step-text">Send a single link or QR code that's always up to date, however much changes.</p>
+            <h3 class="step-title">Share one simple link</h3>
+            <p class="step-text">They always see the latest version, with no digging through old messages or attachments.</p>
           </div>
         </div>
       </div>
@@ -217,42 +236,52 @@
       <div class="container">
         <div class="section-head reveal">
           <span class="eyebrow">Made for real life</span>
-          <h2 class="section-title">Guides for the people you trust with your pets, kids and home.</h2>
+          <h2 class="section-title">Guides for the people you trust with your pets, home, kids and loved ones.</h2>
           <p class="section-lead">Real guides people make in minutes. Tap one to start with it —
             or <a class="example-real-link" href="/g/whiskeys101-kd8d-wbxx">open Whiskey's real guide →</a></p>
         </div>
         <div class="cards cards-3">
-          <a class="card reveal" href="builder.html?cat=pet">
+          <a class="card reveal" href="builder.html?cat=pet" data-evt="home_usecase" data-evt-slug="pet">
             <span class="card-emoji">🐶</span>
             <h3 class="card-title">Pet Sitter Guide</h3>
             <ul class="card-points">
-              <li>Feeding, medication and walks</li>
-              <li>Anxiety and seizure plans</li>
-              <li>Daily routines</li>
-              <li>Vet and emergency contacts</li>
+              <li>Feeding routine and walks</li>
+              <li>Medications</li>
+              <li>Behaviour and quirks</li>
+              <li>Vet and emergency details</li>
             </ul>
           </a>
-          <a class="card reveal" href="builder.html?cat=kids">
+          <a class="card reveal" href="builder.html?cat=housesit" data-evt="home_usecase" data-evt-slug="housesit">
+            <span class="card-emoji">🏡</span>
+            <h3 class="card-title">Home &amp; House Sitter Guide</h3>
+            <ul class="card-points">
+              <li>Access, keys and security</li>
+              <li>Bins and deliveries</li>
+              <li>Appliances and their quirks</li>
+              <li>Plants and maintenance</li>
+            </ul>
+          </a>
+          <a class="card reveal" href="builder.html?cat=kids" data-evt="home_usecase" data-evt-slug="kids">
             <span class="card-emoji">👶</span>
             <h3 class="card-title">Babysitter &amp; Family Guide</h3>
             <ul class="card-points">
-              <li>Bedtime routines and meals</li>
-              <li>Allergies and medication</li>
-              <li>School, daycare and screen-time notes</li>
-              <li>Emergency contacts and comfort items</li>
+              <li>Bedtime routine</li>
+              <li>Meals and allergies</li>
+              <li>School and childcare details</li>
+              <li>Emergency contacts</li>
             </ul>
           </a>
-          <a class="card reveal" href="builder.html?cat=housesit">
-            <span class="card-emoji">🏡</span>
-            <h3 class="card-title">House Sitter Guide</h3>
+          <a class="card reveal" href="builder.html?cat=care" data-evt="home_usecase" data-evt-slug="care">
+            <span class="card-emoji">🧡</span>
+            <h3 class="card-title">Caring for a Loved One</h3>
             <ul class="card-points">
-              <li>Wi-Fi, keys and parking</li>
-              <li>Bins, plants and appliances</li>
-              <li>House rules and quirks</li>
-              <li>Who to call if something breaks</li>
+              <li>Daily routines</li>
+              <li>Medication details</li>
+              <li>Appointments</li>
+              <li>Preferences and important context</li>
             </ul>
           </a>
-          <a class="card reveal" href="builder.html?cat=home">
+          <a class="card reveal" href="builder.html?cat=home" data-evt="home_usecase" data-evt-slug="home">
             <span class="card-emoji">🏠</span>
             <h3 class="card-title">Home Guest &amp; Airbnb Guide</h3>
             <ul class="card-points">
@@ -262,17 +291,7 @@
               <li>Local favourites</li>
             </ul>
           </a>
-          <a class="card reveal" href="builder.html?cat=care">
-            <span class="card-emoji">👵</span>
-            <h3 class="card-title">Aged &amp; Home Care Guide</h3>
-            <ul class="card-points">
-              <li>Medication and daily routines</li>
-              <li>Meals and mobility</li>
-              <li>Appointments and contacts</li>
-              <li>Signs to watch for</li>
-            </ul>
-          </a>
-          <a class="card reveal card--secondary" href="builder.html?cat=staff">
+          <a class="card reveal card--secondary" href="builder.html?cat=staff" data-evt="home_usecase" data-evt-slug="staff">
             <span class="card-emoji">🧑‍💼</span>
             <h3 class="card-title">Team Handover Guide</h3>
             <ul class="card-points">
@@ -291,71 +310,92 @@
       <div class="container">
         <div class="section-head reveal">
           <span class="eyebrow">Why it's better</span>
-          <h2 class="section-title">Better than instructions buried in texts.</h2>
+          <h2 class="section-title">Confidence for them. Peace of mind for you.</h2>
           <p class="section-lead">
-            A text thread gets lost and a PDF goes out of date. GotIt Guides keeps
-            routines, contacts, photos and videos in one calm, living guide that's
-            clear enough to follow in the moment and easy to keep current.
+            A text thread gets lost and a document goes out of date. A guide is
+            built for the person stepping in, so they can act without guessing.
           </p>
         </div>
         <div class="features">
           <div class="feature reveal">
-            <span class="feature-icon">🪄</span>
+            <span class="feature-icon">✅</span>
             <div>
-              <h3 class="feature-title">Smart start</h3>
-              <p class="feature-text">Paste messy notes and our AI helper shapes them into clear sections. You stay in control of every word.</p>
+              <h3 class="feature-title">Nothing important gets missed</h3>
+              <p class="feature-text">Prompts and structured sections help you capture the details you'd otherwise forget until you're already away.</p>
             </div>
           </div>
           <div class="feature reveal">
-            <span class="feature-icon">📷</span>
+            <span class="feature-icon">💡</span>
             <div>
-              <h3 class="feature-title">Photos</h3>
-              <p class="feature-text">Show exactly where something is or what it should look like.</p>
+              <h3 class="feature-title">They know what's normal</h3>
+              <p class="feature-text">What's completely normal for them, but might worry someone else? A dog that eats lying down. A hot-water system that clanks. Write it down and nobody panics.</p>
             </div>
           </div>
           <div class="feature reveal">
             <span class="feature-icon">🎥</span>
             <div>
-              <h3 class="feature-title">Videos</h3>
-              <p class="feature-text">Record how to give the medication or settle them at night, instead of writing long explanations.</p>
-            </div>
-          </div>
-          <div class="feature reveal">
-            <span class="feature-icon">📝</span>
-            <div>
-              <h3 class="feature-title">Logs</h3>
-              <p class="feature-text">Let sitters, carers or guests note what's been done: medications, walks, feeds, tasks or anything worth recording.</p>
+              <h3 class="feature-title">Show, don't just explain</h3>
+              <p class="feature-text">Photos and short videos make the fiddly things easier to follow than any written description.</p>
             </div>
           </div>
           <div class="feature reveal">
             <span class="feature-icon">🔄</span>
             <div>
-              <h3 class="feature-title">Always up to date</h3>
-              <p class="feature-text">Routines change. Update once and everyone sees the latest version, no rewriting from scratch.</p>
+              <h3 class="feature-title">Update once, share the latest</h3>
+              <p class="feature-text">Routines change. Edit the guide and everyone with the link sees the current version, no re-sending documents.</p>
             </div>
           </div>
           <div class="feature reveal">
-            <span class="feature-icon">🔗</span>
+            <span class="feature-icon">🗂️</span>
             <div>
-              <h3 class="feature-title">One link or QR</h3>
-              <p class="feature-text">Share by link or QR code. No outdated PDFs, no document versions, no copy and paste.</p>
+              <h3 class="feature-title">Everything has its place</h3>
+              <p class="feature-text">Routines, contacts, instructions, access details and emergency information stay easy to find in the moment.</p>
+            </div>
+          </div>
+          <div class="feature reveal">
+            <span class="feature-icon">📝</span>
+            <div>
+              <h3 class="feature-title">You stay in the loop</h3>
+              <p class="feature-text">Sitters, carers and guests can log what's done: medications given, walks taken, anything worth recording.</p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- ───────────────────────── Reassurance ───────────────────────── -->
-    <section class="section section-tint" id="reassurance">
+    <!-- ───────────────────────── Trust & privacy ─────────────────────────
+         Claims here must match the real behaviour (and about.html#privacy):
+         unlisted links, on-device encryption behind a guide code, edit and
+         delete anytime. Nothing else. -->
+    <section class="section section-tint" id="privacy">
       <div class="container">
-        <div class="section-head section-head--solo reveal">
-          <span class="eyebrow">No pressure</span>
-          <h2 class="section-title">As simple or detailed as you need.</h2>
+        <div class="section-head reveal">
+          <span class="eyebrow">Trust &amp; privacy</span>
+          <h2 class="section-title">Yours to control.</h2>
           <p class="section-lead">
-            Start with whatever you have, even a rough note or a screenshot. Keep
-            it short and sweet, or add every detail. Either way it's there before
-            you go, and easy to update the moment a routine changes.
+            Make it as simple or detailed as you like, and decide exactly who
+            can open it.
           </p>
+        </div>
+        <div class="trust-grid">
+          <div class="trust-item reveal">
+            <div class="trust-emoji">🔗</div>
+            <h3>Unlisted by default</h3>
+            <p>Guides are unlisted. Anyone with the link can open them unless you add a guide code.</p>
+          </div>
+          <div class="trust-item reveal">
+            <div class="trust-emoji">🔒</div>
+            <h3>Lock anything sensitive</h3>
+            <p>Add a guide code and the contents are encrypted on your device before they're stored. Even we can't read them.</p>
+          </div>
+          <div class="trust-item reveal">
+            <div class="trust-emoji">✏️</div>
+            <h3>Change your mind anytime</h3>
+            <p>Update the guide and the same link stays current. Remove it from your dashboard, or email us and we'll delete it.</p>
+          </div>
+        </div>
+        <div class="section-cta section-cta--center reveal">
+          <a class="btn btn-ghost btn-sm" href="about.html#privacy">More in About &amp; privacy →</a>
         </div>
       </div>
     </section>
@@ -435,13 +475,13 @@
     <section class="section cta-band" id="waitlist">
       <div class="container">
         <div class="cta-inner reveal">
-          <h2 class="cta-title">A little less stress before you go away.</h2>
+          <h2 class="cta-title">A little less to worry about when you hand over.</h2>
           <p class="cta-sub">
-            Set it up once before your next trip, sitter booking or guest
-            stay. No rewriting the same instructions every time, and a guide
-            that's clear enough for someone to follow in the moment.
+            Set it up once before the next trip, sitter booking, guest stay or
+            week of helping out. No rewriting the same instructions every time,
+            and a guide clear enough to follow in the moment.
           </p>
-          <a href="builder.html" class="btn btn-ghost btn-lg">Create your free guide</a>
+          <a href="builder.html" class="btn btn-ghost btn-lg" data-evt="home_cta" data-evt-slug="create_band">Create your guide</a>
 
           <div class="cta-waitlist">
             <p class="cta-waitlist-label">Want to hear when new features land?</p>

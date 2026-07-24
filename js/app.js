@@ -78,16 +78,17 @@
     var dotsWrap = document.getElementById("mockDots");
     if (!track || !dotsWrap) return;
 
-    // Leads with pet care (the strongest wedge), then the other core handovers.
+    // Leads with pet care (the strongest wedge), then the other core
+    // handovers — pets, homes, kids and loved ones in the first viewport.
     var EXAMPLES = [
       { emoji: "🐶", title: "Whiskey's Care Guide", sub: "Everything my dog sitter needs",
         cards: [["🦴", "Feeding & Routine"], ["💊", "Medication", true], ["🚨", "Vet & Emergency"]] },
-      { emoji: "🏠", title: "The Beach House", sub: "Everything my house guest needs",
-        cards: [["🔑", "Getting In & Parking"], ["📶", "Wi-Fi & Essentials", true], ["📍", "Local Favourites"]] },
+      { emoji: "🏠", title: "The Beach House", sub: "Everything my house sitter needs",
+        cards: [["🔑", "Getting In & Keys"], ["🗑️", "Bins & Deliveries", true], ["🪴", "Plants & Quirks"]] },
       { emoji: "👶", title: "Mia & Leo's Guide", sub: "Everything the babysitter needs",
         cards: [["🕐", "Routine & Bedtime"], ["🍎", "Food & Allergies", true], ["🚨", "Emergency Contacts"]] },
-      { emoji: "🧑‍💼", title: "Team Onboarding", sub: "Everything a new starter needs",
-        cards: [["👋", "Welcome"], ["📅", "First Week", true], ["🛠️", "Tools & Systems"]] }
+      { emoji: "🧡", title: "Helping Out with Mum", sub: "Everything her helper needs",
+        cards: [["🕐", "Daily Routine"], ["💊", "Medication", true], ["📅", "Appointments"]] }
     ];
 
     function slideHtml(ex) {
@@ -181,6 +182,14 @@
     go(0);
     startAuto();
   })();
+
+  /* ---- Homepage analytics: elements opt in with data-evt / data-evt-slug.
+     Best-effort like every other event; never blocks the navigation. ---- */
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-evt]");
+    if (!el || !window.GotItStore || !GotItStore.event) return;
+    try { GotItStore.event(el.getAttribute("data-evt"), el.getAttribute("data-evt-slug") || null); } catch (err) {}
+  });
 
   /* ---- Waitlist form ----
      Sends the signup to the backend (a Feedback row with context "waitlist",

@@ -2297,6 +2297,17 @@ body.dragging-active * {
 }
 .lf-jas .lf-q { font-size: 1.02rem; }
 .lf-jas-note { color: #8A6D1C; }
+/* Standalone wrapper when the moment is active: extra breathing room,
+   no section-card shell around it */
+.lf-jas-wrap { margin: 26px 0 10px; }
+
+/* Contextual idea line inside the dock's Add menu */
+.dock-pop-hint {
+  padding: 4px 12px 8px;
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  max-width: 230px;
+}
 
 /* Add-section template picker */
 .secpick-list {

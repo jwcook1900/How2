@@ -42,10 +42,10 @@
         { id: "name", q: "What's your pet's name?", hint: "We'll title the guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: " 101" },
         // Personality over facts: what someone meeting them for the first
         // time actually needs, not a form field for breed and age.
-        { id: "breedAge", q: "What would you tell someone meeting them for the first time?", hint: "Breed and age, sure — but also their personality and what they love.", ph: "e.g. Border Collie, 3. Ball-obsessed velcro dog, loves everyone he meets…", type: "textarea", target: "section", icon: "🐾", sectionTitle: "About {name}" },
-        { id: "routine", q: "What's the daily routine?", hint: "Morning, midday and evening — feeding, walks, naps.", ph: "Morning: …\nMidday: …\nEvening: …", type: "textarea", target: "section", icon: "🦴", sectionTitle: "Daily Routine" },
-        { id: "medical", q: "Any medical conditions or medications?", hint: "Doses, timing, where it's kept.", ph: "e.g. Half a tablet with breakfast…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Health & Medications" },
-        { id: "commands", q: "Are there any words, commands or signals they know?", hint: "The vocabulary that makes them listen.", ph: "Sit, stay, bed, walkies, dinner, leave it… hand signals or recall words too", type: "textarea", target: "section", icon: "🗣️", sectionTitle: "Commands & Communication" },
+        { id: "breedAge", q: "What would you tell someone meeting {name} for the first time?", hint: "Breed and age, sure — but also their personality and what they love.", ph: "e.g. Border Collie, 3. Ball-obsessed velcro dog, loves everyone he meets…", type: "textarea", target: "section", icon: "🐾", sectionTitle: "About {name}" },
+        { id: "routine", q: "What's the daily routine for {name}?", hint: "Morning, midday and evening — feeding, walks, naps.", ph: "Morning: …\nMidday: …\nEvening: …", type: "textarea", target: "section", icon: "🦴", sectionTitle: "Daily Routine" },
+        { id: "medical", q: "Any medical conditions or medications for {name}?", hint: "Doses, timing, where it's kept.", ph: "e.g. Half a tablet with breakfast…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Health & Medications" },
+        { id: "commands", q: "Any words, commands or signals you use with {name}?", hint: "The vocabulary that makes them listen.", ph: "Sit, stay, bed, walkies, dinner, leave it… hand signals or recall words too", type: "textarea", target: "section", icon: "🗣️", sectionTitle: "Commands & Communication" },
         { id: "emergency", q: "Any emergency contacts?", hint: "Vet, and a backup human.", ph: "Vet: Dr Smith — 0400 000 000\nMe: …", type: "textarea", target: "emergency" },
         // The signature section: what's normal for them but alarming to a
         // stranger. Prevents panicked calls better than any other question.

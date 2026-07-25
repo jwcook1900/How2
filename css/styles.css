@@ -247,12 +247,28 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .navd-ico {
   flex: 0 0 auto;
-  width: 22px;
-  font-size: 1rem;
-  text-align: center;
-  /* Emoji sit high in the line box; nudge them onto the text baseline */
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-muted);
+  transition: color 0.15s var(--ease);
 }
+.navd-ico svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* Icons follow the row: muted at rest, orange with the label on hover */
+.nav-dropdown a:hover .navd-ico,
+.nav-dropdown button:hover .navd-ico,
+.nav-dropdown a:focus-visible .navd-ico,
+.nav-dropdown button:focus-visible .navd-ico { color: inherit; }
 .nav-dropdown a:hover,
 .nav-dropdown button:hover,
 .nav-dropdown a:focus-visible,

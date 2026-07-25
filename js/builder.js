@@ -2025,38 +2025,7 @@
   }
 
   /* ---------- Step 3: render editable guide ---------- */
-  /* Pre-publish checklist + video ideas, written for THIS guide's category.
-     The checklist is reflective only — ticks are local and gate nothing. */
-  var CHECKLIST_BY_CAT = {
-    pet: [
-      "Did you include anything that feels obvious to you but would help someone else feel confident?",
-      "Any important commands or words they know?",
-      "Emergency contacts in?",
-      "Would a short video or photo make anything easier? Think medication, keys, the harness, a favourite toy.",
-      "Anything they might call or message you about that you could answer now?",
-    ],
-    kids: [
-      "Any allergies in there?",
-      "Emergency contacts in?",
-      "Bedtime and sleep routines covered?",
-      "Anything that comforts them when they're upset?",
-      "Did you include anything that feels obvious to you but would help someone else feel confident?",
-      "Would a short video or photo make anything easier? Think the lunchbox, medication, school bag, car seat, favourite teddy.",
-    ],
-    home: [
-      "Explained how to get in?",
-      "Important contacts in?",
-      "Wi-Fi and the other essentials covered?",
-      "Did you include anything that feels obvious to you but would help someone else feel confident?",
-      "Would a short video make anything easier? Think the alarm, coffee machine, pool controls, the fuse box.",
-      "Anything they'd normally text or call you about that you could answer now?",
-    ],
-    default: [
-      "Emergency contacts in?",
-      "Did you include anything that feels obvious to you but would help someone else feel confident?",
-      "Would a short video or photo make anything easier to follow?",
-    ],
-  };
+  /* Video + photo ideas, written for THIS guide's category. */
   var VIDEO_IDEAS_BY_CAT = {
     pet: "Ideas: giving the medication · fitting the harness · commands · the walking routine",
     kids: "Ideas: the bedtime routine · preparing bottles · medication · the car seat · the comfort routine",
@@ -2079,23 +2048,6 @@
   function syncGuideHints() {
     var cat = (state.guide && state.guide.category) || "";
     if (cat === "housesit") cat = "home"; // same domain, same hints
-    var list = $("pubChecklistList");
-    // Only rebuild when the category changes — re-renders (publish, edits)
-    // must not wipe ticks someone made while reviewing.
-    if (list && list.getAttribute("data-cat") !== cat) {
-      list.setAttribute("data-cat", cat);
-      list.innerHTML = "";
-      (CHECKLIST_BY_CAT[cat] || CHECKLIST_BY_CAT.default).forEach(function (txt) {
-        var li = document.createElement("li");
-        var lab = document.createElement("label");
-        var cb = document.createElement("input");
-        cb.type = "checkbox";
-        lab.appendChild(cb);
-        lab.appendChild(document.createTextNode(" " + txt));
-        li.appendChild(lab);
-        list.appendChild(li);
-      });
-    }
     var ideas = $("videoIdeas");
     if (ideas) ideas.textContent = VIDEO_IDEAS_BY_CAT[cat] || VIDEO_IDEAS_BY_CAT.default;
   }

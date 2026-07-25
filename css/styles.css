@@ -2344,43 +2344,12 @@ body.dragging-active * {
   color: #8A6D1C;
 }
 
-/* Pre-publish checklist: reflective prompts, never a gate */
-.pub-checklist {
-  margin: 18px 0 10px;
-  padding: 14px 16px;
-  background: var(--bg-tint);
-  border-radius: var(--radius-sm);
-}
-.pub-checklist summary {
-  font-weight: 800;
-  cursor: pointer;
-}
-.pub-checklist ul {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 9px;
-}
-.pub-checklist label {
-  display: flex;
-  gap: 9px;
-  align-items: flex-start;
-  font-size: 0.92rem;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-.pub-checklist input[type="checkbox"] {
-  margin-top: 3px;
-  accent-color: var(--color-orange);
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-}
-.pub-checklist-note {
-  margin: 12px 0 0;
-  font-size: 0.82rem;
-  color: var(--ink-muted);
+/* Warm send-off above the publish button (replaced the checklist) */
+.pub-ready {
+  margin: 22px 0 6px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 /* Video modal idea list */

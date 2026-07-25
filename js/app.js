@@ -9,20 +9,55 @@
   var yearEl = document.getElementById("year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+  /* ---- Example-guide links off production ----
+     The "see a real guide" links point at a published guide (/g/<slug>).
+     Preview builds have their own empty database, so those links 404 there.
+     Off production, send them to the live guide instead — in a new tab, so
+     the preview you were testing in stays open behind it. Production is
+     untouched (the links stay relative and same-tab). */
+  (function () {
+    var host = location.hostname;
+    if (host === "www.gotitguides.com" || host === "gotitguides.com") return;
+    Array.prototype.forEach.call(document.querySelectorAll('a[href^="/g/"]'), function (a) {
+      a.href = "https://www.gotitguides.com" + a.getAttribute("href");
+      a.target = "_blank";
+      a.rel = "noopener";
+    });
+  })();
+
   /* ---- Header nav dropdown (jump to sections) ---- */
   var navToggle = document.getElementById("navToggle");
   var navDropdown = document.getElementById("navDropdown");
   if (navToggle && navDropdown) {
+    // Show only the items that match the visitor. Checked on each open so
+    // signing in or out in another tab is reflected without a reload; with
+    // no auth module (or no JS) every item stays visible.
+    var syncNavAuth = function () {
+      if (!window.GotItAuth || !GotItAuth.isSignedIn) return;
+      var inState = false;
+      try { inState = !!GotItAuth.isSignedIn(); } catch (e) { return; }
+      Array.prototype.forEach.call(navDropdown.querySelectorAll("[data-auth]"), function (el) {
+        el.hidden = el.getAttribute("data-auth") !== (inState ? "in" : "out");
+      });
+    };
     var setNav = function (open) {
+      if (open) syncNavAuth();
       navDropdown.hidden = !open;
       navToggle.setAttribute("aria-expanded", open ? "true" : "false");
     };
+    syncNavAuth(); // also correct before the first open (badge logic reads it)
+    var signOutBtn = document.getElementById("navSignOut");
+    if (signOutBtn) signOutBtn.addEventListener("click", function () {
+      if (window.GotItAuth && GotItAuth.signOut) GotItAuth.signOut();
+    });
     navToggle.addEventListener("click", function (e) {
       e.stopPropagation();
       setNav(navDropdown.hidden);
     });
     navDropdown.addEventListener("click", function (e) {
-      if (e.target.tagName === "A") setNav(false); // close after picking a section
+      // closest(), not target: rows contain an icon span, and a tap that
+      // lands on the icon must still close the menu.
+      if (e.target.closest("a, button")) setNav(false);
     });
     document.addEventListener("click", function (e) {
       if (!e.target.closest(".nav-menu")) setNav(false);

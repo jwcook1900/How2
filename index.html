@@ -68,14 +68,30 @@
           <button class="nav-toggle glass" id="navToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
           </button>
+          <!-- Items carry data-auth so the menu matches the visitor: "in"
+               only when signed in, "out" only when signed out, none = always.
+               app.js sets it on open; without JS every item still shows. -->
           <div class="nav-dropdown glass" id="navDropdown" hidden>
-            <a href="/g/whiskeys101-kd8d-wbxx">👀 See a real guide</a>
-            <a href="#how">How it works</a>
-            <a href="#examples">Examples</a>
-            <a href="#features">Why it's better</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#about">About</a>
-            <a href="dashboard.html">My guides <span class="nav-badge" id="myGuidesBadge" hidden></span></a>
+            <p class="navd-label">Menu</p>
+            <div class="navd-group">
+              <a href="/"><span class="navd-ico">🏠</span>Home</a>
+              <a href="dashboard.html" data-auth="in"><span class="navd-ico">📁</span>My guides <span class="nav-badge" id="myGuidesBadge" hidden></span></a>
+              <a href="builder.html" data-evt="home_cta" data-evt-slug="menu_create"><span class="navd-ico">✨</span>Create a guide</a>
+              <a href="/g/whiskeys101-kd8d-wbxx" data-evt="home_cta" data-evt-slug="menu_example"><span class="navd-ico">👀</span>See an example</a>
+            </div>
+            <div class="navd-group">
+              <p class="navd-label">On this page</p>
+              <a href="#how"><span class="navd-ico">🧭</span>How it works</a>
+              <a href="#examples"><span class="navd-ico">🗂️</span>Guide types</a>
+              <a href="#pricing"><span class="navd-ico">🏷️</span>Pricing</a>
+            </div>
+            <div class="navd-group">
+              <a href="about.html#who"><span class="navd-ico">💬</span>About</a>
+              <a href="about.html#privacy"><span class="navd-ico">🛡️</span>Privacy</a>
+              <a href="dashboard.html#account" data-auth="in"><span class="navd-ico">⚙️</span>Account</a>
+              <a href="dashboard.html" data-auth="out" data-evt="home_cta" data-evt-slug="menu_signin"><span class="navd-ico">🔑</span>Sign in</a>
+              <button type="button" id="navSignOut" data-auth="in"><span class="navd-ico">👋</span>Sign out</button>
+            </div>
           </div>
         </div>
         <a href="/" class="logo" aria-label="GotIt Guides home">
@@ -321,7 +337,7 @@
     <section class="section" id="features">
       <div class="container">
         <div class="section-head reveal">
-          <span class="eyebrow">Why it's better</span>
+          <span class="eyebrow">Why people love it</span>
           <h2 class="section-title">Confidence for them. Peace of mind for you.</h2>
         </div>
         <div class="features features-4">

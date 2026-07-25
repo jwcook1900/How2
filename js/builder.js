@@ -3561,12 +3561,26 @@
     if (cat === "housesit") cat = "home"; // same domain, same shortcuts
     return SECTION_TEMPLATES_BY_CAT[cat] || SECTION_TEMPLATES_BY_CAT.default;
   }
+  // A template is redundant when the guide already covers it: either title
+  // contains the other, or they share the same leading word ("Commands" vs
+  // "Commands & Communication", "Comfort Items" vs "Comfort & Calm").
+  // Recomputed on every open, so deleting a section brings its chip back.
+  function templateCovered(name) {
+    var t = name.toLowerCase();
+    var tFirst = t.split(/[^a-z]+/)[0];
+    return ((state.guide && state.guide.sections) || []).some(function (sec) {
+      var s = (sec.title || "").toLowerCase().trim();
+      if (!s) return false;
+      if (s.indexOf(t) >= 0 || t.indexOf(s) >= 0) return true;
+      return s.split(/[^a-z]+/)[0] === tFirst;
+    });
+  }
   function addSection() {
     var m = $("secPickModal");
     if (!m) { addSectionWith("📄", "New section"); return; }
     var wrap = $("secPickList");
     wrap.innerHTML = "";
-    sectionTemplates().forEach(function (t) {
+    sectionTemplates().filter(function (t) { return !templateCovered(t[1]); }).forEach(function (t) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "secpick-chip";

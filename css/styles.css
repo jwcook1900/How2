@@ -1983,6 +1983,20 @@ body.dragging-active * {
 @media (max-width: 940px) {
   .hero-reassure { justify-content: center; }
 }
+/* On a phone each tick takes its own line, and centring them individually
+   leaves a ragged zigzag — stack them on a shared left edge instead and
+   centre the block as a whole. */
+@media (max-width: 620px) {
+  .hero-reassure {
+    display: grid;
+    justify-content: center;
+    justify-items: start;
+    gap: 9px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
 
 /* Who-it's-for cards sit tight under the hero (they ARE the hero's payoff) */
 .section-usecases { padding-top: 26px; }

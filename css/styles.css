@@ -771,8 +771,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 
 @media (max-width: 600px) {
-  .section { padding: 64px 0; }
-  .hero { padding: 32px 0 56px; }
+  /* Sections are shorter on a phone, so the desktop rhythm reads as gaps */
+  .section { padding: 52px 0; }
+  .hero { padding: 32px 0 34px; }
   .container { padding: 0 20px; }
   /* Keep the header on one line: smaller logo + menu bubble + tighter pills so
      the hamburger, wordmark, "My guides" and "Create" all fit without wrapping. */
@@ -1969,6 +1970,19 @@ body.dragging-active * {
 
 /* Who-it's-for cards sit tight under the hero (they ARE the hero's payoff) */
 .section-usecases { padding-top: 26px; }
+/* Four short cards: two-up on phones rather than one full-width card per row,
+   which left the content hugging the left edge with dead space beside it. */
+@media (max-width: 600px) {
+  .cards-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .cards-4 .card { padding: 18px 15px; border-radius: var(--radius); }
+  .cards-4 .card-emoji { font-size: 1.8rem; margin-bottom: 8px; }
+  .cards-4 .card-title { font-size: 1.02rem; }
+  .cards-4 .card-points { margin-top: 10px; gap: 5px; font-size: 0.9rem; }
+  /* Pull the cards up towards the hero they belong to, and don't leave a
+     canyon before the next section. */
+  .section-usecases { padding-top: 6px; padding-bottom: 44px; }
+  .usecase-more { margin-top: 16px; font-size: 0.88rem; }
+}
 .usecase-more {
   margin: 22px 0 0;
   text-align: center;

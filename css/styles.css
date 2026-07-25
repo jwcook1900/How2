@@ -2276,6 +2276,28 @@ body.dragging-active * {
 /* Cover nudge: two comfortable choices that never overflow the card */
 .coverask-actions { flex-wrap: wrap; margin-top: 6px; }
 .coverask-actions .btn { flex: 1 1 auto; white-space: nowrap; }
+/* "Just a sec…" — the conversational pause before the finish line. Softer
+   than the other question embeds: warm tint, breathing room, a voice. */
+.lf-embed.lf-jas {
+  background: #FFF8E7;
+  border: 1.5px solid #F2D68A;
+  border-radius: var(--radius-sm);
+  padding: 18px 16px;
+}
+.lf-jas-eyebrow {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+.lf-jas-pre {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  margin-bottom: 10px;
+}
+.lf-jas .lf-q { font-size: 1.02rem; }
+.lf-jas-note { color: #8A6D1C; }
+
 /* Add-section template picker */
 .secpick-list {
   display: flex;

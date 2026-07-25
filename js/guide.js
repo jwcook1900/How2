@@ -170,7 +170,13 @@
     var bodyHtml = (textOnly === "" || textOnly === "Tap to add details…") ? "" : GotItStore.renderBody(sec.body);
     var open = firstSectionOpen ? " open" : "";
     firstSectionOpen = false;
-    return '<div class="guide-section' + open + '" data-sec="' + esc(sec.id) + '">' +
+    // "Before You Worry" gets its warm signature treatment in the published
+    // guide too — same title match as the editor.
+    var byw = /before you worry/i.test(sec.title || "") ? " sec-byw" : "";
+    if (byw && bodyHtml) {
+      bodyHtml = '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' + bodyHtml;
+    }
+    return '<div class="guide-section' + open + byw + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
           (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
           '<span class="acc-title-text">' + esc(sec.title) + "</span>" +

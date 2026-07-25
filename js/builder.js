@@ -40,11 +40,16 @@
       coverSub: "Everything my pet sitter needs to know",
       questions: [
         { id: "name", q: "What's your pet's name?", hint: "We'll title the guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: " 101" },
-        { id: "breedAge", q: "What breed and age?", hint: "", ph: "e.g. Border Collie, 3 years", type: "text", target: "section", icon: "🐾", sectionTitle: "About {name}" },
+        // Personality over facts: what someone meeting them for the first
+        // time actually needs, not a form field for breed and age.
+        { id: "breedAge", q: "What would you tell someone meeting them for the first time?", hint: "Breed and age, sure — but also their personality and what they love.", ph: "e.g. Border Collie, 3. Ball-obsessed velcro dog, loves everyone he meets…", type: "textarea", target: "section", icon: "🐾", sectionTitle: "About {name}" },
         { id: "routine", q: "What's the daily routine?", hint: "Morning, midday and evening — feeding, walks, naps.", ph: "Morning: …\nMidday: …\nEvening: …", type: "textarea", target: "section", icon: "🦴", sectionTitle: "Daily Routine" },
         { id: "medical", q: "Any medical conditions or medications?", hint: "Doses, timing, where it's kept.", ph: "e.g. Half a tablet with breakfast…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Health & Medications" },
+        { id: "commands", q: "Are there any words, commands or signals they know?", hint: "The vocabulary that makes them listen.", ph: "Sit, stay, bed, walkies, dinner, leave it… hand signals or recall words too", type: "textarea", target: "section", icon: "🗣️", sectionTitle: "Commands & Communication" },
         { id: "emergency", q: "Any emergency contacts?", hint: "Vet, and a backup human.", ph: "Vet: Dr Smith — 0400 000 000\nMe: …", type: "textarea", target: "emergency" },
-        { id: "extra", q: "Anything else the carer needs to know?", hint: "Quirks, fears, favourite things.", ph: "e.g. Scared of thunder, loves belly rubs…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Good to Know" }
+        // The signature section: what's normal for them but alarming to a
+        // stranger. Prevents panicked calls better than any other question.
+        { id: "extra", q: "What's completely normal for them, but might worry someone else?", hint: "The little things that are obvious to you but reassuring for someone new.", ph: "He eats lying down. She growls while playing. Snores loudly. Takes 20 minutes to finish dinner. Hides under the bed in storms…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
       ]
     },
     {
@@ -2623,7 +2628,10 @@
 
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
-    el.className = "guide-section" + (openFirst ? " open" : "");
+    // "Before You Worry" is the signature section — it gets a warm accent and
+    // a line explaining why it exists (matched on title so imports get it too)
+    var isByw = /before you worry/i.test(sec.title || "");
+    el.className = "guide-section" + (openFirst ? " open" : "") + (isByw ? " sec-byw" : "");
     el.dataset.id = sec.id;
 
     el.innerHTML =
@@ -2634,6 +2642,7 @@
         '<span class="acc-chevron">▾</span>' +
       "</button>" +
       '<div class="acc-body"><div class="acc-body-inner">' +
+        (isByw ? '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' : "") +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
       "</div></div>";
@@ -3400,8 +3409,37 @@
   }
 
   /* ---------- Add section / log buttons ---------- */
+  // "Add section" opens a picker of common templates — shortcuts, not
+  // constraints. "Custom" keeps the old blank-section behaviour.
+  var SECTION_TEMPLATES = [
+    ["🗣️", "Commands"], ["🍽️", "Feeding"], ["🚶", "Walks"], ["😴", "Sleeping"],
+    ["🧸", "Favourite Things"], ["🛁", "Grooming"], ["🏠", "House Information"],
+    ["🚗", "Transport"], ["🐾", "Other Pets"], ["🔑", "Keys & Access"],
+    ["🪴", "Plants"], ["📦", "Deliveries"], ["✈️", "Travel"],
+  ];
   function addSection() {
-    var sec = { id: uid(), icon: "📄", title: "New section", body: "Tap to add details…", photo: null, videoId: null };
+    var m = $("secPickModal");
+    if (!m) { addSectionWith("📄", "New section"); return; }
+    var wrap = $("secPickList");
+    wrap.innerHTML = "";
+    SECTION_TEMPLATES.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "secpick-chip";
+      b.textContent = t[0] + " " + t[1];
+      b.addEventListener("click", function () { m.hidden = true; addSectionWith(t[0], t[1]); });
+      wrap.appendChild(b);
+    });
+    var custom = document.createElement("button");
+    custom.type = "button";
+    custom.className = "secpick-chip secpick-chip--custom";
+    custom.textContent = "✏️ Custom section";
+    custom.addEventListener("click", function () { m.hidden = true; addSectionWith("📄", "New section"); });
+    wrap.appendChild(custom);
+    m.hidden = false;
+  }
+  function addSectionWith(icon, title) {
+    var sec = { id: uid(), icon: icon, title: title, body: "Tap to add details…", photo: null, videoId: null };
     state.guide.sections.push(sec);
     var el = buildSectionEl(sec, true);
     // insert before emergency block (or at the end if it isn't present)
@@ -3409,6 +3447,7 @@
     if (emg) $("guideDoc").insertBefore(el, emg);
     else $("guideDoc").appendChild(el);
     syncBlockOrder();
+    recordHistory();
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function addLog() {
@@ -4254,6 +4293,9 @@
     showStep(2);
   });
   $("addSection").addEventListener("click", addSection);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-secpick-close]"), function (el) {
+    el.addEventListener("click", function () { $("secPickModal").hidden = true; });
+  });
   $("addLog").addEventListener("click", addLog);
   $("addEmergency").addEventListener("click", function () {
     state.guide.noEmergency = false; renderGuideEditor();
@@ -4505,6 +4547,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
+    if (e.key === "Escape" && $("secPickModal") && !$("secPickModal").hidden) $("secPickModal").hidden = true;
     // Escape on the keep nudge counts as the skip (same logging rules)
     if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();
   });

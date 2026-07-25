@@ -190,6 +190,19 @@
           <p class="polish-all-hint">A quick AI read-through to tidy wording and titles. You approve every change, and facts (names, numbers, doses, contacts) stay exactly as you wrote them.</p>
         </div>
 
+        <!-- Reflective prompts, never a gate: publishing works regardless.
+             The ticks are local to the moment and deliberately unsaved. -->
+        <details class="pub-checklist" id="pubChecklist" open>
+          <summary>Before you publish…</summary>
+          <ul>
+            <li><label><input type="checkbox" /> Anything that's completely normal for them, but might worry someone else?</label></li>
+            <li><label><input type="checkbox" /> Any important commands or words they know?</label></li>
+            <li><label><input type="checkbox" /> Emergency contacts in?</label></li>
+            <li><label><input type="checkbox" /> Would a short video or photo make anything easier? Think medication, keys, the harness, a favourite toy.</label></li>
+            <li><label><input type="checkbox" /> Anything they might call or message you about that you could answer now?</label></li>
+          </ul>
+          <p class="pub-checklist-note">Just prompts, not homework — you can publish any time.</p>
+        </details>
         <p class="publish-save-note" id="publishNote">💾 Your changes are saved to your live guide each time you hit <strong>Save &amp; publish</strong>.</p>
         <div class="builder-toolbar" id="publishBar">
           <button class="btn btn-ghost" id="previewBack" type="button">← Back to questions</button>
@@ -392,13 +405,26 @@
     </div>
   </div>
 
+  <!-- Add-section template picker: shortcuts to common sections; Custom
+       keeps the old blank behaviour -->
+  <div class="feedback-modal" id="secPickModal" hidden>
+    <div class="feedback-backdrop" data-secpick-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="secPickTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-secpick-close>×</button>
+      <h3 class="feedback-title" id="secPickTitle">Add a section</h3>
+      <p class="feedback-lead">Pick a starting point, or go custom.</p>
+      <div class="secpick-list" id="secPickList"></div>
+    </div>
+  </div>
+
   <!-- Add-a-video instructions modal -->
   <div class="feedback-modal" id="videoModal" hidden>
     <div class="feedback-backdrop" data-vid-close></div>
     <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle">
       <button class="feedback-x" type="button" aria-label="Close" data-vid-close>×</button>
-      <h3 class="feedback-title" id="vidTitle">Add a video</h3>
-      <p class="feedback-lead">Upload or record a video straight from your phone, and we'll optimise it to play on any device.</p>
+      <h3 class="feedback-title" id="vidTitle">🎥 Show, don't just tell.</h3>
+      <p class="feedback-lead">Sometimes a 20-second video explains more than five paragraphs. Upload or record straight from your phone and we'll optimise it to play on any device.</p>
+      <p class="video-ideas">Ideas: giving medication · fitting the harness · where the spare keys live · arming the alarm · the bedtime routine · a favourite walking route</p>
 
       <button class="btn btn-primary btn-block" id="videoUploadBtn" type="button">📹 Upload or record videos</button>
       <input type="file" id="videoFileInput" accept="video/*" multiple hidden />

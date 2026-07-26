@@ -2463,6 +2463,19 @@ body.dragging-active * {
   font-weight: 600;
   color: #8A6D1C;
 }
+/* In the editor the intro is a sibling of .acc-content, so it misses that
+   element's 22px side padding and sits proud of the body text. (In the
+   published guide it lives inside .acc-content and is already aligned.) */
+.acc-body-inner > .byw-intro { padding: 0 22px; }
+
+/* Empty sections show their hint as a real placeholder, not as text the
+   creator has to delete before typing. Editor only — the published guide
+   omits .acc-content entirely when a section has no body. */
+.acc-content[contenteditable]:empty::before {
+  content: "Tap to add details…";
+  color: var(--ink-muted);
+  pointer-events: none;
+}
 
 /* Warm send-off above the publish button (replaced the checklist) */
 .pub-ready {

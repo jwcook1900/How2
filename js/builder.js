@@ -817,18 +817,18 @@
     var sections = (ai.sections || []).map(function (s) {
       return {
         id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
-        body: (s.body || "").trim() || "Tap to add details…", photo: null, videoId: null
+        body: (s.body || "").trim(), photo: null, videoId: null
       };
     });
     if (!sections.length) {
-      sections.push({ id: uid(), icon: "📝", title: "My notes", body: rawText || "Tap to add details…", photo: null, videoId: null });
+      sections.push({ id: uid(), icon: "📝", title: "My notes", body: rawText || "", photo: null, videoId: null });
     }
     // Every funnel ends with the signature invitation: imported notes never
     // contain a Before You Worry section, so offer the empty amber card in
     // review. Left unfilled, it never appears in the published guide (the
     // viewer hides placeholder-only sections).
     if (!sections.some(function (s) { return /before you worry/i.test(s.title || ""); })) {
-      sections.push({ id: uid(), icon: "✨", title: "Before You Worry", body: "Tap to add details…", photo: null, videoId: null });
+      sections.push({ id: uid(), icon: "✨", title: "Before You Worry", body: "", photo: null, videoId: null });
     }
     var contacts = (ai.contacts || [])
       .filter(function (c) { return c && (c.label || c.value); })
@@ -864,7 +864,7 @@
   function importFallback(rawText, noCloud) {
     buildGuideFromAI({
       title: "My " + state.category.name + " Guide",
-      sections: [{ emoji: "📝", title: "My notes", body: rawText || "Tap to add details…" }],
+      sections: [{ emoji: "📝", title: "My notes", body: rawText || "" }],
       contacts: []
     }, state.category, rawText);
     renderGuideEditor();
@@ -1962,7 +1962,7 @@
           id: uid(),
           icon: q.icon || "📄",
           title: fillName(q.sectionTitle || q.q),
-          body: val || "Tap to add details…",
+          body: val,
           photo: m.photo || null,
           videoEmbed: m.videoEmbed || null,
           videoId: null
@@ -3549,7 +3549,7 @@
     m.hidden = false;
   }
   function addSectionWith(icon, title) {
-    var sec = { id: uid(), icon: icon, title: title, body: "Tap to add details…", photo: null, videoId: null };
+    var sec = { id: uid(), icon: icon, title: title, body: "", photo: null, videoId: null };
     state.guide.sections.push(sec);
     var el = buildSectionEl(sec, true);
     // insert before emergency block (or at the end if it isn't present)

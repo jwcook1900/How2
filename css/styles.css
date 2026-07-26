@@ -746,7 +746,21 @@ ul { margin: 0; padding: 0; list-style: none; }
   margin-top: 34px;
 }
 @media (max-width: 860px) { .trust-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .trust-grid { grid-template-columns: 1fr; } }
+/* One per row on a phone, but laid out sideways: icon beside the text rather
+   than stacked above it, which left each card tall with a dead right half. */
+@media (max-width: 560px) {
+  .trust-grid { grid-template-columns: 1fr; gap: 12px; }
+  .trust-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 14px;
+    align-items: start;
+    padding: 18px;
+  }
+  .trust-emoji { grid-row: 1 / span 2; font-size: 1.45rem; line-height: 1.1; }
+  .trust-item h3 { margin: 0 0 5px; }
+  .trust-item p { grid-column: 2; font-size: 0.92rem; }
+}
 .trust-item {
   background: var(--white); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow-sm);

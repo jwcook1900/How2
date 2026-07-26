@@ -2922,6 +2922,18 @@ body.dragging-active * {
 .stat-win-note { font-size: 0.85rem; font-weight: 700; color: var(--coral-dark); }
 .stat-win-mark { display: inline-flex; gap: 6px; align-items: center; }
 .stat-updated { font-size: 0.8rem; color: var(--ink-muted); margin-left: auto; }
+
+/* Value line under a chart — a hover tooltip is invisible on a phone */
+.chart-readout {
+  margin: 6px 0 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.chart-readout-hint { font-weight: 500; color: var(--ink-muted); }
+.stat-chart.has-readout i { cursor: pointer; }
+.stat-chart i.picked { background: var(--coral-dark); }
+.stat-chart i:focus-visible { outline: 2px solid var(--coral-dark); outline-offset: 1px; }
 /* "Since you last checked" delta strip */
 .stat-since {
   margin: -8px 0 20px;

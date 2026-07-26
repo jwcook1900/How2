@@ -26,6 +26,7 @@
   // dashboard against — set it when a campaign goes out and every number
   // afterwards counts only what happened since. Survives reloads.
   var MARK_KEY = "gotit_stats_mark_v1";
+  var VIEW_KEY = "gotit_stats_view_v1"; // the window you were last looking at
   var markTs = null;
   var lastFetchAt = null;  // when the numbers on screen were last pulled
   var winActive = false;   // set from the response each paint
@@ -42,6 +43,29 @@
   var latestTotals = null;   // all-time numbers from the freshest unwindowed fetch
   function readMark() { try { var v = Number(localStorage.getItem(MARK_KEY)); return isFinite(v) && v > 0 ? v : null; } catch (e) { return null; } }
   function writeMark(ts) { try { ts ? localStorage.setItem(MARK_KEY, String(ts)) : localStorage.removeItem(MARK_KEY); } catch (e) {} }
+  // The chosen window is part of the view, not a per-session whim: coming back
+  // to the page should show what you were last looking at, mark included.
+  function saveView() {
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify({ preset: winPreset, win: win })); } catch (e) {}
+  }
+  function restoreView() {
+    markTs = readMark();
+    var v = null;
+    try { v = JSON.parse(localStorage.getItem(VIEW_KEY) || "null"); } catch (e) { v = null; }
+    if (!v || !v.preset) return;
+    if (v.preset === "mark") {
+      if (!markTs) return;              // mark was cleared elsewhere
+      win = { sinceTs: markTs }; winPreset = "mark";
+    } else if (v.preset === "all") {
+      win = null; winPreset = "all";
+    } else if (v.win && (v.win.from || v.win.to)) {
+      // Relative presets re-anchor to today; a custom range is literal.
+      win = /^\d+$/.test(v.preset)
+        ? { from: localDayStr(+v.preset - 1), to: localDayStr(0) }
+        : { from: v.win.from, to: v.win.to };
+      winPreset = v.preset;
+    }
+  }
   function fmtStamp(t) {
     try { return new Date(t).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }); }
     catch (e) { return new Date(t).toLocaleString(); }
@@ -89,6 +113,7 @@
     return new Date(Date.now() - tzOff * 60000 - (daysAgo || 0) * 86400000).toISOString().slice(0, 10);
   }
   function refetch() {
+    saveView();
     if (!statsKeyVal) return;
     GotItStore.stats(statsKeyVal, win).then(function (s) { if (s) render(s); })
       .catch(function () { /* keep showing the last good numbers */ });
@@ -248,7 +273,7 @@
       ? '<h2 class="stat-h2">Views \u2014 ' + (W ? esc(winLabel) : "last " + range + " days") +
           ' <span class="stat-sub">(' + vdTotal + " view" + (vdTotal === 1 ? "" : "s") +
           (vdPeak ? " \u00B7 peak " + vdPeak + "/day" : "") + ")</span>" + rangeChips + "</h2>" +
-        bars(vd, "stat-chart") +
+        bars(vd, "stat-chart", "view", true) +
         (vd.length ? '<div class="stat-chart-axis"><span>' + esc(fmtD(vd[0].d)) + "</span><span>" +
           esc(fmtD(vd[vd.length - 1].d)) + endTag(vd) + "</span></div>" : "")
       : "";
@@ -269,7 +294,7 @@
     var newGuidesHtml = ngTotal
       ? '<h2 class="stat-h2">New guides — ' + (W ? esc(winLabel) : "last " + range + " days") +
           ' <span class="stat-sub">(' + ngTotal + " guide" + (ngTotal === 1 ? "" : "s") + ")</span></h2>" +
-        bars(ng, "stat-chart", "guide") +
+        bars(ng, "stat-chart", "guide", true) +
         '<div class="stat-chart-axis"><span>' + esc(fmtD(ng[0].d)) + "</span><span>" +
           esc(fmtD(ng[ng.length - 1].d)) + endTag(ng) + "</span></div>"
       : "";
@@ -284,7 +309,7 @@
         acctsHtml =
           '<h2 class="stat-h2">New accounts — ' + (W ? esc(winLabel) : "last " + range + " days") +
             ' <span class="stat-sub">(' + acTotal + " account" + (acTotal === 1 ? "" : "s") + ")</span></h2>" +
-          bars(ac, "stat-chart", "account") +
+          bars(ac, "stat-chart", "account", true) +
           '<div class="stat-chart-axis"><span>' + esc(fmtD(ac[0].d)) + "</span><span>" +
             esc(fmtD(ac[ac.length - 1].d)) + endTag(ac) + "</span></div>";
       }
@@ -437,6 +462,20 @@
       applyNameFilter();
     });
     applyNameFilter();
+    // Tap (or keyboard-focus) any bar to read its exact figure underneath.
+    Array.prototype.forEach.call(out.querySelectorAll(".stat-chart.has-readout"), function (chart) {
+      var line = chart.nextElementSibling;
+      if (!line || !line.classList.contains("chart-readout")) return;
+      var show = function (e) {
+        var bar = e.target.closest("i[data-label]");
+        if (!bar) return;
+        line.textContent = bar.getAttribute("data-label");
+        Array.prototype.forEach.call(chart.children, function (b) { b.classList.remove("picked"); });
+        bar.classList.add("picked");
+      };
+      chart.addEventListener("click", show);
+      chart.addEventListener("focusin", show);
+    });
     Array.prototype.forEach.call(out.querySelectorAll(".stat-chip"), function (c) {
       c.addEventListener("click", function () {
         // Whole-page window chips refetch from the backend for that range.
@@ -494,20 +533,32 @@
   // Daily bars: single brand hue, zero days as baseline stubs, today
   // emphasised, per-bar value in a native tooltip. `unit` names what the
   // numbers are ("view" by default; "guide" for the new-guides chart).
-  function bars(daily, cls, unit) {
+  // `readout` adds a value line under the chart: a hover tooltip is invisible
+  // on a phone, so tapping any bar prints its day and figure there. Defaults
+  // to the most recent day so a number is always on screen.
+  function barLabel(x, unit) {
+    return fmtD(x.d) + " — " + x.v + " " + unit + (x.v === 1 ? "" : "s") +
+      (x.u ? " · " + x.u + " visitor" + (x.u === 1 ? "" : "s") : "");
+  }
+  function bars(daily, cls, unit, readout) {
     unit = unit || "view";
     var max = 0;
     daily.forEach(function (x) { if (x.v > max) max = x.v; });
-    var out = '<div class="' + cls + '" aria-hidden="true">';
+    var out = '<div class="' + cls + (readout ? " has-readout" : "") + '" data-unit="' + esc(unit) + '">';
     daily.forEach(function (x, i) {
       var last = i === daily.length - 1;
       var h = x.v && max ? Math.max(8, Math.round(x.v / max * 100)) + "%" : "2px";
-      var tip = esc(fmtD(x.d)) + " \u2014 " + x.v + " " + unit + (x.v === 1 ? "" : "s") +
-        (x.u ? " \u00B7 " + x.u + " visitor" + (x.u === 1 ? "" : "s") : "");
+      var tip = esc(barLabel(x, unit));
       out += '<i class="' + (x.v ? "" : "z") + (last ? " today" : "") +
-        '" style="height:' + h + '" title="' + tip + '"></i>';
+        '" style="height:' + h + '" title="' + tip + '"' +
+        ' data-label="' + tip + '" tabindex="0" role="img" aria-label="' + tip + '"></i>';
     });
-    return out + "</div>";
+    out += "</div>";
+    if (readout && daily.length) {
+      out += '<p class="chart-readout">' + esc(barLabel(daily[daily.length - 1], unit)) +
+        ' <span class="chart-readout-hint">— tap a bar</span></p>';
+    }
+    return out;
   }
 
   var FEAT_META = {
@@ -701,9 +752,10 @@
     var btn = $("statsGo"), err = $("statsErr");
     err.hidden = true;
     btn.disabled = true; btn.textContent = "Loading…";
+    restoreView(); // so the first fetch already asks for the window you left
     GotItStore.stats(key, win).then(function (s) {
       if (!s) { err.textContent = "Stats backend isn't available here (publish online to use it)."; err.hidden = false; }
-      else { statsKeyVal = key; markTs = readMark(); render(s); initBroadcast(key); startAutoRefresh(key); }
+      else { statsKeyVal = key; render(s); initBroadcast(key); startAutoRefresh(key); }
     }).catch(function () {
       err.textContent = "Wrong passphrase, or stats aren't configured yet.";
       err.hidden = false;

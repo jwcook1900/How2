@@ -40,11 +40,16 @@
       coverSub: "Everything my pet sitter needs to know",
       questions: [
         { id: "name", q: "What's your pet's name?", hint: "We'll title the guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: " 101" },
-        { id: "breedAge", q: "What breed and age?", hint: "", ph: "e.g. Border Collie, 3 years", type: "text", target: "section", icon: "🐾", sectionTitle: "About {name}" },
-        { id: "routine", q: "What's the daily routine?", hint: "Morning, midday and evening — feeding, walks, naps.", ph: "Morning: …\nMidday: …\nEvening: …", type: "textarea", target: "section", icon: "🦴", sectionTitle: "Daily Routine" },
-        { id: "medical", q: "Any medical conditions or medications?", hint: "Doses, timing, where it's kept.", ph: "e.g. Half a tablet with breakfast…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Health & Medications" },
+        // Personality over facts: what someone meeting them for the first
+        // time actually needs, not a form field for breed and age.
+        { id: "breedAge", q: "What would you tell someone meeting {name} for the first time?", hint: "Breed and age, sure — but also their personality and what they love.", ph: "e.g. Border Collie, 3. Ball-obsessed velcro dog, loves everyone he meets…", type: "textarea", target: "section", icon: "🐾", sectionTitle: "About {name}" },
+        { id: "routine", q: "What's the daily routine for {name}?", hint: "Morning, midday and evening — feeding, walks, naps.", ph: "Morning: …\nMidday: …\nEvening: …", type: "textarea", target: "section", icon: "🦴", sectionTitle: "Daily Routine" },
+        { id: "medical", q: "Any medical conditions or medications for {name}?", hint: "Doses, timing, where it's kept.", ph: "e.g. Half a tablet with breakfast…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Health & Medications" },
+        { id: "commands", q: "Any words, commands or signals you use with {name}?", hint: "The vocabulary that makes them listen.", ph: "Sit, stay, bed, walkies, dinner, leave it… hand signals or recall words too", type: "textarea", target: "section", icon: "🗣️", sectionTitle: "Commands & Communication" },
         { id: "emergency", q: "Any emergency contacts?", hint: "Vet, and a backup human.", ph: "Vet: Dr Smith — 0400 000 000\nMe: …", type: "textarea", target: "emergency" },
-        { id: "extra", q: "Anything else the carer needs to know?", hint: "Quirks, fears, favourite things.", ph: "e.g. Scared of thunder, loves belly rubs…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Good to Know" }
+        // The signature section: what's normal for them but alarming to a
+        // stranger. Prevents panicked calls better than any other question.
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that are obvious to you but reassuring for someone new.", ph: "He eats lying down. She growls while playing. He snores loudly. She hides under the bed during storms…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
       ]
     },
     {
@@ -52,11 +57,15 @@
       coverSub: "Your guide to a great stay",
       questions: [
         { id: "name", q: "What should we call this place?", hint: "Shown on the cover.", ph: "e.g. The Beach House", type: "text", target: "title" },
-        { id: "checkin", q: "How do guests get in?", hint: "Keys, lockbox code, parking.", ph: "Lockbox code 1234, by the front door…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Getting In & Parking" },
-        { id: "wifi", q: "Wi-Fi & essentials?", hint: "Network, password, thermostat, TV.", ph: "Wi-Fi: BeachHouse / pass: …", type: "textarea", target: "section", icon: "📶", sectionTitle: "Wi-Fi & Essentials" },
-        { id: "house", q: "Any house rules or quirks?", hint: "Bins, quiet hours, that tricky tap.", ph: "Bins out Tuesday, no shoes inside…", type: "textarea", target: "section", icon: "📋", sectionTitle: "House Rules & Quirks" },
-        { id: "local", q: "Local recommendations?", hint: "Coffee, food, things to do.", ph: "Best coffee: …\nDinner: …", type: "textarea", target: "section", icon: "📍", sectionTitle: "Local Favourites" },
-        { id: "help", q: "Who do they call if something breaks?", hint: "Host or manager, plus local emergency.", ph: "Host: 0400 000 000\nEmergency: 000", type: "textarea", target: "section", icon: "🆘", sectionTitle: "Help & Contacts" }
+        // "Where am I staying?" — the home gets a personality before the logistics.
+        { id: "about", q: "Tell someone a little about this home.", hint: "Holiday house, family home, farm — anything special or unique to know before arriving.", ph: "e.g. Weatherboard beach house, sleeps six. Tank water and solar. The back deck gets the morning sun…", type: "textarea", target: "section", icon: "🏡", sectionTitle: "About This Home" },
+        { id: "checkin", q: "How do they get in?", hint: "Keys, lockbox, alarm, garage, gate codes, parking.", ph: "Lockbox code 1234 by the front door. Alarm code inside the meter box. Park in the driveway, permit on the dash…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Getting In & Parking" },
+        { id: "wifi", q: "Wi-Fi & how things work?", hint: "Wi-Fi, heating, hot water, bins, the coffee machine, TV.", ph: "Wi-Fi: BeachHouse / pass: … Heating panel in the hall. Bins out Tuesday night. Coffee machine: pods in the top drawer…", type: "textarea", target: "section", icon: "📶", sectionTitle: "Wi-Fi & Essentials" },
+        { id: "house", q: "Any house rules?", hint: "Smoking, pets, noise, shoes inside, locking up.", ph: "No smoking inside. Shoes off at the door. Quiet after 10, the neighbours are lovely and close…", type: "textarea", target: "section", icon: "📋", sectionTitle: "House Rules" },
+        { id: "local", q: "Local recommendations?", hint: "Coffee, food, the supermarket, walks, the pharmacy.", ph: "Best coffee: …\nDinner: …\nSupermarket: 5 minutes up the road…", type: "textarea", target: "section", icon: "📍", sectionTitle: "Local Recommendations" },
+        { id: "help", q: "Who do they call if something goes wrong?", hint: "You, a neighbour, the building manager, a plumber.", ph: "Me: 0400 000 000\nNeighbour (Sue, No. 12): …\nPlumber: …\nEmergency: 000", type: "textarea", target: "section", icon: "🚨", sectionTitle: "Emergency & Important Contacts" },
+        // The signature question: the quirks that read as problems to a stranger.
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone staying here for the first time.", ph: "The front door sticks. The hot water takes a minute. The washing machine is noisy. The upstairs floor creaks…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
       ]
     },
     {
@@ -64,14 +73,20 @@
       coverSub: "Everything the carer needs to know",
       questions: [
         { id: "name", q: "Whose guide is this?", hint: "A child's name, or 'The Kids'.", ph: "e.g. Mia & Leo", type: "text", target: "title", titleSuffix: "'s Guide" },
-        // "Sleep & Feeding", not "Routine" — kids guides also get the timed
-        // Daily Routine widget, and two blocks both named routine read as a
-        // duplicate. This section holds the how/what; the widget holds the when.
-        { id: "routine", q: "What's the sleep & feeding routine?", hint: "Naps, bedtime, meals, bottles.", ph: "Nap after lunch. Dinner 5:30, bath then bed at 7 with a story…", type: "textarea", target: "section", icon: "🍼", sectionTitle: "Sleep & Feeding" },
-        { id: "food", q: "Food, allergies & dislikes?", hint: "What they eat — and must avoid.", ph: "Allergic to peanuts. Loves pasta…", type: "textarea", target: "section", icon: "🍎", sectionTitle: "Food & Allergies" },
-        { id: "rules", q: "House rules & screen time?", hint: "Boundaries that help.", ph: "Max 30 min TV, no snacks after 6…", type: "textarea", target: "section", icon: "📺", sectionTitle: "Rules & Screen Time" },
+        // "Who am I looking after?" — personality first, so the sitter meets
+        // the child before the schedule.
+        { id: "about", q: "What are they like?", hint: "What they love, favourite toys and comfort items — personality, not just facts.", ph: "e.g. Mia is shy at first but warms up fast. Loves dinosaurs and drawing. Leo never puts his bear down…", type: "textarea", target: "section", icon: "👶", sectionTitle: "About {name}" },
+        // "Sleep & Routine" holds the how/what; the timed Daily Routine
+        // widget still holds the when.
+        { id: "routine", q: "What's the sleep & daily routine?", hint: "Wake-up, naps, meals, bottles, bedtime — and the favourite story.", ph: "Wake at 6:30. Nap after lunch. Dinner 5:30, bath, then bed at 7 with two stories…", type: "textarea", target: "section", icon: "💤", sectionTitle: "Sleep & Routine" },
+        { id: "food", q: "Food, allergies & dislikes?", hint: "Favourite snacks, drinks, allergies — and what they're refusing this week.", ph: "Allergic to peanuts. Loves pasta and apple slices. Currently refusing anything green…", type: "textarea", target: "section", icon: "🍎", sectionTitle: "Food & Allergies" },
+        { id: "rules", q: "Any house rules?", hint: "Screen time, homework, outdoor play, treats, visitors.", ph: "Max 30 min TV after homework. One treat after dinner. Backyard is fine, no street…", type: "textarea", target: "section", icon: "📋", sectionTitle: "House Rules" },
+        // The emotional routine, not the practical one — what actually helps
+        // when the day goes sideways.
+        { id: "comfort", q: "What helps if they're upset, overwhelmed or having a hard day?", hint: "Comfort items, songs, quiet time — the things that always work.", ph: "One extra cuddle before bed. Reading together. Her teddy, and the hallway light left on…", type: "textarea", target: "section", icon: "❤️", sectionTitle: "Comfort & Calm" },
         { id: "emergency", q: "Emergency contacts?", hint: "Parents, a backup, doctor.", ph: "Mum: …\nDad: …\nDoctor: …", type: "textarea", target: "emergency" },
-        { id: "extra", q: "Anything else that helps?", hint: "Comfort items, fears, favourites.", ph: "Leo needs his bear to sleep…", type: "textarea", target: "section", icon: "💡", sectionTitle: "Good to Know" }
+        // The signature section: what only their parent would think to say.
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "She always wants one more bedtime story. He only drinks from the blue cup. She cries for a minute before falling asleep. He gets shy around new people…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
       ]
     },
     {
@@ -140,9 +155,11 @@
         { id: "name", q: "What should we call this guide?", hint: "Usually the home name.", ph: "e.g. Our House", type: "text", target: "title" },
         { id: "access", q: "Getting in and the alarm?", hint: "Keys, alarm codes, locking up.", ph: "Key under the pot. Alarm code 1234…", type: "textarea", target: "section", icon: "🔑", sectionTitle: "Getting In & Security" },
         { id: "tasks", q: "What needs doing while you're away?", hint: "Bins, mail, plants, watering.", ph: "Bins: green out Wed.\nWater the pot plants every 2 days.\nBring in the mail…", type: "textarea", target: "section", icon: "✅", sectionTitle: "Daily & Weekly Tasks" },
-        { id: "appliances", q: "Any appliances or quirks to know?", hint: "Heating, that tricky lock, hot water.", ph: "Heating timer is in the hall. The back door sticks…", type: "textarea", target: "section", icon: "🛠️", sectionTitle: "Appliances & Quirks" },
+        { id: "appliances", q: "Any appliances or systems to know?", hint: "Heating, hot water, that tricky lock.", ph: "Heating timer is in the hall. Hot water is instant gas…", type: "textarea", target: "section", icon: "🛠️", sectionTitle: "Appliances & How Things Work" },
         { id: "problems", q: "What to do if something breaks?", hint: "Water main, fuse box, who to call.", ph: "Water shutoff is under the sink. Fuse box in the garage…", type: "textarea", target: "section", icon: "🚧", sectionTitle: "If Something Goes Wrong" },
-        { id: "emergency", q: "Emergency contacts?", hint: "You, a neighbour, a tradie.", ph: "Me: …\nNeighbour: …\nPlumber: …", type: "textarea", target: "emergency" }
+        { id: "emergency", q: "Emergency contacts?", hint: "You, a neighbour, a tradie.", ph: "Me: …\nNeighbour: …\nPlumber: …", type: "textarea", target: "emergency" },
+        // Same signature moment as every other guide.
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "The back door sticks. The hot water takes a minute. The fridge hums at night. The smoke alarm chirps when it rains…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
       ]
     },
     {
@@ -806,6 +823,13 @@
     if (!sections.length) {
       sections.push({ id: uid(), icon: "📝", title: "My notes", body: rawText || "Tap to add details…", photo: null, videoId: null });
     }
+    // Every funnel ends with the signature invitation: imported notes never
+    // contain a Before You Worry section, so offer the empty amber card in
+    // review. Left unfilled, it never appears in the published guide (the
+    // viewer hides placeholder-only sections).
+    if (!sections.some(function (s) { return /before you worry/i.test(s.title || ""); })) {
+      sections.push({ id: uid(), icon: "✨", title: "Before You Worry", body: "Tap to add details…", photo: null, videoId: null });
+    }
     var contacts = (ai.contacts || [])
       .filter(function (c) { return c && (c.label || c.value); })
       .map(function (c) { return { id: uid(), label: c.label || "Contact", value: c.value || "" }; });
@@ -1346,6 +1370,19 @@
 
     liveSteps.forEach(function (s, idx) {
       if (s.kind !== "q" || s.q.target === "title") return;
+      // "Just a sec…" is a conversational pause, not a section in the queue:
+      // no ghost card while unanswered (the skeleton stays shorter), and when
+      // active it stands alone without a section-card shell. Once answered it
+      // shows as a normal lit card — that IS the guide section it becomes.
+      var isJas = s.q.sectionTitle === "Before You Worry";
+      if (isJas && idx === liveIdx) {
+        var jw = document.createElement("div");
+        jw.className = "lf-jas-wrap lf-open";
+        jw.appendChild(buildLiveEmbed(s.q, idx === liveSteps.length - 1));
+        doc.appendChild(jw);
+        return;
+      }
+      if (isJas && !(state.answers[s.q.id] || "").trim()) return;
       doc.appendChild(buildLiveCard(s, idx, idx === liveIdx));
     });
 
@@ -1374,11 +1411,22 @@
   // Back / Skip / Next. Returns the wrapper; wires everything.
   function buildLiveEmbed(q, isLast) {
     var wrap = document.createElement("div");
-    wrap.className = "lf-embed";
+    // "Just a sec…" — the Before You Worry question is a conversational pause,
+    // not another form field. Softer card, the product speaking directly.
+    // Used exactly once per flow so it keeps its charm.
+    var isJas = q.sectionTitle === "Before You Worry";
+    wrap.className = "lf-embed" + (isJas ? " lf-jas" : "");
     var isArea = q.type === "textarea";
     wrap.innerHTML =
+      (isJas
+        ? '<div class="lf-jas-eyebrow">✨ Just a sec…</div>' +
+          '<div class="lf-jas-pre">Before we finish…</div>'
+        : "") +
       '<div class="lf-q">' + esc(fillName(q.q)) + "</div>" +
-      (q.hint ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
+      // The jas moment keeps its copy minimal: question + one supporting line
+      // (the per-question hint still serves the classic wizard).
+      (q.hint && !isJas ? '<div class="lf-hint">' + esc(q.hint) + "</div>" : "") +
+      (isJas ? '<div class="lf-hint lf-jas-note">These little details often make someone feel much more confident.</div>' : "") +
       '<div class="lf-row lf-field-row"></div>' +
       '<div class="lf-row lf-btn-row">' +
         '<button class="btn btn-ghost btn-sm" id="lfBack" type="button">\u2190 Back</button>' +
@@ -1977,9 +2025,37 @@
   }
 
   /* ---------- Step 3: render editable guide ---------- */
+  /* Video + photo ideas, written for THIS guide's category. */
+  var VIDEO_IDEAS_BY_CAT = {
+    pet: "Ideas: giving the medication · fitting the harness · commands · the walking routine",
+    kids: "Ideas: the bedtime routine · preparing bottles · medication · the car seat · the comfort routine",
+    home: "Ideas: the alarm · locking up · the coffee machine · the fireplace · pool controls · the garage",
+    default: "Ideas: anything that's easier to demonstrate than describe",
+  };
+  // Photo suggestions shown in the section "Add" menu — inspiration, not
+  // instruction: the details that are far easier to show than write.
+  var PHOTO_IDEAS_BY_CAT = {
+    pet: "Ideas: food · medication · the harness · a favourite toy · the sleeping spot",
+    kids: "Ideas: the lunchbox · school bag · a favourite teddy · medication · the drink bottle",
+    home: "Ideas: the key safe · garage · thermostat · bins · pool controls",
+    default: "Ideas: anything that's easier to show than describe",
+  };
+  function photoIdeas() {
+    var cat = (state.guide && state.guide.category) || "";
+    if (cat === "housesit") cat = "home";
+    return PHOTO_IDEAS_BY_CAT[cat] || PHOTO_IDEAS_BY_CAT.default;
+  }
+  function syncGuideHints() {
+    var cat = (state.guide && state.guide.category) || "";
+    if (cat === "housesit") cat = "home"; // same domain, same hints
+    var ideas = $("videoIdeas");
+    if (ideas) ideas.textContent = VIDEO_IDEAS_BY_CAT[cat] || VIDEO_IDEAS_BY_CAT.default;
+  }
+
   function renderGuideEditor() {
     var g = state.guide;
     updateSlugUI();
+    syncGuideHints();
     var doc = $("guideDoc");
     doc.innerHTML = "";
 
@@ -2623,7 +2699,10 @@
 
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
-    el.className = "guide-section" + (openFirst ? " open" : "");
+    // "Before You Worry" is the signature section — it gets a warm accent and
+    // a line explaining why it exists (matched on title so imports get it too)
+    var isByw = /before you worry/i.test(sec.title || "");
+    el.className = "guide-section" + (openFirst ? " open" : "") + (isByw ? " sec-byw" : "");
     el.dataset.id = sec.id;
 
     el.innerHTML =
@@ -2634,6 +2713,7 @@
         '<span class="acc-chevron">▾</span>' +
       "</button>" +
       '<div class="acc-body"><div class="acc-body-inner">' +
+        (isByw ? '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' : "") +
         '<div class="acc-content" contenteditable="true">' + GotItStore.renderBody(sec.body) + "</div>" +
         '<div class="sec-media"></div>' +
       "</div></div>";
@@ -3400,8 +3480,76 @@
   }
 
   /* ---------- Add section / log buttons ---------- */
+  // "Add section" opens a picker of common templates — shortcuts, not
+  // constraints. "Custom" keeps the old blank-section behaviour. Lists are
+  // per category so the shortcuts feel written for THIS guide.
+  var SECTION_TEMPLATES_BY_CAT = {
+    pet: [
+      ["🗣️", "Commands"], ["🐾", "Behaviour"], ["🚶", "Walks"],
+      ["🧸", "Favourite Things"], ["😴", "Sleeping"], ["🛁", "Grooming"],
+      ["✈️", "Travel"], ["🩺", "Vet Visits"], ["🎾", "Toys"],
+      ["🍽️", "Feeding"], ["💊", "Medication"], ["📷", "Photos"], ["📄", "Documents"],
+    ],
+    kids: [
+      ["🎒", "School"], ["📚", "Homework"], ["🛁", "Bath Time"],
+      ["🦷", "Teeth"], ["💊", "Medication"], ["🎵", "Activities"],
+      ["🧸", "Favourite Toys"], ["🌙", "Bedtime"], ["🚗", "Transport"],
+      ["👕", "Clothing"], ["❤️", "Comfort Items"],
+    ],
+    home: [
+      ["🌿", "Plants"], ["🏊", "Pool"], ["🧺", "Laundry"],
+      ["🛠️", "Appliances"], ["🌱", "Garden"], ["🚗", "Vehicles"],
+      ["🗑️", "Bins"], ["📦", "Deliveries"], ["🔥", "Fireplace"],
+      ["🔒", "Security"], ["🔑", "Keys"], ["🛒", "Shopping"],
+    ],
+    default: [
+      ["🍽️", "Feeding"], ["😴", "Sleeping"], ["🧸", "Favourite Things"],
+      ["🏠", "House Information"], ["🚗", "Transport"], ["🔑", "Keys & Access"],
+      ["🪴", "Plants"], ["📦", "Deliveries"], ["✈️", "Travel"], ["💊", "Medication"],
+    ],
+  };
+  function sectionTemplates() {
+    var cat = (state.guide && state.guide.category) || (state.category && state.category.id) || "";
+    if (cat === "housesit") cat = "home"; // same domain, same shortcuts
+    return SECTION_TEMPLATES_BY_CAT[cat] || SECTION_TEMPLATES_BY_CAT.default;
+  }
+  // A template is redundant when the guide already covers it: either title
+  // contains the other, or they share the same leading word ("Commands" vs
+  // "Commands & Communication", "Comfort Items" vs "Comfort & Calm").
+  // Recomputed on every open, so deleting a section brings its chip back.
+  function templateCovered(name) {
+    var t = name.toLowerCase();
+    var tFirst = t.split(/[^a-z]+/)[0];
+    return ((state.guide && state.guide.sections) || []).some(function (sec) {
+      var s = (sec.title || "").toLowerCase().trim();
+      if (!s) return false;
+      if (s.indexOf(t) >= 0 || t.indexOf(s) >= 0) return true;
+      return s.split(/[^a-z]+/)[0] === tFirst;
+    });
+  }
   function addSection() {
-    var sec = { id: uid(), icon: "📄", title: "New section", body: "Tap to add details…", photo: null, videoId: null };
+    var m = $("secPickModal");
+    if (!m) { addSectionWith("📄", "New section"); return; }
+    var wrap = $("secPickList");
+    wrap.innerHTML = "";
+    sectionTemplates().filter(function (t) { return !templateCovered(t[1]); }).forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "secpick-chip";
+      b.textContent = t[0] + " " + t[1];
+      b.addEventListener("click", function () { m.hidden = true; addSectionWith(t[0], t[1]); });
+      wrap.appendChild(b);
+    });
+    var custom = document.createElement("button");
+    custom.type = "button";
+    custom.className = "secpick-chip secpick-chip--custom";
+    custom.textContent = "✏️ Create custom section";
+    custom.addEventListener("click", function () { m.hidden = true; addSectionWith("📄", "New section"); });
+    wrap.appendChild(custom);
+    m.hidden = false;
+  }
+  function addSectionWith(icon, title) {
+    var sec = { id: uid(), icon: icon, title: title, body: "Tap to add details…", photo: null, videoId: null };
     state.guide.sections.push(sec);
     var el = buildSectionEl(sec, true);
     // insert before emergency block (or at the end if it isn't present)
@@ -3409,6 +3557,7 @@
     if (emg) $("guideDoc").insertBefore(el, emg);
     else $("guideDoc").appendChild(el);
     syncBlockOrder();
+    recordHistory();
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
   function addLog() {
@@ -4071,6 +4220,11 @@
     var sec = selectedRef, el = selectedEl;
     if (!el.classList.contains("open")) el.classList.add("open");
     item("📷 " + (sectionPhotos(sec).length ? "Add another photo" : "Photo"), function () { pickPhoto(sec, el); });
+    // Contextual nudge under the photo option, per category
+    var hint = document.createElement("div");
+    hint.className = "dock-pop-hint";
+    hint.textContent = photoIdeas();
+    pop.appendChild(hint);
     item("🎬 " + (sectionVideos(sec).length ? "Add another video" : "Video"), function () { addSectionVideo(sec, el); });
     item("📎 File", function () {
       var content = el.querySelector(".acc-content");
@@ -4254,6 +4408,9 @@
     showStep(2);
   });
   $("addSection").addEventListener("click", addSection);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-secpick-close]"), function (el) {
+    el.addEventListener("click", function () { $("secPickModal").hidden = true; });
+  });
   $("addLog").addEventListener("click", addLog);
   $("addEmergency").addEventListener("click", function () {
     state.guide.noEmergency = false; renderGuideEditor();
@@ -4505,6 +4662,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
+    if (e.key === "Escape" && $("secPickModal") && !$("secPickModal").hidden) $("secPickModal").hidden = true;
     // Escape on the keep nudge counts as the skip (same logging rules)
     if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();
   });

@@ -9,20 +9,55 @@
   var yearEl = document.getElementById("year");
   if (yearEl) yearEl.textContent = new Date().getFullYear();
 
+  /* ---- Example-guide links off production ----
+     The "see a real guide" links point at a published guide (/g/<slug>).
+     Preview builds have their own empty database, so those links 404 there.
+     Off production, send them to the live guide instead — in a new tab, so
+     the preview you were testing in stays open behind it. Production is
+     untouched (the links stay relative and same-tab). */
+  (function () {
+    var host = location.hostname;
+    if (host === "www.gotitguides.com" || host === "gotitguides.com") return;
+    Array.prototype.forEach.call(document.querySelectorAll('a[href^="/g/"]'), function (a) {
+      a.href = "https://www.gotitguides.com" + a.getAttribute("href");
+      a.target = "_blank";
+      a.rel = "noopener";
+    });
+  })();
+
   /* ---- Header nav dropdown (jump to sections) ---- */
   var navToggle = document.getElementById("navToggle");
   var navDropdown = document.getElementById("navDropdown");
   if (navToggle && navDropdown) {
+    // Show only the items that match the visitor. Checked on each open so
+    // signing in or out in another tab is reflected without a reload; with
+    // no auth module (or no JS) every item stays visible.
+    var syncNavAuth = function () {
+      if (!window.GotItAuth || !GotItAuth.isSignedIn) return;
+      var inState = false;
+      try { inState = !!GotItAuth.isSignedIn(); } catch (e) { return; }
+      Array.prototype.forEach.call(navDropdown.querySelectorAll("[data-auth]"), function (el) {
+        el.hidden = el.getAttribute("data-auth") !== (inState ? "in" : "out");
+      });
+    };
     var setNav = function (open) {
+      if (open) syncNavAuth();
       navDropdown.hidden = !open;
       navToggle.setAttribute("aria-expanded", open ? "true" : "false");
     };
+    syncNavAuth(); // also correct before the first open (badge logic reads it)
+    var signOutBtn = document.getElementById("navSignOut");
+    if (signOutBtn) signOutBtn.addEventListener("click", function () {
+      if (window.GotItAuth && GotItAuth.signOut) GotItAuth.signOut();
+    });
     navToggle.addEventListener("click", function (e) {
       e.stopPropagation();
       setNav(navDropdown.hidden);
     });
     navDropdown.addEventListener("click", function (e) {
-      if (e.target.tagName === "A") setNav(false); // close after picking a section
+      // closest(), not target: rows contain an icon span, and a tap that
+      // lands on the icon must still close the menu.
+      if (e.target.closest("a, button")) setNav(false);
     });
     document.addEventListener("click", function (e) {
       if (!e.target.closest(".nav-menu")) setNav(false);
@@ -78,16 +113,17 @@
     var dotsWrap = document.getElementById("mockDots");
     if (!track || !dotsWrap) return;
 
-    // Leads with pet care (the strongest wedge), then the other core handovers.
+    // Leads with pet care (the strongest wedge), then the other core
+    // handovers — pets, homes, kids and loved ones in the first viewport.
     var EXAMPLES = [
       { emoji: "🐶", title: "Whiskey's Care Guide", sub: "Everything my dog sitter needs",
         cards: [["🦴", "Feeding & Routine"], ["💊", "Medication", true], ["🚨", "Vet & Emergency"]] },
-      { emoji: "🏠", title: "The Beach House", sub: "Everything my house guest needs",
-        cards: [["🔑", "Getting In & Parking"], ["📶", "Wi-Fi & Essentials", true], ["📍", "Local Favourites"]] },
+      { emoji: "🏠", title: "The Beach House", sub: "Everything my house sitter needs",
+        cards: [["🔑", "Getting In & Keys"], ["🗑️", "Bins & Deliveries", true], ["🪴", "Plants & Quirks"]] },
       { emoji: "👶", title: "Mia & Leo's Guide", sub: "Everything the babysitter needs",
         cards: [["🕐", "Routine & Bedtime"], ["🍎", "Food & Allergies", true], ["🚨", "Emergency Contacts"]] },
-      { emoji: "🧑‍💼", title: "Team Onboarding", sub: "Everything a new starter needs",
-        cards: [["👋", "Welcome"], ["📅", "First Week", true], ["🛠️", "Tools & Systems"]] }
+      { emoji: "🧡", title: "Helping Out with Mum", sub: "Everything her helper needs",
+        cards: [["🕐", "Daily Routine"], ["💊", "Medication", true], ["📅", "Appointments"]] }
     ];
 
     function slideHtml(ex) {
@@ -181,6 +217,14 @@
     go(0);
     startAuto();
   })();
+
+  /* ---- Homepage analytics: elements opt in with data-evt / data-evt-slug.
+     Best-effort like every other event; never blocks the navigation. ---- */
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-evt]");
+    if (!el || !window.GotItStore || !GotItStore.event) return;
+    try { GotItStore.event(el.getAttribute("data-evt"), el.getAttribute("data-evt-slug") || null); } catch (err) {}
+  });
 
   /* ---- Waitlist form ----
      Sends the signup to the backend (a Feedback row with context "waitlist",

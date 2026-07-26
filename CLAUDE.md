@@ -41,6 +41,9 @@ ink; do not substitute a plain G.
 ## Privacy rules (load-bearing — copy and code must match them)
 
 - Guides are unlisted; anyone with the link can open them unless a guide code is set.
+- Unlisted means never indexed: `guide.html` carries `<meta name="robots" content="noindex, nofollow">`
+  and robots.txt disallows `/g/`. The copy promises guides never appear in search, so
+  neither may be removed, and no guide URL belongs in sitemap.xml.
 - Locked guides are encrypted on-device; the server never sees contents, only the
   envelope's plaintext title/emoji.
 - Share previews expose only title, subtitle, emoji, section TITLES and count —

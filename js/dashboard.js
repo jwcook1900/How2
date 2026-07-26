@@ -680,6 +680,12 @@
     showOnly("dashGuides");
     $("settingsBtn").hidden = false;
     $("dashCreateTop").hidden = false;
+    // Deep link from the site menu's "Account" item — the settings live here,
+    // so dashboard.html#account opens them once the profile has loaded.
+    if (location.hash === "#account") {
+      history.replaceState(null, "", location.pathname);
+      openSettings();
+    }
   }
 
   function reload() {

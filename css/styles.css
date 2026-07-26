@@ -1997,18 +1997,21 @@ body.dragging-active * {
 @media (max-width: 940px) {
   .hero-reassure { justify-content: center; }
 }
-/* On a phone each tick takes its own line, and centring them individually
-   leaves a ragged zigzag — stack them on a shared left edge instead and
-   centre the block as a whole. */
+/* On a phone, one tick per line centred individually reads as a ragged
+   zigzag, and a single centred column floats with wide gutters either side.
+   Pair them into a 2x2 that spans the same width as the CTAs above. */
 @media (max-width: 620px) {
   .hero-reassure {
+    /* One per line: two of these phrases wrap mid-word in a 2-up grid at
+       phone widths. Anchored to the container edge (which is also the CTA
+       buttons' edge) rather than centred as a block — a centred column of
+       ragged-width items floats with wide gutters and reads as unaligned. */
     display: grid;
-    justify-content: center;
+    grid-template-columns: 1fr;
     justify-items: start;
-    gap: 9px;
-    width: fit-content;
-    margin-left: auto;
-    margin-right: auto;
+    justify-content: start;
+    gap: 10px;
+    text-align: left;
   }
 }
 

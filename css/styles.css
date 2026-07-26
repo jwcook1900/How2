@@ -2920,6 +2920,8 @@ body.dragging-active * {
   color: var(--ink);
 }
 .stat-win-note { font-size: 0.85rem; font-weight: 700; color: var(--coral-dark); }
+.stat-win-mark { display: inline-flex; gap: 6px; align-items: center; }
+.stat-updated { font-size: 0.8rem; color: var(--ink-muted); margin-left: auto; }
 /* "Since you last checked" delta strip */
 .stat-since {
   margin: -8px 0 20px;

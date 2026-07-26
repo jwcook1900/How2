@@ -666,6 +666,9 @@ window.GotItStore = (function () {
         // aggregate for that window instead of all time.
         if (win && win.from) body.from = win.from;
         if (win && win.to) body.to = win.to;
+        // A pinned "since this moment" mark (epoch ms) — minute-accurate,
+        // unlike the date-only from/to pair.
+        if (win && win.sinceTs) body.sinceTs = win.sinceTs;
         return fetch(cfg.statsUrl, {
           method: "POST",
           headers: { "content-type": "application/json" },

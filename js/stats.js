@@ -20,8 +20,14 @@
   var showAllGuides = false; // collapsed by default: top 3 + "Show all"
   // Whole-page date window: when set, the backend answers every number for
   // this range and the page labels itself accordingly. null = all time.
-  var win = null;          // {from, to} as local YYYY-MM-DD
-  var winPreset = "all";   // lit chip: all | 7 | 14 | 30 | custom
+  var win = null;          // {from, to} as local YYYY-MM-DD, or {sinceTs}
+  var winPreset = "all";   // lit chip: all | 7 | 14 | 30 | custom | mark
+  // "Mark this moment": a pinned instant (epoch ms) you can zero the whole
+  // dashboard against — set it when a campaign goes out and every number
+  // afterwards counts only what happened since. Survives reloads.
+  var MARK_KEY = "gotit_stats_mark_v1";
+  var markTs = null;
+  var lastFetchAt = null;  // when the numbers on screen were last pulled
   var winActive = false;   // set from the response each paint
   var statsKeyVal = "";    // held after unlock so window changes can refetch
 
@@ -34,6 +40,17 @@
   var baseline = null;       // previous visit's snapshot (read once at unlock)
   var baselineLoaded = false;
   var latestTotals = null;   // all-time numbers from the freshest unwindowed fetch
+  function readMark() { try { var v = Number(localStorage.getItem(MARK_KEY)); return isFinite(v) && v > 0 ? v : null; } catch (e) { return null; } }
+  function writeMark(ts) { try { ts ? localStorage.setItem(MARK_KEY, String(ts)) : localStorage.removeItem(MARK_KEY); } catch (e) {} }
+  function fmtStamp(t) {
+    try { return new Date(t).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }); }
+    catch (e) { return new Date(t).toLocaleString(); }
+  }
+  function fmtClock(t) {
+    try { return new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+    catch (e) { return ""; }
+  }
+
   function readSeen() { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "null"); } catch (e) { return null; } }
   function writeSeen(snap) { try { localStorage.setItem(SEEN_KEY, JSON.stringify(snap)); } catch (e) {} }
   function snapshotOf(s) {
@@ -56,6 +73,7 @@
 
   function render(s) {
     DATA = s;
+    lastFetchAt = Date.now();
     // Deltas only ever compare all-time numbers; windowed fetches don't touch
     // the snapshot (their totals answer a different question).
     if (!s.window) {
@@ -168,7 +186,16 @@
           '<input type="date" id="winTo" aria-label="To date" value="' + esc(win && win.to || "") + '" />' +
           '<button type="button" class="stat-chip' + (winPreset === "custom" ? " on" : "") + '" id="winApply">Apply</button>' +
         "</span>" +
-        (W ? '<span class="stat-win-note">Showing ' + esc(winLabel) + "</span>" : "") +
+        (markTs ? chip("Since my mark", winPreset === "mark", 'data-win="mark"') : "") +
+        '<span class="stat-win-mark">' +
+          '<button type="button" class="stat-chip" id="winMark">' +
+            (markTs ? "\u2691 Re-mark now" : "\u2691 Mark this moment") +
+          "</button>" +
+          (markTs ? '<button type="button" class="stat-chip" id="winUnmark">Clear mark</button>' : "") +
+        "</span>" +
+        (W ? '<span class="stat-win-note">Showing ' +
+              (W.since ? "since " + esc(fmtStamp(Date.parse(W.since))) : esc(winLabel)) + "</span>" : "") +
+        (lastFetchAt ? '<span class="stat-updated">Updated ' + esc(fmtClock(lastFetchAt)) + "</span>" : "") +
       "</div>";
 
     // "Since you last checked": all-time deltas vs the previous visit's
@@ -416,6 +443,7 @@
         var w = c.getAttribute("data-win");
         if (w) {
           if (w === "all") { win = null; winPreset = "all"; }
+          else if (w === "mark") { win = markTs ? { sinceTs: markTs } : null; winPreset = "mark"; }
           else { win = { from: localDayStr(+w - 1), to: localDayStr(0) }; winPreset = w; }
           c.textContent = "…";
           refetch();
@@ -428,6 +456,22 @@
         var sKey = c.getAttribute("data-sort");
         if (sKey) { sortKey = sKey; paint(); }
       });
+    });
+    var mk = $("winMark");
+    if (mk) mk.addEventListener("click", function () {
+      markTs = Date.now();
+      writeMark(markTs);
+      win = { sinceTs: markTs };
+      winPreset = "mark";
+      mk.textContent = "\u2026";
+      refetch();
+    });
+    var um = $("winUnmark");
+    if (um) um.addEventListener("click", function () {
+      markTs = null;
+      writeMark(null);
+      if (winPreset === "mark") { win = null; winPreset = "all"; }
+      refetch();
     });
     var wa = $("winApply");
     if (wa) wa.addEventListener("click", function () {
@@ -659,7 +703,7 @@
     btn.disabled = true; btn.textContent = "Loading…";
     GotItStore.stats(key, win).then(function (s) {
       if (!s) { err.textContent = "Stats backend isn't available here (publish online to use it)."; err.hidden = false; }
-      else { statsKeyVal = key; render(s); initBroadcast(key); startAutoRefresh(key); }
+      else { statsKeyVal = key; markTs = readMark(); render(s); initBroadcast(key); startAutoRefresh(key); }
     }).catch(function () {
       err.textContent = "Wrong passphrase, or stats aren't configured yet.";
       err.hidden = false;

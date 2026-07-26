@@ -62,7 +62,7 @@ export const handler = async (event: any) => {
 
     let raw = event && event.body;
     if (event && event.isBase64Encoded && raw) raw = Buffer.from(raw, "base64").toString("utf8");
-    let key = "", tz = 0, fromStr = "", toStr = "";
+    let key = "", tz = 0, fromStr = "", toStr = "", sinceMs = NaN;
     try {
       const b = JSON.parse(raw || "{}");
       key = (b.key || "").trim();
@@ -71,6 +71,11 @@ export const handler = async (event: any) => {
       // aggregate in the response answers for the window instead of all time.
       if (/^\d{4}-\d{2}-\d{2}$/.test(b.from || "")) fromStr = b.from;
       if (/^\d{4}-\d{2}-\d{2}$/.test(b.to || "")) toStr = b.to;
+      // "Since I marked this moment": a precise epoch-ms start, so the whole
+      // dashboard can read from the minute a campaign went out rather than
+      // from the start of that day. Overrides from/to when present.
+      const st = Number(b.sinceTs);
+      if (isFinite(st) && st > 0) sinceMs = Math.min(st, Date.now());
     } catch (e) { key = ""; }
 
     const secret = process.env.STATS_KEY || "";
@@ -103,6 +108,13 @@ export const handler = async (event: any) => {
     // Missing/one-sided input degrades sensibly; ranges are capped at 120
     // days so the axis (one bar per day) stays renderable.
     const localMidnight = (d: string) => Date.parse(d + "T00:00:00Z") + tz * 60000;
+    // A "since" mark spans its own day through today; the exact instant is
+    // kept separately so filtering is minute-accurate while the chart axis
+    // stays on whole local days.
+    if (!isNaN(sinceMs)) {
+      fromStr = localDay(new Date(sinceMs).toISOString());
+      toStr = localDay(new Date().toISOString());
+    }
     let fromMs = fromStr ? localMidnight(fromStr) : NaN;
     let toMs = toStr ? localMidnight(toStr) : NaN;
     if (!isNaN(fromMs) && isNaN(toMs)) toMs = localMidnight(localDay(new Date().toISOString()));
@@ -111,10 +123,13 @@ export const handler = async (event: any) => {
     const hasWin = !isNaN(fromMs) && !isNaN(toMs);
     if (hasWin && (toMs - fromMs) / dayMs >= 120) fromMs = toMs - 119 * dayMs;
     const winEnd = toMs + dayMs; // exclusive
+    // Events are filtered from the exact mark when there is one, from the
+    // window's first midnight otherwise.
+    const filterFrom = !isNaN(sinceMs) && sinceMs > fromMs ? sinceMs : fromMs;
     const inWin = (ca: string) => {
       if (!hasWin) return true;
       const t = Date.parse(ca);
-      return !isNaN(t) && t >= fromMs && t < winEnd;
+      return !isNaN(t) && t >= filterFrom && t < winEnd;
     };
     // Chart axis: the window's days when one is set, else the last 30 days.
     const dayAxis: string[] = [];
@@ -323,10 +338,18 @@ export const handler = async (event: any) => {
       l: liveByDay[d] || 0,
     }));
 
-    const accounts = await countAccounts(tz, dayAxis, hasWin ? fromMs : NaN, winEnd);
+    const accounts = await countAccounts(tz, dayAxis, hasWin ? filterFrom : NaN, winEnd);
 
     // Echo the effective window (post-clamp) so the page can label itself.
-    const window = hasWin ? { from: dayAxis[0], to: dayAxis[dayAxis.length - 1] } : null;
+    const window = hasWin
+      ? {
+          from: dayAxis[0],
+          to: dayAxis[dayAxis.length - 1],
+          // Present only for a "since I marked this" window, so the page can
+          // label it with the moment rather than the day.
+          since: !isNaN(sinceMs) ? new Date(sinceMs).toISOString() : null,
+        }
+      : null;
 
     return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ publishes, views, uniqueVisitors, shares, topGuides, startMethods, features, guides, viewsDaily, funnel, funnelDaily, cats: catCounts, refs: refCounts, accounts, window }) };
   } catch (e) {

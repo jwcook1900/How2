@@ -595,6 +595,7 @@
     var i = state.qIndex;
     var q = qs[i];
 
+    trackStep(cat.id, q.id, i + 1);
     $("qBarFill").style.width = ((i) / qs.length * 100) + "%";
     $("qCount").textContent = "Question " + (i + 1) + " of " + qs.length;
     $("qTitle").textContent = fillName(q.q);
@@ -1318,6 +1319,18 @@
     return esc(t).replace(/\n/g, "<br />");
   }
 
+  /* Per-question drop-off: fire once per question per session (going back and
+     forth must not inflate the count). Position is included so the funnel can
+     order steps without knowing each category's question list. */
+  var stepsSeen = {};
+  function trackStep(catId, qid, pos) {
+    if (!catId || !qid) return;
+    var k = catId + "/" + qid;
+    if (stepsSeen[k]) return;
+    stepsSeen[k] = true;
+    GotItStore.event("step", k + "#" + pos);
+  }
+
   function renderLive() {
     var cat = state.category;
     var qSteps = liveSteps.filter(function (s) { return s.kind === "q"; });
@@ -1328,6 +1341,8 @@
     // Progress line
     var qNum = 0;
     for (var i = 0; i <= liveIdx && i < liveSteps.length; i++) if (liveSteps[i].kind === "q") qNum++;
+    if (current && current.kind === "q") trackStep(cat.id, current.q.id, qNum);
+    if (current && current.kind === "photo") trackStep(cat.id, "photo", qNum);
     $("lfCount").textContent = current && current.kind === "photo"
       ? (done + " of " + total + " answered \u2713")
       : ("Question " + Math.max(1, qNum) + " of " + total + (done ? " \u00B7 " + done + " done \u2713" : ""));

@@ -4096,9 +4096,22 @@
     }
     var box = $("vetCheckBox");
     if (box) box.checked = false;
+    // Clinic-created guides (a clinic kit exists) also confirm the owner's
+    // consent — process comfort for the clinic, not a legal hoop for an owner
+    // making a guide about their own pet.
+    var consentRow = $("vetConsentRow");
+    var consentBox = $("vetConsentBox");
+    if (consentRow) consentRow.hidden = !clinicKit;
+    if (consentBox) consentBox.checked = false;
     var go = $("vetCheckGo");
     if (go) go.disabled = true;
     $("vetCheckModal").hidden = false;
+  }
+  // The publish button unlocks only when every VISIBLE confirmation is ticked.
+  function syncVetCheckGo() {
+    var need = [$("vetCheckBox")];
+    if ($("vetConsentRow") && !$("vetConsentRow").hidden) need.push($("vetConsentBox"));
+    $("vetCheckGo").disabled = !need.every(function (b) { return b && b.checked; });
   }
   function closeVetCheck() { $("vetCheckModal").hidden = true; }
 
@@ -4205,6 +4218,9 @@
   // Core: email the creator their links (and password, if the guide is locked)
   // so a lost edit link doesn't orphan the guide. Shared by the manual "email
   // me" field and the dashboard-save flow (which emails them by default).
+  // VET EXCEPTION: the guide code is never emailed for vet guides — "not even
+  // we can read it" only holds if the code stays off our email pipeline. It
+  // travels on the discharge paperwork instead.
   function doSendLinks(email) {
     var g = state.guide;
     if (!g) return Promise.resolve(null);
@@ -4215,7 +4231,7 @@
       origin: window.location.origin,
       title: g.title,
       emoji: g.emoji,
-      password: state.password || ""
+      password: g.category === "vet" ? "" : (state.password || "")
     });
   }
 
@@ -4273,7 +4289,9 @@
     $("emailLinksInput").value = "";
     $("emailLinksNote").hidden = true;
     $("emailLinksHint").textContent = locked
-      ? "Includes your view link, edit link and guide code. ⚠️ Anyone who sees that email can open the guide."
+      ? (g.category === "vet"
+          ? "Includes your view and edit links. The guide code is never emailed — it stays on the discharge paperwork."
+          : "Includes your view link, edit link and guide code. ⚠️ Anyone who sees that email can open the guide.")
       : "So you don't lose them — includes your view and edit links.";
 
     $("shareUrl").value = url;
@@ -4888,9 +4906,8 @@
   Array.prototype.forEach.call(document.querySelectorAll("[data-vetcheck-close]"), function (el) {
     el.addEventListener("click", closeVetCheck);
   });
-  if ($("vetCheckBox")) $("vetCheckBox").addEventListener("change", function () {
-    $("vetCheckGo").disabled = !this.checked;
-  });
+  if ($("vetCheckBox")) $("vetCheckBox").addEventListener("change", syncVetCheckGo);
+  if ($("vetConsentBox")) $("vetConsentBox").addEventListener("change", syncVetCheckGo);
   if ($("vetCheckGo")) $("vetCheckGo").addEventListener("click", function () {
     state.guide.vetCheckDone = true;
     closeVetCheck();

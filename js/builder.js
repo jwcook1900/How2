@@ -7,15 +7,28 @@
   "use strict";
 
   /* ---------- Id helpers (persistence lives in js/store.js) ---------- */
+  // Random strings from the crypto RNG — link slugs and edit tokens are
+  // capabilities, so they must be unguessable, and Math.random() isn't.
+  // (Math.random fallback only for ancient browsers without crypto.)
+  function randChars(n) {
+    var alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+    var out = "";
+    if (window.crypto && window.crypto.getRandomValues) {
+      var buf = new Uint32Array(n);
+      window.crypto.getRandomValues(buf);
+      for (var i = 0; i < n; i++) out += alphabet[buf[i] % 36];
+    } else {
+      for (var j = 0; j < n; j++) out += alphabet[Math.floor(Math.random() * 36)];
+    }
+    return out;
+  }
   function makeSlug() {
     var words = ["sunny", "cosy", "happy", "swift", "calm", "bright", "lucky", "warm"];
     var w = words[Math.floor(Math.random() * words.length)];
-    return w + "-" + Math.random().toString(36).slice(2, 8);
+    return w + "-" + randChars(8);
   }
-  function makeToken() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 14);
-  }
-  function uid() { return Math.random().toString(36).slice(2, 9); }
+  function makeToken() { return randChars(26); } // ~134 bits
+  function uid() { return randChars(8); }
   // Normalise a user-chosen link name into a safe slug.
   function normalizeSlug(s) {
     return (s || "").toLowerCase().trim()
@@ -3946,9 +3959,13 @@
       return buildStorable(g, locked, pass, 380000);
     }).then(function (payloadObj) {
       state.password = pass; // remember for re-publish in this session
+      // For locked guides the server can't see inside the envelope, so declare
+      // here (from the plaintext) whether viewers may append log entries — it
+      // gates the viewer log-write path server-side.
+      var opts = { hasViewerLogs: (g.logs || []).some(function (l) { return l && !l.ownerOnly; }) };
       var op = state.created
-        ? GotItStore.update(payloadObj)
-        : GotItStore.create(payloadObj, state.editToken);
+        ? GotItStore.update(payloadObj, state.editToken, opts)
+        : GotItStore.create(payloadObj, state.editToken, opts);
       return op;
     }).then(function (res) {
       var firstPublish = !state.created;
@@ -4908,15 +4925,15 @@
   function enterEditMode(slug, token) {
     steps.building.querySelector(".building-title").textContent = "Loading your guide…";
     showStep("building");
-    GotItStore.getForEdit(slug).then(function (rec) {
+    GotItStore.getForEdit(slug, token).then(function (rec) {
+      if (rec && rec.denied) {
+        // Not the owner (the server checked) — send to the read-only view.
+        window.location.href = viewUrl(slug);
+        return;
+      }
       if (!rec || !rec.guide) {
         showToast("Guide not found.");
         showStep(1);
-        return;
-      }
-      if (rec.editToken && token !== rec.editToken) {
-        // Not the owner — send to the read-only view instead.
-        window.location.href = viewUrl(slug);
         return;
       }
       if (GotItStore.isEncrypted(rec.guide)) {

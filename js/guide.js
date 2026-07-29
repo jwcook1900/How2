@@ -29,18 +29,20 @@
     return null;
   }
 
-  // Re-fetch the latest guide, append one log entry, and save it back so every
-  // viewer (and the owner) sees it. Re-encrypts locked guides with the code the
-  // viewer entered. Calls done(true|false).
+  // Save one log entry so every viewer (and the owner) sees it. Plaintext
+  // guides: the server validates and applies the append itself (and enforces
+  // ownerOnly). Locked guides: the server can't see inside, so re-encrypt the
+  // freshest copy locally and send the envelope — the server accepts it only
+  // when the owner declared viewer-writable logs. Calls done(true|false).
   function persistLogEntry(logId, entry, done) {
     if (!slug) { done(true); return; } // no backend — keep in memory only
     GotItStore.get(slug).then(function (obj) {
       if (!obj) throw new Error("missing");
-      var encrypted = GotItStore.isEncrypted(obj);
-      var getPlain = encrypted
-        ? (currentPassword ? GotItStore.decrypt(obj, currentPassword) : Promise.reject(new Error("locked")))
-        : Promise.resolve(obj);
-      return getPlain.then(function (latest) {
+      if (!GotItStore.isEncrypted(obj)) {
+        return GotItStore.log(slug, { logId: logId, entry: entry });
+      }
+      if (!currentPassword) throw new Error("locked");
+      return GotItStore.decrypt(obj, currentPassword).then(function (latest) {
         var log = findById(latest.logs, logId);
         if (!log) throw new Error("nolog");
         // Re-check on the freshest copy: if the owner has since made this log
@@ -48,10 +50,11 @@
         if (log.ownerOnly) throw new Error("readonly");
         log.rows = log.rows || [];
         log.rows.push(entry);
-        var toStore = encrypted ? GotItStore.encrypt(latest, currentPassword) : Promise.resolve(latest);
-        return toStore.then(function (payload) { return GotItStore.update(payload); });
+        return GotItStore.encrypt(latest, currentPassword).then(function (env) {
+          return GotItStore.log(slug, { envelope: JSON.stringify(env) });
+        });
       });
-    }).then(function () { done(true); }, function () { done(false); });
+    }).then(function (r) { done(!(r && r.ok === false)); }, function () { done(false); });
   }
   function getSlug() {
     // Pretty path: /g/<slug>

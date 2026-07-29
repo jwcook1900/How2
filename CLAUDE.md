@@ -38,6 +38,15 @@ second accent colour, or any restyling of the logo.
 Share/OG cards and favicons follow the same tokens. The favicon is the "G." mark on
 ink; do not substitute a plain G.
 
+## Vet discharge guides
+
+The `vet` guide type serves clinics turning their existing discharge notes
+into owner-friendly guides — background, the clinic conversation that started
+it, and binding design rules live in `docs/vet-discharge.md`. Non-negotiables:
+the AI never invents clinical details (unclear items become "⚠️ Check with
+your clinic" flags), publishing is gated by the owner-confirmation check, and
+the veterinary-advice disclaimer always renders.
+
 ## Privacy rules (load-bearing — copy and code must match them)
 
 - Guides are unlisted; anyone with the link can open them unless a guide code is set.

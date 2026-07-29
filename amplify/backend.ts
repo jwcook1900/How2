@@ -1,5 +1,8 @@
 import { defineBackend } from "@aws-amplify/backend";
 import { Function as LambdaFunction, FunctionUrlAuthType, HttpMethod } from "aws-cdk-lib/aws-lambda";
+import { AttributeType, BillingMode, Table as DynamoTable } from "aws-cdk-lib/aws-dynamodb";
+import { RemovalPolicy, Stack } from "aws-cdk-lib";
+import { guideWriteFn } from "./functions/guide-write/resource";
 import { auth } from "./auth/resource";
 import { data } from "./data/resource";
 import { aiFn } from "./functions/ai/resource";
@@ -35,6 +38,7 @@ const backend = defineBackend({
   transcribeFn,
   ogFn,
   broadcastFn,
+  guideWriteFn,
 });
 
 // Custom hosted-UI domain so the Google sign-in screen shows
@@ -133,6 +137,40 @@ const ogUrl = ogLambda.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE, // serves public pages/images only
 });
 
+// Guide writes: the only path that can create/update a guide. Verifies the
+// edit token server-side (hashed at rest); the Guide model itself is public
+// read-only. Standalone Lambda URL, same one-directional dependency reasoning
+// as the stats function.
+const guideWriteLambda = backend.guideWriteFn.resources.lambda as LambdaFunction;
+guideWriteLambda.addEnvironment("GUIDE_TABLE", guideTable.tableName);
+guideTable.grantReadWriteData(guideWriteLambda);
+// Per-IP rate limiting: a tiny pay-per-request counter table whose rows expire
+// via TTL (attribute "exp"). Costs effectively nothing at this scale.
+const rateTable = new DynamoTable(Stack.of(guideWriteLambda), "GuideWriteRate", {
+  partitionKey: { name: "k", type: AttributeType.STRING },
+  billingMode: BillingMode.PAY_PER_REQUEST,
+  timeToLiveAttribute: "exp",
+  removalPolicy: RemovalPolicy.DESTROY, // pure throttle state — safe to drop
+});
+guideWriteLambda.addEnvironment("RATE_TABLE", rateTable.tableName);
+rateTable.grantReadWriteData(guideWriteLambda);
+const guideWriteUrl = guideWriteLambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE, // authorisation is the edit-token check inside
+  cors: {
+    allowedOrigins: ["*"],
+    allowedMethods: [HttpMethod.POST],
+    allowedHeaders: ["content-type"],
+  },
+});
+
+// Abuse/cost guard on the expensive public endpoints: cap how many of each can
+// run at once. Generous for real traffic; a flood hits the cap, not the bill.
+backend.aiFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 10;
+backend.transcribeFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
+backend.videoFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
+backend.urlFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
+backend.emailFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
+
 // Broadcast email: reads recipients (Cognito emails + waitlist Feedback rows),
 // writes unsubscribes back as Feedback rows, and serves the GET /unsub link.
 const feedbackTable = backend.data.resources.tables["Feedback"];
@@ -151,6 +189,7 @@ const broadcastUrl = broadcastLambda.addFunctionUrl({
 });
 
 backend.addOutput({ custom: {
+  guideWriteFunctionUrl: guideWriteUrl.url,
   statsFunctionUrl: statsUrl.url,
   broadcastFunctionUrl: broadcastUrl.url,
   guideFeedbackFunctionUrl: guideFeedbackUrl.url,

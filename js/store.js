@@ -24,13 +24,28 @@ window.GotItStore = (function () {
             statsUrl: j.custom && j.custom.statsFunctionUrl,
             broadcastUrl: j.custom && j.custom.broadcastFunctionUrl,
             guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl,
-            transcribeUrl: j.custom && j.custom.transcribeFunctionUrl
+            transcribeUrl: j.custom && j.custom.transcribeFunctionUrl,
+            guideWriteUrl: j.custom && j.custom.guideWriteFunctionUrl
           };
         }
         return null;
       })
       .catch(function () { return null; });
     return cfgPromise;
+  }
+
+  // All guide WRITES go through the guide-write Lambda, which verifies the
+  // edit token server-side (the Guide model itself is public read-only).
+  function guideWrite(cfg, body) {
+    return fetch(cfg.guideWriteUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (res) {
+        if (res && res.error) throw new Error(res.error);
+        return res || {};
+      });
   }
 
   function gql(cfg, query, variables) {
@@ -406,17 +421,24 @@ window.GotItStore = (function () {
     },
 
     // Create a new guide. Resolves with { cloud: bool }.
-    create: function (guide, editToken) {
+    // `opts.hasViewerLogs` matters for LOCKED guides only: the server can't see
+    // inside the envelope, so the owner's client declares whether viewers may
+    // append log entries (it gates the viewer log-write path server-side).
+    create: function (guide, editToken, opts) {
       return loadConfig().then(function (cfg) {
-        if (!cfg) { localPut(guide, editToken); return { cloud: false }; }
-        var q = "mutation Create($input: CreateGuideInput!){ createGuide(input: $input){ id } }";
-        return gql(cfg, q, { input: { id: guide.slug, editToken: editToken, payload: JSON.stringify(guide) } })
-          .then(function (r) {
-            // Remember the token on this device too, so the published guide
-            // can offer its creator a way back into editing.
-            rememberToken(guide.slug, editToken);
-            return { cloud: true };
-          });
+        if (!cfg || !cfg.guideWriteUrl) { localPut(guide, editToken); return { cloud: false }; }
+        return guideWrite(cfg, {
+          action: "create",
+          slug: guide.slug,
+          token: editToken,
+          payload: JSON.stringify(guide),
+          hasViewerLogs: !!(opts && opts.hasViewerLogs)
+        }).then(function () {
+          // Remember the token on this device too, so the published guide
+          // can offer its creator a way back into editing.
+          rememberToken(guide.slug, editToken);
+          return { cloud: true };
+        });
       });
     },
 
@@ -426,13 +448,46 @@ window.GotItStore = (function () {
     editTokenFor: function (slug) { return localTokens()[slug] || null; },
     rememberToken: function (slug, token) { rememberToken(slug, token); },
 
-    // Update an existing guide's contents.
-    update: function (guide) {
+    // Update an existing guide's contents. Requires the guide's edit token —
+    // the server verifies it before writing anything.
+    update: function (guide, editToken, opts) {
       return loadConfig().then(function (cfg) {
-        if (!cfg) { localPut(guide); return { cloud: false }; }
-        var q = "mutation Upd($input: UpdateGuideInput!){ updateGuide(input: $input){ id } }";
-        return gql(cfg, q, { input: { id: guide.slug, payload: JSON.stringify(guide) } })
-          .then(function () { return { cloud: true }; });
+        if (!cfg || !cfg.guideWriteUrl) { localPut(guide); return { cloud: false }; }
+        return guideWrite(cfg, {
+          action: "update",
+          slug: guide.slug,
+          token: editToken,
+          payload: JSON.stringify(guide),
+          hasViewerLogs: !!(opts && opts.hasViewerLogs)
+        }).then(function () { return { cloud: true }; });
+      });
+    },
+
+    // A viewer appends ONE log entry. Plaintext guides: the server validates
+    // and applies it ({ logId, entry }). Locked guides: the viewer re-encrypts
+    // locally and sends the whole envelope ({ envelope }) — accepted only when
+    // the owner's last save declared viewer-writable logs.
+    log: function (slug, opts) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideWriteUrl) {
+          // Local fallback: apply the entry to the localStorage copy.
+          var g = localGuides()[slug];
+          if (!g) return { ok: false };
+          if (opts.envelope) {
+            try { localPut(JSON.parse(opts.envelope)); } catch (e) { return { ok: false }; }
+            return { ok: true };
+          }
+          var log = (g.logs || []).filter(function (l) { return l.id === opts.logId; })[0];
+          if (!log || log.ownerOnly) return { ok: false };
+          log.rows = log.rows || [];
+          log.rows.push(opts.entry);
+          localPut(g);
+          return { ok: true };
+        }
+        var body = { action: "log", slug: slug };
+        if (opts.envelope) body.envelope = opts.envelope;
+        else { body.logId = opts.logId; body.entry = opts.entry; }
+        return guideWrite(cfg, body);
       });
     },
 
@@ -702,19 +757,26 @@ window.GotItStore = (function () {
       });
     },
 
-    // Read a guide plus its edit token (for the edit-link flow).
-    getForEdit: function (slug) {
+    // Open a guide for editing: the server verifies the caller's token and
+    // only then returns the payload. The token itself never travels back —
+    // { denied: true } means the guide exists but the token was wrong.
+    getForEdit: function (slug, token) {
       return loadConfig().then(function (cfg) {
-        if (!cfg) {
+        if (!cfg || !cfg.guideWriteUrl) {
           var g = localGuides()[slug];
           if (!g) return null;
-          return { guide: g, editToken: localTokens()[slug] || null };
+          var local = localTokens()[slug] || null;
+          if (local && token !== local) return { denied: true };
+          return { guide: g, editToken: token || local };
         }
-        var q = "query Get($id: ID!){ getGuide(id: $id){ id editToken payload } }";
-        return gql(cfg, q, { id: slug }).then(function (d) {
-          if (!d.getGuide) return null;
-          return { guide: JSON.parse(d.getGuide.payload), editToken: d.getGuide.editToken };
-        });
+        return guideWrite(cfg, { action: "verify", slug: slug, token: token || "" })
+          .then(function (res) {
+            if (!res.ok) return { denied: true };
+            return { guide: JSON.parse(res.payload), editToken: token };
+          }, function (err) {
+            if (/not found/i.test(err.message || "")) return null;
+            throw err;
+          });
       });
     }
   };

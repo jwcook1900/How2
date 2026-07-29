@@ -560,6 +560,24 @@
     if ($("pasteUrlNote")) $("pasteUrlNote").hidden = true;
     if (typeof resetRecorder === "function") resetRecorder();
     $("startHeading").textContent = "How would you like to create your guide?";
+    // Vet discharge is used by clinic staff as much as owners, and the
+    // paperwork already exists — so the upload card leads (renamed for the
+    // job), and the import panel opens straight away. Every other category
+    // keeps the standard order and copy, restored here in case the visitor
+    // backs out of the vet flow and picks another type.
+    var isVet = state.category && state.category.id === "vet";
+    var pasteCard = $("startPaste");
+    var grid = pasteCard && pasteCard.parentNode;
+    if (pasteCard && grid) {
+      pasteCard.querySelector(".start-name").textContent = isVet
+        ? "Upload discharge, consultation & medication instructions"
+        : "Paste existing notes";
+      pasteCard.querySelector(".start-desc").textContent = isVet
+        ? "Add the PDF, photos of the paperwork, or the emailed summary — we'll turn it into an owner-ready guide."
+        : "Already have notes? Paste them in and we'll organise everything for you.";
+      if (isVet) grid.insertBefore(pasteCard, grid.firstChild);
+      else grid.insertBefore(pasteCard, $("startPhoto")); // original spot: before "Photo of a guide"
+    }
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
     if (autoPasteIntent) {
@@ -567,11 +585,8 @@
       revealImport("paste");
       return;
     }
-    // Vet discharge is upload-first: the paperwork already exists, so open the
-    // import panel straight away (photos / PDF / pasted email all feed it).
-    // The start cards above stay usable for owners who'd rather type it in.
-    if (state.category && state.category.id === "vet") {
-      $("startHeading").textContent = "Add the paperwork from your vet";
+    if (isVet) {
+      $("startHeading").textContent = "Add the discharge paperwork";
       revealImport("paste", true);
     }
   }
@@ -604,12 +619,20 @@
       help.textContent = "Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.";
       ta.placeholder = "Paste your rough notes here. For example: " + ex.paste;
     }
-    // Vet discharge: the source is the clinic's paperwork, so the copy invites
-    // photos / the PDF / the emailed summary — and promises the safety net:
-    // nothing gets invented, and anything unclear is flagged to confirm.
+    // Vet discharge: the source is the clinic's own paperwork (front desk or
+    // vet as often as the owner), so the copy speaks to the documents — and
+    // promises the safety net: nothing gets invented, anything unclear is
+    // flagged to confirm.
     if (state.category && state.category.id === "vet" && !talk && !photo) {
-      help.textContent = "Snap a photo of each page of the discharge papers, add the PDF, or paste the email from your clinic. We'll turn it into a clear recovery guide — copying every instruction exactly, and flagging anything unclear for you to confirm.";
-      ta.placeholder = "Paste the email or discharge summary from your clinic here — or just add photos of the paperwork below.";
+      help.textContent = "Snap a photo of each page, add the PDF, or paste the discharge summary or email. We'll turn it into a clear recovery guide — copying every instruction exactly, and flagging anything unclear to confirm before it's shared.";
+      ta.placeholder = "Paste the discharge summary, consultation notes or medication instructions here — or add photos of the paperwork below.";
+    }
+    // The panel opens INSIDE the chooser, directly under the tapped card —
+    // never further down the page where it has to be scrolled to.
+    var activeCard = photo ? $("startPhoto") : talk ? $("startTalk") : $("startPaste");
+    var panelEl = $("pastePanel");
+    if (activeCard && activeCard.parentNode && panelEl) {
+      activeCard.parentNode.insertBefore(panelEl, activeCard.nextSibling);
     }
     $("pastePanel").removeAttribute("hidden");
     // Photo mode jumps straight to the camera / photo library.

@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Turn the discharge notes your clinic already writes into clear digital guides owners actually follow. Your team reviews everything before it's sent." />
+  <meta name="description" content="Digital Recovery Guides for veterinary clinics: your existing discharge notes, transformed into a guide owners actually follow. Reviewed by your team before sending." />
   <meta name="theme-color" content="#1A1A1A" />
-  <title>GotIt Guides for vet clinics — discharge instructions owners actually follow</title>
+  <title>Digital Recovery Guides for veterinary clinics — GotIt Guides</title>
 
-  <meta property="og:title" content="GotIt Guides for vet clinics" />
-  <meta property="og:description" content="Your existing discharge notes, transformed into clear digital guides owners actually follow. Reviewed by your team before sending." />
+  <meta property="og:title" content="Digital Recovery Guides for veterinary clinics" />
+  <meta property="og:description" content="Your existing discharge notes, transformed into guides owners actually follow. Reviewed by your team before sending." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://www.gotitguides.com/vets.html" />
   <link rel="canonical" href="https://www.gotitguides.com/vets.html" />
@@ -40,32 +40,34 @@
   </header>
 
   <main>
-    <!-- Hero: same shape as the consumer homepage, with a discharge-guide
-         mockup — a generic health badge stands in where the clinic's own
-         logo will live. -->
+    <!-- Hero: same shape as the consumer homepage, with a Digital Recovery
+         Guide mockup. A generic health badge stands in where the clinic's
+         own logo will live. (No .reveal classes here: this page doesn't load
+         app.js, so reveal animations would leave the hero invisible.) -->
     <section class="hero">
       <div class="container hero-inner">
-        <div class="hero-content reveal">
-          <span class="eyebrow">For vet clinics</span>
-          <h1 class="hero-title">Discharge instructions <span class="accent">owners actually follow.</span></h1>
+        <div class="hero-content">
+          <span class="eyebrow">For veterinary clinics</span>
+          <h1 class="hero-title">Digital Recovery Guides <span class="accent">owners actually follow.</span></h1>
           <p class="hero-sub">
-            Your existing discharge notes, transformed into a clear, phone-friendly guide your team
-            reviews before sending. Nothing to rewrite. No new system to learn.
+            Your clinic already writes the discharge notes. GotIt Guides transforms them into a
+            beautiful Digital Recovery Guide your team reviews before sending. No rewriting, no new
+            system, no app for owners to download.
           </p>
           <div class="hero-cta">
-            <a href="builder.html?cat=vet" class="btn btn-primary btn-lg" data-evt="vets_cta" data-evt-slug="hero">Try it with real discharge notes</a>
-            <a href="clinic-security.html" class="btn btn-ghost btn-lg">Security &amp; privacy</a>
+            <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-primary btn-lg" data-evt="vets_cta" data-evt-slug="demo">Request a demo</a>
+            <a href="builder.html?cat=vet" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="hero">Try it with your own notes</a>
           </div>
           <ul class="hero-reassure">
-            <li>Built from notes you already write</li>
-            <li>Reviewed by your team</li>
-            <li>Locked with a guide code</li>
-            <li>Free while we pilot</li>
+            <li>Uses your existing discharge notes</li>
+            <li>Review before sending</li>
+            <li>No app download required</li>
+            <li>Send via SMS, email or WhatsApp</li>
           </ul>
         </div>
 
-        <!-- Decorative phone mockup: a discharge guide, clinic-branded -->
-        <div class="hero-visual reveal" aria-hidden="true">
+        <!-- Decorative phone mockup: a Digital Recovery Guide, clinic-branded -->
+        <div class="hero-visual" aria-hidden="true">
           <div class="phone">
             <div class="phone-notch"></div>
             <div class="phone-screen">
@@ -73,7 +75,7 @@
                 <div class="mock-slide">
                   <div class="mock-cover">
                     <span class="mock-logo">⚕️ Your Clinic</span>
-                    <div class="mock-title">Bella's Recovery Guide</div>
+                    <div class="mock-title">Whiskey's Recovery Guide</div>
                     <div class="mock-subtitle">Recovery instructions, made simple</div>
                   </div>
                   <div class="mock-card">
@@ -91,10 +93,17 @@
                     </div>
                   </div>
                   <div class="mock-card">
-                    <span class="mock-card-icon">📞</span>
+                    <span class="mock-card-icon">🏃</span>
                     <div>
-                      <div class="mock-card-title">When to Call the Clinic</div>
+                      <div class="mock-card-title">Activity Restrictions</div>
                       <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">⚠️</span>
+                    <div>
+                      <div class="mock-card-title">Emergency Signs</div>
+                      <div class="mock-card-bar short"></div>
                     </div>
                   </div>
                 </div>
@@ -107,66 +116,65 @@
       </div>
     </section>
 
-    <!-- The problem, in the clinic's own words -->
+    <!-- Workflow: the promise is subtraction, not another system -->
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <span class="eyebrow">The workflow</span>
+          <h2 class="section-title">No new workflow<span class="accent">.</span></h2>
+          <p class="section-lead">
+            Keep writing discharge notes exactly as you do today. We transform them into a Digital
+            Recovery Guide your team can review and send in under a minute.
+          </p>
+        </div>
+        <ol class="vets-flow">
+          <li><span class="vets-flow-emoji">🩺</span><div><strong>Vet completes discharge notes</strong><p>Exactly as your clinic does now, in whatever system you already use.</p></div></li>
+          <li><span class="vets-flow-emoji">📄</span><div><strong>Upload the PDF, a photo or the text</strong><p>Front desk drops in whatever exists. Nothing gets rewritten.</p></div></li>
+          <li><span class="vets-flow-emoji">✨</span><div><strong>The Digital Recovery Guide drafts itself</strong><p>Every instruction copied exactly. Anything unclear is flagged, never guessed.</p></div></li>
+          <li><span class="vets-flow-emoji">✅</span><div><strong>Clinical review</strong><p>Your team confirms medications, warning signs and follow-up before anything is published.</p></div></li>
+          <li><span class="vets-flow-emoji">📲</span><div><strong>Send</strong><p>One link by SMS, email or WhatsApp, locked with a code you write on the paperwork.</p></div></li>
+          <li><span class="vets-flow-emoji">❤️‍🩹</span><div><strong>The owner recovers with it</strong><p>Medications, wound care and warning signs on their phone, with dose reminders one tap from their calendar.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- The problem: the clinic's work is good, the communication is lossy -->
     <section class="section section-tint">
       <div class="container">
         <div class="section-head">
           <span class="eyebrow">Why this exists</span>
-          <h2 class="section-title">Owners are overwhelmed at discharge<span class="accent">.</span></h2>
+          <h2 class="section-title">You're already doing the hard work<span class="accent">.</span></h2>
+          <p class="section-lead">
+            Your team already creates excellent discharge instructions. The challenge is making sure
+            owners understand them once they leave the clinic.
+          </p>
         </div>
         <blockquote class="vets-quote">
           "People don't listen to me. They're distracted."
-          <cite>A vet, at the end of a discharge consult. This product exists because of that sentence.</cite>
+          <cite>Dr Hunt, during Whiskey's discharge consultation. This product exists because of that sentence.</cite>
         </blockquote>
         <div class="trust-grid">
           <div class="trust-item">
             <div class="trust-emoji">😵‍💫</div>
-            <h3>Too much, too fast</h3>
-            <p>After surgery, owners are anxious and flooded with information. Verbal instructions, printed sheets and medication advice mostly don't stick.</p>
+            <h3>Owners leave overwhelmed</h3>
+            <p>Medications, feeding instructions, exercise restrictions, wound care and follow-up advice, all delivered in one emotional moment. It's a lot to remember.</p>
           </div>
           <div class="trust-item">
             <div class="trust-emoji">📞</div>
-            <h3>The same calls, every day</h3>
-            <p>How often do I give this? Is that behaviour normal? Can she eat yet? Should the wound look like this? Reception and nurses answer them all again, daily.</p>
+            <h3>The same questions every day</h3>
+            <p>How often do I give this? Can she eat? Is this normal? What if I miss a dose? Reception and nurses answer them all again, constantly.</p>
           </div>
           <div class="trust-item">
-            <div class="trust-emoji">📄</div>
-            <h3>Printed sheets don't get read</h3>
-            <p>Long blocks of text get skimmed at best. A clean, friendly guide on the owner's phone actually gets opened, and stays with them through recovery.</p>
+            <div class="trust-emoji">📱</div>
+            <h3>Owners actually read this</h3>
+            <p>A beautiful, friendly guide that stays on the owner's phone throughout recovery, instead of a printed sheet that gets skimmed once and lost.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- How it works -->
+    <!-- Trust: the clinician stays in control -->
     <section class="section">
-      <div class="container">
-        <div class="section-head">
-          <span class="eyebrow">How it works</span>
-          <h2 class="section-title">Your notes in, an owner-ready guide out<span class="accent">.</span></h2>
-        </div>
-        <div class="steps">
-          <div class="step">
-            <div class="step-num">1</div>
-            <h3 class="step-title">Upload</h3>
-            <p class="step-text">The discharge notes you already write: a PDF, photos of the paperwork, or the emailed summary.</p>
-          </div>
-          <div class="step">
-            <div class="step-num">2</div>
-            <h3 class="step-title">Review</h3>
-            <p class="step-text">Every instruction is copied exactly, never invented. Anything unclear is flagged for your team to confirm before publishing.</p>
-          </div>
-          <div class="step">
-            <div class="step-num">3</div>
-            <h3 class="step-title">Send</h3>
-            <p class="step-text">One link by SMS, email or WhatsApp, locked with a code you write on the paperwork. Dose reminders land in the owner's calendar with one tap.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Trust -->
-    <section class="section section-tint">
       <div class="container">
         <div class="section-head">
           <span class="eyebrow">Built for clinical caution</span>
@@ -181,12 +189,12 @@
           <div class="trust-item">
             <div class="trust-emoji">🔒</div>
             <h3>Locked by default</h3>
-            <p>Every discharge guide is encrypted with a simple code your front desk writes on the paperwork. We can't read it, and neither can anyone without the code.</p>
+            <p>Every recovery guide is encrypted with a simple code your front desk writes on the paperwork. We can't read it, and neither can anyone without the code.</p>
           </div>
           <div class="trust-item">
             <div class="trust-emoji">🏥</div>
             <h3>Your clinic on every guide</h3>
-            <p>Save your logo and contact details once. Every new discharge guide starts with your branding, your phone number and your after-hours line, automatically.</p>
+            <p>Save your logo and contact details once. Every new guide starts with your branding, your phone number and your after-hours line, automatically.</p>
           </div>
           <div class="trust-item">
             <div class="trust-emoji">🇦🇺</div>
@@ -205,13 +213,13 @@
     <section class="section cta-band">
       <div class="container">
         <div class="cta-inner">
-          <h2 class="cta-title">Try it with your next discharge.</h2>
+          <h2 class="cta-title">Your team does the hard work. Make sure it lands.</h2>
           <p class="cta-sub">
-            Upload a real discharge sheet and see the guide it becomes, in about a minute. Free while
-            we work with our first clinics. Or email me and I'll set your clinic up personally:
-            <a href="mailto:jamescook@gotitguides.com">jamescook@gotitguides.com</a>
+            Upload a real discharge sheet and see the Digital Recovery Guide it becomes, in about a
+            minute. Free while we work with our first clinics.
           </p>
-          <a href="builder.html?cat=vet" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="footer">Create a discharge guide</a>
+          <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="footer_demo">Request a demo</a>
+          <a href="builder.html?cat=vet" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="footer">Try it now</a>
         </div>
       </div>
     </section>

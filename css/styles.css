@@ -921,6 +921,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .cat-card .cat-emoji { font-size: 2.6rem; display: block; margin-bottom: 12px; }
 .cat-card .cat-name { font-weight: 700; font-size: 1.05rem; }
 .cat-card .cat-desc { font-size: 0.85rem; color: var(--ink-muted); margin-top: 4px; }
+/* "More guide types": reads as an expander, not a fourth guide type. */
+.cat-card.cat-more { border-style: dashed; background: transparent; }
+.cat-card.cat-more .cat-emoji { color: var(--coral); }
+.cat-card.cat-more .cat-name { color: var(--coral-dark); }
 
 /* ---- Step 2: question flow ---- */
 .q-bar {

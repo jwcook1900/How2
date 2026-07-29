@@ -516,10 +516,15 @@
       .then(function () { btn.disabled = false; btn.textContent = "Send feedback"; });
   }
 
-  /* ---------- Step 1: render category cards ---------- */
+  /* ---------- Step 1: render category cards ----------
+     Three hero guides lead (the ones we're actually known for); everything
+     else lives one tap away behind "More guide types", so the first screen
+     reads focused instead of a wall of twelve equal choices. */
+  var HERO_CATS = { pet: 1, vet: 1, kids: 1 };
   function renderCategories() {
     var grid = $("catGrid");
     grid.innerHTML = "";
+    var more = [];
     CATEGORIES.forEach(function (cat) {
       var btn = document.createElement("button");
       btn.className = "cat-card";
@@ -529,8 +534,22 @@
         '<div class="cat-name">' + cat.name + "</div>" +
         '<div class="cat-desc">' + cat.desc + "</div>";
       btn.addEventListener("click", function () { pickCategory(cat); });
-      grid.appendChild(btn);
+      if (HERO_CATS[cat.id]) grid.appendChild(btn);
+      else more.push(btn);
     });
+    var moreBtn = document.createElement("button");
+    moreBtn.className = "cat-card cat-more";
+    moreBtn.type = "button";
+    moreBtn.innerHTML =
+      '<span class="cat-emoji">＋</span>' +
+      '<div class="cat-name">More guide types</div>' +
+      '<div class="cat-desc">Homes, events, staff, care & anything else</div>';
+    moreBtn.addEventListener("click", function () {
+      GotItStore.event("cat_more"); // funnel: how many people need the long tail
+      moreBtn.remove();
+      more.forEach(function (b) { grid.appendChild(b); });
+    });
+    grid.appendChild(moreBtn);
   }
 
   function pickCategory(cat) {

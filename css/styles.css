@@ -3887,6 +3887,32 @@ textarea.lf-input { resize: none; }
 .dash-teaser-title { font-weight: 800; }
 .dash-teaser-body p { color: var(--ink-soft); font-size: 0.9rem; margin: 2px 0 0; }
 
+/* The clinic kit (dashboard): logo + contact details, set once and stamped
+   onto every new vet discharge guide by the builder. */
+.clinic-kit {
+  margin-top: 40px;
+  padding: 22px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.clinic-kit-head { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+.clinic-kit-emoji { font-size: 1.6rem; line-height: 1.2; }
+.clinic-kit-title { font-size: 1.1rem; font-weight: 800; margin: 0; }
+.clinic-kit-sub { color: var(--ink-soft); font-size: 0.9rem; line-height: 1.5; margin: 4px 0 0; }
+.clinic-kit-body { display: flex; gap: 22px; flex-wrap: wrap; }
+.clinic-kit-logo { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; min-width: 160px; }
+.clinic-kit-logo img {
+  max-height: 84px; max-width: 220px; object-fit: contain;
+  background: var(--bg-tint); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 14px;
+}
+.clinic-kit-logo-btn { cursor: pointer; }
+.clinic-kit-fields { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.clinic-kit-fields .q-input { width: 100%; }
+.set-note.err { color: var(--coral-dark); }
+
 /* Account settings modal */
 .dash-modal { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .dash-modal-backdrop { position: absolute; inset: 0; background: rgba(26, 26, 26, 0.45); }

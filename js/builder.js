@@ -887,6 +887,42 @@
     });
   }
 
+  /* ---------- The clinic kit (vet guides) ----------
+     A signed-in clinic sets its logo and contact details once (dashboard →
+     My clinic, or by uploading a logo in here); every NEW vet guide starts
+     stamped with them. Prefetched best-effort at load — if it hasn't arrived
+     by the time a guide is built, the guide simply starts unstamped. */
+  var clinicKit = null;
+  if (window.GotItAuth && GotItAuth.isSignedIn()) {
+    GotItAuth.idToken().then(function (t) {
+      return t ? GotItStore.getProfile(t) : null;
+    }).then(function (p) {
+      if (p && (p.clinicLogo || p.clinicName || p.clinicPhone)) clinicKit = p;
+    }).catch(function () {});
+  }
+  // Stamps a fresh vet guide with the kit: the logo (if the guide has none)
+  // and the clinic contacts (only when nothing was extracted from the
+  // paperwork — the documents always win).
+  function applyClinicKit(g) {
+    if (!clinicKit || g.category !== "vet") return;
+    var applied = false;
+    if (clinicKit.clinicLogo && !g.clinicLogo) {
+      g.clinicLogo = clinicKit.clinicLogo;
+      applied = true;
+    }
+    if (clinicKit.clinicPhone && !(g.contacts || []).length) {
+      g.contacts = [{ id: uid(), label: clinicKit.clinicName || "Clinic", value: clinicKit.clinicPhone }];
+      if (clinicKit.clinicAfterHours) {
+        g.contacts.push({ id: uid(), label: "After hours", value: clinicKit.clinicAfterHours });
+      }
+      g.noEmergency = false;
+      applied = true;
+    }
+    if (applied) {
+      setTimeout(function () { showToast("🏥 Added your clinic details automatically."); }, 700);
+    }
+  }
+
   // Maps the AI's import result (or a fallback) into a fresh editable guide.
   function buildGuideFromAI(ai, cat, rawText) {
     state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
@@ -932,6 +968,7 @@
       createdAt: Date.now()
     };
     state.created = false;
+    applyClinicKit(state.guide);
     // Imported notes are the richest source of times of all ("kibble 7am and
     // 6pm") — mine the raw text plus what the AI structured from it.
     state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(
@@ -2087,6 +2124,7 @@
       branding: true,
       createdAt: Date.now()
     };
+    applyClinicKit(state.guide);
     // Draft routine steps from any times already typed into the answers
     // (offered as tap-to-confirm chips in the routine widget, never auto-added).
     state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(state.answers, cat);
@@ -2466,6 +2504,19 @@
         state.guide.clinicLogo = dataUrl;
         renderGuideEditor(); // the logo badge lives in the cover markup
         recordHistory();
+        // Signed in? Remember the logo in the clinic kit so every future vet
+        // guide starts with it (best-effort; the guide itself already has it).
+        if (state.guide.category === "vet" && window.GotItAuth && GotItAuth.isSignedIn()) {
+          GotItAuth.idToken().then(function (t) {
+            if (!t) return null;
+            return GotItStore.saveProfile(t, { clinicLogo: dataUrl });
+          }).then(function (p) {
+            if (p) {
+              clinicKit = p;
+              showToast("Logo saved — future discharge guides will start with it.");
+            }
+          }).catch(function () {});
+        }
         if (onDone) onDone();
       });
     });

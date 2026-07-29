@@ -91,6 +91,33 @@
       <div class="dash-grid" id="dashGrid"></div>
       <p class="dash-noresults" id="dashNoResults" hidden>No guides match that search.</p>
 
+      <!-- The clinic kit: a vet clinic sets its logo + contact details once,
+           and every new vet discharge guide starts stamped with them. -->
+      <div class="clinic-kit" id="clinicKit">
+        <div class="clinic-kit-head">
+          <span class="clinic-kit-emoji">🏥</span>
+          <div>
+            <h2 class="clinic-kit-title">My clinic</h2>
+            <p class="clinic-kit-sub">For vet discharge guides: save your logo and contact details once, and every new discharge guide starts with them automatically.</p>
+          </div>
+        </div>
+        <div class="clinic-kit-body">
+          <div class="clinic-kit-logo">
+            <img id="ckLogoImg" alt="Clinic logo" hidden />
+            <label class="tool-btn clinic-kit-logo-btn">🏥 <span id="ckLogoLabel">Add your logo</span>
+              <input type="file" id="ckLogoFile" accept="image/*" hidden /></label>
+            <button class="btn-link" id="ckLogoRemove" type="button" hidden>Remove logo</button>
+          </div>
+          <div class="clinic-kit-fields">
+            <input type="text" id="ckName" class="q-input" placeholder="Clinic name" maxlength="80" autocomplete="organization" />
+            <input type="tel" id="ckPhone" class="q-input" placeholder="Clinic phone" maxlength="40" />
+            <input type="tel" id="ckAfter" class="q-input" placeholder="After-hours / emergency number (optional)" maxlength="60" />
+            <button class="btn btn-primary btn-sm" id="ckSave" type="button">Save clinic details</button>
+            <p class="set-note" id="ckNote" hidden></p>
+          </div>
+        </div>
+      </div>
+
       <!-- Soft teaser for where things are headed -->
       <div class="dash-teaser" id="dashTeaser" hidden>
         <span class="dash-teaser-emoji">🚀</span>

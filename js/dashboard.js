@@ -714,6 +714,60 @@
     });
   }
 
+  /* ---------- the clinic kit ----------
+     Set once here; the builder stamps every NEW vet discharge guide with the
+     logo and contact details automatically. */
+  var ckLogo = null; // data URL staged for the next save (null = unchanged)
+  function syncClinicKit() {
+    if (!profile) return;
+    $("ckName").value = profile.clinicName || "";
+    $("ckPhone").value = profile.clinicPhone || "";
+    $("ckAfter").value = profile.clinicAfterHours || "";
+    showKitLogo(profile.clinicLogo || null);
+  }
+  function showKitLogo(src) {
+    var img = $("ckLogoImg");
+    img.hidden = !src;
+    if (src) img.src = src;
+    $("ckLogoLabel").textContent = src ? "Change logo" : "Add your logo";
+    $("ckLogoRemove").hidden = !src;
+  }
+  $("ckLogoFile").addEventListener("change", function () {
+    var file = this.files[0];
+    this.value = "";
+    if (!file) return;
+    GotItStore.logoFromFile(file).then(function (dataUrl) {
+      ckLogo = dataUrl;
+      showKitLogo(dataUrl);
+    });
+  });
+  $("ckLogoRemove").addEventListener("click", function () {
+    ckLogo = ""; // empty string = explicit removal on save
+    showKitLogo(null);
+  });
+  $("ckSave").addEventListener("click", function () {
+    var note = $("ckNote");
+    var fields = {
+      clinicName: $("ckName").value.trim(),
+      clinicPhone: $("ckPhone").value.trim(),
+      clinicAfterHours: $("ckAfter").value.trim()
+    };
+    if (ckLogo !== null) fields.clinicLogo = ckLogo;
+    var btn = $("ckSave");
+    btn.disabled = true;
+    GotItStore.saveProfile(idTok, fields).then(function (p) {
+      if (p) profile = p;
+      ckLogo = null;
+      note.textContent = "Saved ✓ New discharge guides will start with these details.";
+      note.className = "set-note ok";
+      note.hidden = false;
+    }).catch(function () {
+      note.textContent = "Couldn't save — try again.";
+      note.className = "set-note err";
+      note.hidden = false;
+    }).then(function () { btn.disabled = false; });
+  });
+
   function deleteAccount() {
     if (!window.confirm(
       "Delete your account?\n\nThis removes your dashboard and saved-guide list. " +
@@ -778,6 +832,7 @@
       }).then(function (items) {
         guides = items;
         render();
+        syncClinicKit();
       }).catch(function () {
         showSignin("Your session expired — please sign in again.");
       });

@@ -11,6 +11,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var PENDING_KEY = "gotit_pending_save";
+  var KIT_KEY = "gotit_pending_clinickit"; // a builder logo riding through sign-in
 
   var idTok = null;     // Cognito id token (for AppSync)
   var user = null;      // { sub, email, name } from the token
@@ -745,6 +746,26 @@
     ckLogo = ""; // empty string = explicit removal on save
     showKitLogo(null);
   });
+  // A clinic logo added in the builder before signing in rides through the
+  // sign-in redirect (stashed by the keep-access nudge's save), so a brand-new
+  // account's kit starts with it — the promise the builder made when the logo
+  // landed. An account that already has a logo keeps it; nothing is clobbered.
+  function applyPendingKit(ready) {
+    var kit = null;
+    try { kit = JSON.parse(localStorage.getItem(KIT_KEY) || "null"); } catch (e) {}
+    try { localStorage.removeItem(KIT_KEY); } catch (e) {}
+    if (!kit || !kit.clinicLogo) return;
+    if (profile && profile.clinicLogo) return;
+    (ready || Promise.resolve()).then(function () {
+      return GotItStore.saveProfile(idTok, { clinicLogo: kit.clinicLogo });
+    }).then(function (p) {
+      if (p) {
+        profile = p;
+        syncClinicKit();
+        toast("🏥 Clinic logo saved — every new discharge guide will start with it.");
+      }
+    }).catch(function () {});
+  }
   $("ckSave").addEventListener("click", function () {
     var note = $("ckNote");
     var fields = {
@@ -787,6 +808,7 @@
 
   /* ---------- load ---------- */
   function load() {
+    var profileReady = Promise.resolve();
     GotItAuth.idToken().then(function (tok) {
       if (!tok) { showSignin(); return; }
       idTok = tok;
@@ -809,7 +831,9 @@
           isNewUser = true;
           var nm = (user.name && user.name !== user.email) ? user.name : "";
           GotItStore.sendWelcome(idTok, nm).catch(function () {});
-          GotItStore.saveProfile(idTok, nm).then(function (p) { if (p) profile = p; }).catch(function () {});
+          // Kept as `profileReady` so a pending clinic kit saves AFTER the
+          // profile row exists (two racing saves would create duplicates).
+          profileReady = GotItStore.saveProfile(idTok, nm).then(function (p) { if (p) profile = p; }).catch(function () {});
         }
         var items = res[1];
         var pending = getPending();
@@ -833,6 +857,7 @@
         guides = items;
         render();
         syncClinicKit();
+        applyPendingKit(profileReady);
       }).catch(function () {
         showSignin("Your session expired — please sign in again.");
       });

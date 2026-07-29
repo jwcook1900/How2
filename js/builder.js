@@ -53,6 +53,24 @@
       ]
     },
     {
+      // Vet discharge is upload-first: the discharge paperwork already exists,
+      // so showStart() opens the import panel automatically for this category.
+      // The scratch questions below stay available for owners typing it in.
+      id: "vet", emoji: "🩺", name: "Vet Discharge", desc: "After a vet visit",
+      coverSub: "Recovery instructions, made simple",
+      questions: [
+        { id: "name", q: "What's your pet's name?", hint: "We'll title the recovery guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: "'s Recovery Guide" },
+        { id: "visit", q: "What was the visit for?", hint: "A sentence or two — what happened, and the diagnosis or procedure.", ph: "e.g. Desexing surgery on Tuesday. Everything went well…", type: "textarea", target: "section", icon: "📋", sectionTitle: "Visit Summary" },
+        { id: "meds", q: "What medications is {name} going home with?", hint: "Copy them exactly from the paperwork: name, dose, how often, with food or not, start and finish dates.", ph: "Meloxicam 1.5mg/ml — 0.5ml once daily with food, for 5 days starting tomorrow…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Medications" },
+        { id: "care", q: "How should {name} be cared for at home?", hint: "Rest, food and water, toilet breaks, confinement, the cone.", ph: "Quiet rest for 10 days, no jumping or stairs. Small dinner tonight. Cone stays on…", type: "textarea", target: "section", icon: "🏠", sectionTitle: "Care at Home" },
+        { id: "wound", q: "Any wound, stitches or treatment care?", hint: "Checking the site, keeping it dry, bandage changes.", ph: "Check the incision twice a day. Keep it dry — no baths or swimming. Stitches dissolve on their own…", type: "textarea", target: "section", icon: "🩹", sectionTitle: "Wound & Treatment Care" },
+        { id: "normal", q: "What's normal during recovery?", hint: "The expected stuff, so nobody panics.", ph: "Sleepy tonight from the anaesthetic. Small appetite for a day. Mild swelling around the site is expected…", type: "textarea", target: "section", icon: "👍", sectionTitle: "What's Normal" },
+        { id: "concern", q: "When should someone contact the clinic?", hint: "Two lists if you can: call the clinic if…, and seek urgent care if…", ph: "Call the clinic if: not eating after 24 hours, discharge from the wound…\nSeek urgent care if: breathing trouble, repeated vomiting, bleeding…", type: "textarea", target: "section", icon: "📞", sectionTitle: "When to Contact the Clinic" },
+        { id: "followup", q: "Any follow-up appointments or rechecks?", hint: "When, where, and what for.", ph: "Recheck in 10 days for stitch removal — booked for Fri 14th, 3pm…", type: "textarea", target: "section", icon: "📅", sectionTitle: "Follow-Up" },
+        { id: "emergency", q: "Clinic contact details?", hint: "Your clinic, plus the after-hours emergency hospital.", ph: "Clinic: Northside Vet — 9999 1234\nAfter hours: Animal Emergency Centre — 9999 5678", type: "textarea", target: "emergency" }
+      ]
+    },
+    {
       id: "home", emoji: "🏠", name: "Home / Airbnb", desc: "For guests",
       coverSub: "Your guide to a great stay",
       questions: [
@@ -194,6 +212,8 @@
   var IMPORT_EXAMPLES = {
     pet:      { talk: "He eats at 7am and 6pm, walk after lunch, vet is Dr Smith on 9999 1234, and he's scared of the vacuum…",
                 paste: "feeding times, medication, walks, vet details, quirks…" },
+    vet:      { talk: "She had surgery Tuesday, meloxicam once a day with food for five days, keep the cone on, recheck next Friday…",
+                paste: "the discharge summary, medications and doses, wound care, warning signs, the clinic's number…" },
     home:     { talk: "Lockbox code is 1234, the Wi-Fi password's on the fridge, bins go out Tuesday, and the best coffee is around the corner…",
                 paste: "check-in details, Wi-Fi, house rules, local tips, who to call…" },
     kids:     { talk: "Mia naps at 1pm, dinner at 5.30, bath then bed by 7, she's allergic to peanuts, and Leo needs his bear to sleep…",
@@ -224,7 +244,9 @@
   // dropped for short-term rentals (its "who to call" answer goes into a normal
   // section instead, so nothing is lost). Everyone can add either block back
   // from the "add block" row.
-  var ROUTINE_CATS = { pet: 1, kids: 1, care: 1 };
+  // vet is here for medication reminders: mined times feed the routine widget,
+  // whose one-tap "add to calendar" becomes the dose-reminder feature.
+  var ROUTINE_CATS = { pet: 1, kids: 1, care: 1, vet: 1 };
   var NO_EMERGENCY_CATS = { home: 1 };
   function guideBlockDefaults(catId) {
     return { noRoutine: !ROUTINE_CATS[catId], noEmergency: !!NO_EMERGENCY_CATS[catId] };
@@ -530,16 +552,26 @@
     if (autoPasteIntent) {
       autoPasteIntent = false;
       revealImport("paste");
+      return;
+    }
+    // Vet discharge is upload-first: the paperwork already exists, so open the
+    // import panel straight away (photos / PDF / pasted email all feed it).
+    // The start cards above stay usable for owners who'd rather type it in.
+    if (state.category && state.category.id === "vet") {
+      $("startHeading").textContent = "Add the paperwork from your vet";
+      revealImport("paste", true);
     }
   }
 
   // Opens the shared import panel. "talk" and "paste" feed the same AI-organise
   // pipeline — "talk" just reframes the copy to invite the phone keyboard's mic
   // (dictation fills the textarea), which works reliably on iOS + Android.
-  function revealImport(mode) {
+  function revealImport(mode, auto) {
     var talk = mode === "talk";
     var photo = mode === "photo";
-    GotItStore.event("start_" + (photo ? "photo" : talk ? "talk" : "paste")); // analytics (best-effort)
+    // Auto-opens (vet's upload-first start) don't fire the start_* event — that
+    // would make every vet visitor look like they chose the paste path.
+    if (!auto) GotItStore.event("start_" + (photo ? "photo" : talk ? "talk" : "paste")); // analytics (best-effort)
     $("startTalk").classList.toggle("active", talk);
     $("startPaste").classList.toggle("active", mode === "paste");
     if ($("startPhoto")) $("startPhoto").classList.toggle("active", photo);
@@ -558,6 +590,13 @@
     } else {
       help.textContent = "Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.";
       ta.placeholder = "Paste your rough notes here. For example: " + ex.paste;
+    }
+    // Vet discharge: the source is the clinic's paperwork, so the copy invites
+    // photos / the PDF / the emailed summary — and promises the safety net:
+    // nothing gets invented, and anything unclear is flagged to confirm.
+    if (state.category && state.category.id === "vet" && !talk && !photo) {
+      help.textContent = "Snap a photo of each page of the discharge papers, add the PDF, or paste the email from your clinic. We'll turn it into a clear recovery guide — copying every instruction exactly, and flagging anything unclear for you to confirm.";
+      ta.placeholder = "Paste the email or discharge summary from your clinic here — or just add photos of the paperwork below.";
     }
     $("pastePanel").removeAttribute("hidden");
     // Photo mode jumps straight to the camera / photo library.
@@ -827,8 +866,10 @@
     // Every funnel ends with the signature invitation: imported notes never
     // contain a Before You Worry section, so offer the empty amber card in
     // review. Left unfilled, it never appears in the published guide (the
-    // viewer hides placeholder-only sections).
-    if (!sections.some(function (s) { return /before you worry/i.test(s.title || ""); })) {
+    // viewer hides placeholder-only sections). Vet discharge skips it — its
+    // "What's Normal" section already plays that role, clinically.
+    if (cat.id !== "vet" &&
+        !sections.some(function (s) { return /before you worry/i.test(s.title || ""); })) {
       sections.push({ id: uid(), icon: "✨", title: "Before You Worry", body: "", photo: null, videoId: null });
     }
     var contacts = (ai.contacts || [])
@@ -2043,6 +2084,7 @@
   /* Video + photo ideas, written for THIS guide's category. */
   var VIDEO_IDEAS_BY_CAT = {
     pet: "Ideas: giving the medication · fitting the harness · commands · the walking routine",
+    vet: "Ideas: giving the medication · checking the wound · fitting the cone · the bandage change",
     kids: "Ideas: the bedtime routine · preparing bottles · medication · the car seat · the comfort routine",
     home: "Ideas: the alarm · locking up · the coffee machine · the fireplace · pool controls · the garage",
     default: "Ideas: anything that's easier to demonstrate than describe",
@@ -2051,6 +2093,7 @@
   // instruction: the details that are far easier to show than write.
   var PHOTO_IDEAS_BY_CAT = {
     pet: "Ideas: food · medication · the harness · a favourite toy · the sleeping spot",
+    vet: "Ideas: the medications lined up · the wound today (for comparison) · the discharge sheet · the recovery crate",
     kids: "Ideas: the lunchbox · school bag · a favourite teddy · medication · the drink bottle",
     home: "Ideas: the key safe · garage · thermostat · bins · pool controls",
     default: "Ideas: anything that's easier to show than describe",
@@ -2065,6 +2108,10 @@
     if (cat === "housesit") cat = "home"; // same domain, same hints
     var ideas = $("videoIdeas");
     if (ideas) ideas.textContent = VIDEO_IDEAS_BY_CAT[cat] || VIDEO_IDEAS_BY_CAT.default;
+    // The veterinary-advice disclaimer sits above the publish bar for vet
+    // guides only (it also appears in the published guide itself).
+    var vn = $("vetNote");
+    if (vn) vn.hidden = cat !== "vet";
   }
 
   function renderGuideEditor() {
@@ -2717,7 +2764,13 @@
     // "Before You Worry" is the signature section — it gets a warm accent and
     // a line explaining why it exists (matched on title so imports get it too)
     var isByw = /before you worry/i.test(sec.title || "");
-    el.className = "guide-section" + (openFirst ? " open" : "") + (isByw ? " sec-byw" : "");
+    // Vet guides mirror the viewer's chrome in the editor, so what the owner
+    // reviews looks like what a carer will see.
+    var isVet = state.guide && state.guide.category === "vet";
+    var vetCls = "";
+    if (isVet && /medication/i.test(sec.title || "")) vetCls = " sec-med";
+    else if (isVet && /emergency|urgent|warning/i.test(sec.title || "")) vetCls = " sec-urgent";
+    el.className = "guide-section" + (openFirst ? " open" : "") + (isByw ? " sec-byw" : "") + vetCls;
     el.dataset.id = sec.id;
 
     el.innerHTML =
@@ -3160,7 +3213,7 @@
     el.innerHTML =
       '<div class="em-head">' +
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
-        "<span>🚨 Emergency Contacts</span>" +
+        "<span>" + (g.category === "vet" ? "📞 Clinic & Emergency Contacts" : "🚨 Emergency Contacts") + "</span>" +
       "</div>";
     enableDrag(el.querySelector(".drag-handle"), el);
     addBlockRemoveBtn(el.querySelector(".em-head"), "Remove emergency contacts", function () { removeWidget("emergency", el); });
@@ -3505,6 +3558,13 @@
       ["✈️", "Travel"], ["🩺", "Vet Visits"], ["🎾", "Toys"],
       ["🍽️", "Feeding"], ["💊", "Medication"], ["📷", "Photos"], ["📄", "Documents"],
     ],
+    vet: [
+      ["📋", "Visit Summary"], ["🩺", "Diagnosis & Procedure"], ["💊", "Medications"],
+      ["🏠", "Care at Home"], ["🩹", "Wound & Treatment Care"], ["🍽️", "Feeding & Water"],
+      ["🚶", "Exercise & Restrictions"], ["👍", "What's Normal"],
+      ["📞", "When to Contact the Clinic"], ["🚨", "Emergency Warning Signs"],
+      ["📅", "Follow-Up"], ["📷", "Photos"], ["📄", "Documents"],
+    ],
     kids: [
       ["🎒", "School"], ["📚", "Homework"], ["🛁", "Bath Time"],
       ["🦷", "Teeth"], ["💊", "Medication"], ["🎵", "Activities"],
@@ -3717,10 +3777,49 @@
      guide (persisted in its payload) so it never asks again. */
   function publish() {
     var g = state.guide;
+    // Vet discharge guides carry medical instructions: before the first
+    // publish, the owner explicitly confirms the clinical details against the
+    // vet's paperwork. Later saves don't re-gate, but unresolved ⚠️ flags get
+    // a reminder (they also stay highlighted in the published guide).
+    if (g.category === "vet" && !g.vetCheckDone) { openVetCheck(); return; }
+    if (g.category === "vet" && vetFlagCount() > 0) {
+      showToast("Reminder: your guide still has ⚠️ details to confirm with your clinic.");
+    }
     if (!g.cover && !g.coverAskDone) { $("coverAskModal").hidden = false; return; }
     doPublish();
   }
   function closeCoverAsk() { $("coverAskModal").hidden = true; }
+
+  // Counts the "⚠️ Check with your clinic: …" flags the AI leaves wherever the
+  // discharge document was missing, unclear or contradictory. They live in the
+  // section text itself, so the count survives editing — resolving one means
+  // deleting the line after confirming the detail.
+  function vetFlagCount() {
+    var n = 0;
+    ((state.guide && state.guide.sections) || []).forEach(function (s) {
+      var m = (s.body || "").replace(/<[^>]*>/g, "").match(/⚠️/g);
+      if (m) n += m.length;
+    });
+    return n;
+  }
+  function openVetCheck() {
+    var flags = vetFlagCount();
+    var note = $("vetCheckFlags");
+    if (note) {
+      note.hidden = !flags;
+      if (flags) {
+        note.textContent = "⚠️ " + flags + (flags === 1 ? " detail was" : " details were") +
+          " unclear in the paperwork and still need" + (flags === 1 ? "s" : "") +
+          " confirming — look for the ⚠️ lines in your guide and update them once your clinic confirms.";
+      }
+    }
+    var box = $("vetCheckBox");
+    if (box) box.checked = false;
+    var go = $("vetCheckGo");
+    if (go) go.disabled = true;
+    $("vetCheckModal").hidden = false;
+  }
+  function closeVetCheck() { $("vetCheckModal").hidden = true; }
 
   // The publish moment earns more ceremony than a button saying "Saving…":
   // dim the screen, float the guide's emoji among sparkles while it stores,
@@ -4479,6 +4578,20 @@
     if (!coverEl) { doPublish(); return; }
     pickCover(coverEl, function () { doPublish(); });
   });
+  // Vet safety check: the confirm button stays disabled until the checkbox is
+  // ticked; confirming re-enters publish(), which continues to the cover
+  // nudge / actual publish. ✕/backdrop just close (asks again next time).
+  Array.prototype.forEach.call(document.querySelectorAll("[data-vetcheck-close]"), function (el) {
+    el.addEventListener("click", closeVetCheck);
+  });
+  if ($("vetCheckBox")) $("vetCheckBox").addEventListener("change", function () {
+    $("vetCheckGo").disabled = !this.checked;
+  });
+  if ($("vetCheckGo")) $("vetCheckGo").addEventListener("click", function () {
+    state.guide.vetCheckDone = true;
+    closeVetCheck();
+    publish();
+  });
   $("masterPolishBtn").addEventListener("click", masterPolish);
   $("editAgain").addEventListener("click", function () { showStep(3); });
 
@@ -4677,6 +4790,7 @@
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
+    if (e.key === "Escape" && $("vetCheckModal") && !$("vetCheckModal").hidden) closeVetCheck();
     if (e.key === "Escape" && $("secPickModal") && !$("secPickModal").hidden) $("secPickModal").hidden = true;
     // Escape on the keep nudge counts as the skip (same logging rules)
     if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();

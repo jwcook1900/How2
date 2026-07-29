@@ -106,6 +106,12 @@
       "</div>" +
     "</div>";
 
+  // Vet discharge guides carry the veterinary-advice disclaimer right under
+  // the cover — on screen and in print.
+  if (guide.category === "vet") {
+    html += '<p class="vet-disclaimer">This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>';
+  }
+
   // Subtle hint so sitters notice the routine + calendar option.
   var hasRoutine = !guide.noRoutine && guide.routine && guide.routine.items &&
     guide.routine.items.some(function (it) { return it.times && it.times.length; });
@@ -168,7 +174,17 @@
     // real content — never show it (or an empty body) in the published guide.
     var textOnly = (sec.body || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     var bodyHtml = (textOnly === "" || textOnly === "Tap to add details…") ? "" : GotItStore.renderBody(sec.body);
-    var open = firstSectionOpen ? " open" : "";
+    // Vet discharge: medications and urgent-warning sections are the two
+    // things a carer scans for, so they open by default and get their own
+    // chrome; any unresolved "⚠️ Check with your clinic" flags stand out too.
+    var isVet = guide.category === "vet";
+    var vetCls = "";
+    if (isVet && /medication/i.test(sec.title || "")) vetCls = " sec-med";
+    else if (isVet && /emergency|urgent|warning/i.test(sec.title || "")) vetCls = " sec-urgent";
+    if (isVet && bodyHtml && bodyHtml.indexOf("⚠️") >= 0) {
+      bodyHtml = bodyHtml.replace(/⚠️\s*([^<]*)/g, '<mark class="vet-flag">⚠️ $1</mark>');
+    }
+    var open = (firstSectionOpen || vetCls) ? " open" : "";
     firstSectionOpen = false;
     // "Before You Worry" gets its warm signature treatment in the published
     // guide too — same title match as the editor.
@@ -176,7 +192,7 @@
     if (byw && bodyHtml) {
       bodyHtml = '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' + bodyHtml;
     }
-    return '<div class="guide-section' + open + byw + '" data-sec="' + esc(sec.id) + '">' +
+    return '<div class="guide-section' + open + byw + vetCls + '" data-sec="' + esc(sec.id) + '">' +
         '<button class="acc-header" type="button">' +
           (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
           '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
@@ -191,7 +207,9 @@
   function emergencyHtml() {
     if (guide.noEmergency) return "";
     if (!(guide.contacts && guide.contacts.length)) return "";
-    var s = '<div class="guide-emergency"><div class="em-head">🚨 Emergency Contacts</div>';
+    // Vet guides hold the clinic + after-hours hospital here, so the label says so.
+    var s = '<div class="guide-emergency"><div class="em-head">' +
+      (guide.category === "vet" ? "📞 Clinic & Emergency Contacts" : "🚨 Emergency Contacts") + "</div>";
     guide.contacts.forEach(function (c) {
       s += '<div class="contact-row">' +
           '<span class="contact-label">' + esc(c.label) + "</span>" +

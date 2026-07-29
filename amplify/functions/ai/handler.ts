@@ -80,7 +80,60 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   let maxTokens = 1024;
   let userContent: string | Block[];
 
-  if (mode === "import") {
+  // Veterinary discharge guides carry clinical instructions, so the import
+  // prompt is stricter: transcribe-only, never infer, and flag anything
+  // missing or ambiguous for the owner to confirm before publishing.
+  const isVet = /vet|discharge/i.test(category);
+
+  if (mode === "import" && isVet) {
+    maxTokens = 3072;
+    system =
+      "You turn a veterinary discharge document (a scan, photo, PDF or email from a vet clinic, and/or " +
+      "the owner's typed notes) into a structured GotIt Guides recovery guide the pet's owner and carers " +
+      "can follow at home. " +
+      "Return ONLY a JSON object of this exact shape: " +
+      '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}]}. ' +
+      'Title: use "<Pet name>\'s Recovery Guide" when the pet\'s name appears in the document, otherwise "Recovery Guide". ' +
+      "Prefer these sections, in this order, but include ONLY the ones the document actually supports: " +
+      "📋 Visit Summary; 🩺 Diagnosis & Procedure; 💊 Medications; 🏠 Care at Home; " +
+      "🩹 Wound & Treatment Care; 👍 What's Normal; 📞 When to Contact the Clinic; " +
+      "🚨 Emergency Warning Signs; 📅 Follow-Up. " +
+      "Medications: one block per medication, blocks separated by a blank line. Start each block with the " +
+      "medication name and strength on its own line, then only the labelled lines the document supports, " +
+      'chosen from: "Dose:", "How often:", "With food:", "Start / finish:", "Special instructions:", ' +
+      '"If a dose is missed:". ' +
+      '"When to Contact the Clinic": when the document distinguishes them, use two labelled lists — ' +
+      '"Call the clinic if:" and "Seek urgent care if:". ' +
+      "SAFETY-CRITICAL RULES: " +
+      "Transcribe every clinical detail EXACTLY as written — medication names, strengths, doses, " +
+      "frequencies, durations, dates, restrictions. Never invent, infer, calculate, round, or fill in a " +
+      '"typical" value for anything. ' +
+      "If a detail an owner needs is missing, illegible, ambiguous, or contradicted elsewhere in the " +
+      'document, do NOT guess: add a line in the relevant section of the exact form ' +
+      '"⚠️ Check with your clinic: <what was unclear>" — for example ' +
+      '"⚠️ Check with your clinic: how often to give this medication was unclear in the notes." ' +
+      "Write calmly, clearly and reassuringly, in plain language; where the document uses a medical term " +
+      "an owner may not know, keep it and add a short plain-language explanation in brackets. " +
+      "Put the clinic's name and phone number, and any after-hours or emergency hospital numbers, into " +
+      "contacts (label + value). Skip the document's boilerplate legal or billing text. " +
+      "Do not add any advice, section or detail the document does not contain.";
+
+    const blocks: Block[] = [];
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+      }
+    }
+    const instruction = blocks.length
+      ? (text ? "My notes:\n" + text + "\n\n" : "") +
+        "Build the recovery guide from the attached discharge document" +
+        (blocks.length > 1 ? "s" : "") + (text ? " and the notes above." : ".")
+      : text;
+    blocks.push({ type: "text", text: instruction || "Build a recovery guide." });
+    userContent = blocks;
+  } else if (mode === "import") {
     maxTokens = 2048;
     system =
       "You turn a person's existing notes (and any attached file) into a structured GotIt Guides guide. " +

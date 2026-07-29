@@ -58,11 +58,17 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.owner()]),
 
-  // A signed-in user's lightweight profile (just a display name for now, so the
-  // dashboard greets them by name instead of showing their email). Owner-scoped.
+  // A signed-in user's lightweight profile: a display name (so the dashboard
+  // greets them by name), plus the "clinic kit" — a vet clinic's logo and
+  // contact details, set once and stamped onto every new vet discharge guide
+  // they create. Owner-scoped.
   UserProfile: a
     .model({
       displayName: a.string(),
+      clinicName: a.string(),
+      clinicPhone: a.string(),
+      clinicAfterHours: a.string(),
+      clinicLogo: a.string(), // small data URL (PNG/SVG — transparency kept)
     })
     .authorization((allow) => [allow.owner()]),
 

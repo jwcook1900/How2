@@ -240,32 +240,66 @@ window.GotItStore = (function () {
       });
     },
 
-    /* ---- User profile (display name) ---- */
+    /* ---- User profile (display name + the clinic kit) ---- */
     getProfile: function (idToken) {
+      var sel = "{ id displayName clinicName clinicPhone clinicAfterHours clinicLogo }";
       return loadConfig().then(function (cfg) {
         if (!cfg) return null;
         return gqlAuth(cfg,
-          "query { listUserProfiles { items { id displayName } } }", {}, idToken
+          "query { listUserProfiles { items " + sel + " } }", {}, idToken
         ).then(function (d) {
           var items = (d.listUserProfiles && d.listUserProfiles.items) || [];
           return items[0] || null;
         });
       });
     },
-    saveProfile: function (idToken, displayName) {
+    // `fields` is either a display-name string (legacy callers) or an object of
+    // profile fields to set ({ displayName, clinicName, clinicPhone,
+    // clinicAfterHours, clinicLogo }) — only the given fields are touched.
+    saveProfile: function (idToken, fields) {
       var self = this;
+      var sel = "{ id displayName clinicName clinicPhone clinicAfterHours clinicLogo }";
+      var patch = typeof fields === "string" ? { displayName: fields } : (fields || {});
       return self.getProfile(idToken).then(function (existing) {
         return loadConfig().then(function (cfg) {
           if (existing && existing.id) {
+            var input = { id: existing.id };
+            for (var k in patch) if (patch.hasOwnProperty(k)) input[k] = patch[k];
             return gqlAuth(cfg,
-              "mutation($input: UpdateUserProfileInput!) { updateUserProfile(input: $input) { id displayName } }",
-              { input: { id: existing.id, displayName: displayName } }, idToken
+              "mutation($input: UpdateUserProfileInput!) { updateUserProfile(input: $input) " + sel + " }",
+              { input: input }, idToken
             ).then(function (d) { return d.updateUserProfile; });
           }
           return gqlAuth(cfg,
-            "mutation($input: CreateUserProfileInput!) { createUserProfile(input: $input) { id displayName } }",
-            { input: { displayName: displayName } }, idToken
+            "mutation($input: CreateUserProfileInput!) { createUserProfile(input: $input) " + sel + " }",
+            { input: patch }, idToken
           ).then(function (d) { return d.createUserProfile; });
+        });
+      });
+    },
+    // Reads an image file into a logo-sized data URL, preserving transparency
+    // (JPEG re-encoding would paint transparent backgrounds black). Shared by
+    // the builder's logo picker and the dashboard's clinic kit.
+    logoFromFile: function (file) {
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function () { resolve(String(r.result)); };
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      }).then(function (srcUrl) {
+        if (srcUrl.length < 120000) return srcUrl;
+        return new Promise(function (resolve) {
+          var img = new Image();
+          img.onload = function () {
+            var scale = Math.min(1, 480 / Math.max(img.width, img.height));
+            var canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            try { resolve(canvas.toDataURL("image/png")); } catch (e) { resolve(srcUrl); }
+          };
+          img.onerror = function () { resolve(srcUrl); };
+          img.src = srcUrl;
         });
       });
     },

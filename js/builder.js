@@ -871,9 +871,18 @@
         if (!fp) return;
         if (fp.error) throw new Error(fp.error);
         if (fp.text) texts.push(fp.text);
+        else if (fp.pages) { // a big PDF, rasterised into page images
+          fp.pages.forEach(function (p) { fileDatas.push(p.data); fileTypes.push(p.type); });
+        }
         else if (fp.data) { fileDatas.push(fp.data); fileTypes.push(fp.type); }
       });
     })).then(function () {
+      // One Lambda call carries everything — over its ~6MB ceiling the request
+      // dies with a cryptic transport error, so fail it here with a real message.
+      var total = fileDatas.reduce(function (s, d) { return s + d.length; }, 0);
+      if (total > 5.2 * 1024 * 1024) {
+        return { error: "That's more than can be read in one go — try fewer files or photos." };
+      }
       return { fileDatas: fileDatas, fileTypes: fileTypes, text: texts.join("\n\n") };
     }, function (e) {
       return { error: (e && e.message) || "Couldn't read one of those files." };
@@ -936,8 +945,12 @@
       });
     }
     if (isPdf) {
-      if (file.size > 4.5 * 1024 * 1024) {
-        return Promise.resolve({ error: "That PDF is too large (max ~4MB). Try a smaller file or paste the text." });
+      // Small PDFs travel whole (best fidelity — the AI reads the text layer).
+      // Bigger ones would blow the request ceiling (~6MB per Lambda call), so
+      // they're rasterised page-by-page into compressed photos instead — the
+      // same shape as the "photos of the paperwork" path.
+      if (file.size > PDF_WHOLE_LIMIT) {
+        return rasterizePdf(file);
       }
       return readAsBase64(file).then(function (b64) { return { data: b64, type: "application/pdf" }; });
     }
@@ -953,6 +966,91 @@
       r.onload = function () { resolve(String(r.result).split(",")[1]); };
       r.onerror = reject;
       r.readAsDataURL(file);
+    });
+  }
+
+  /* ---------- Big PDFs: rasterise client-side ----------
+     The AI request rides one Lambda invocation, whose payload tops out near
+     6MB — so a PDF can only travel whole up to ~4.5MB of raw bytes. Practice
+     software regularly exports far bigger files (embedded scans, letterheads),
+     and "make the file smaller" is not something a front desk can do. Instead,
+     pdf.js (vendored, loaded only when first needed) draws each page to a
+     canvas and the pages travel as compressed JPEGs. */
+  var PDF_WHOLE_LIMIT = 4.5 * 1024 * 1024;  // ≤ this: send the PDF as-is
+  var PDF_INPUT_LIMIT = 60 * 1024 * 1024;   // sanity ceiling for rasterising
+  var PDF_MAX_PAGES = 20;
+  var PDF_BUDGET = 4.0 * 1024 * 1024;       // combined base64 across all pages
+  var pdfJsPromise = null;
+  function loadPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (pdfJsPromise) return pdfJsPromise;
+    pdfJsPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "js/vendor/pdfjs/pdf.min.js";
+      s.onload = function () {
+        if (!window.pdfjsLib) { reject(new Error("pdf.js failed to load")); return; }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "js/vendor/pdfjs/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      s.onerror = function () { pdfJsPromise = null; reject(new Error("pdf.js failed to load")); };
+      document.head.appendChild(s);
+    });
+    return pdfJsPromise;
+  }
+  // Renders every page at `maxDim`/`quality`; resolves with base64 JPEGs.
+  function renderPdfPages(pdf, pages, maxDim, quality) {
+    var out = [];
+    var chain = Promise.resolve();
+    pages.forEach(function (n) {
+      chain = chain.then(function () {
+        return pdf.getPage(n).then(function (page) {
+          var vp = page.getViewport({ scale: 1 });
+          var scale = Math.min(2.5, maxDim / Math.max(vp.width, vp.height));
+          var v = page.getViewport({ scale: scale });
+          var canvas = document.createElement("canvas");
+          canvas.width = Math.round(v.width);
+          canvas.height = Math.round(v.height);
+          var cx = canvas.getContext("2d");
+          cx.fillStyle = "#fff"; // JPEG has no alpha — unpainted areas would go black
+          cx.fillRect(0, 0, canvas.width, canvas.height);
+          return page.render({ canvasContext: cx, viewport: v }).promise.then(function () {
+            out.push(canvas.toDataURL("image/jpeg", quality).split(",")[1]);
+          });
+        });
+      });
+    });
+    return chain.then(function () { return out; });
+  }
+  // Turns a too-big PDF into { pages: [{data,type},…] } (or { error }).
+  function rasterizePdf(file) {
+    if (file.size > PDF_INPUT_LIMIT) {
+      return Promise.resolve({ error: "That PDF is over 60MB — export it smaller or paste the text instead." });
+    }
+    return loadPdfJs().then(function (lib) {
+      return file.arrayBuffer().then(function (buf) {
+        return lib.getDocument({ data: buf }).promise;
+      });
+    }).then(function (pdf) {
+      if (pdf.numPages > PDF_MAX_PAGES) {
+        return { error: "That PDF has " + pdf.numPages + " pages — up to " + PDF_MAX_PAGES +
+          " can be read at once. Split it, or paste the text instead." };
+      }
+      var pages = [];
+      for (var n = 1; n <= pdf.numPages; n++) pages.push(n);
+      return renderPdfPages(pdf, pages, 1600, 0.78).then(function (datas) {
+        var total = datas.reduce(function (s, d) { return s + d.length; }, 0);
+        // Too heavy at full size (dense scans): one retry, smaller and rougher.
+        if (total > PDF_BUDGET) return renderPdfPages(pdf, pages, 1100, 0.6);
+        return datas;
+      }).then(function (datas) {
+        var total = datas.reduce(function (s, d) { return s + d.length; }, 0);
+        if (total > PDF_BUDGET) {
+          return { error: "That PDF is too image-heavy to read here — try photos of the pages, or paste the text." };
+        }
+        return { pages: datas.map(function (d) { return { data: d, type: "image/jpeg" }; }) };
+      });
+    }).catch(function () {
+      return { error: "Couldn't read that PDF — it may be damaged or protected. Paste the text instead." };
     });
   }
 
@@ -1042,18 +1140,20 @@
     var seen = false;
     try { seen = !!localStorage.getItem(LOGO_NOTE_KEY); } catch (e) {}
     if (seen) {
-      if (signedIn) showToast("Logo saved — future discharge guides will start with it.");
+      showToast(signedIn
+        ? "Logo saved — future discharge guides will start with it."
+        : "Logo added. Save it for future guides with a free account — we'll ask after publishing.");
       return;
     }
     try { localStorage.setItem(LOGO_NOTE_KEY, "1"); } catch (e) {}
     var m = $("logoKitModal");
     if (!m) return;
     $("logoKitTitle").textContent = signedIn
-      ? "🏥 Saved for next time."
-      : "🏥 Want this on every discharge guide?";
+      ? "🏥 Thanks — saved for next time."
+      : "🏥 Thanks — want this on every guide?";
     $("logoKitLead").textContent = signedIn
-      ? "Your logo is now in My clinic on your dashboard — every new discharge guide will start with it automatically. Your clinic's phone and after-hours numbers can live there too."
-      : "Right now the logo is on this guide only. With a free account it's saved once and added to every new discharge guide automatically — along with your clinic's contact details. You can set that up right after publishing.";
+      ? "Your logo now lives in My clinic on your dashboard, so every new discharge guide starts with it automatically. Your clinic's phone and after-hours numbers can live there too."
+      : "Looks great. Right now the logo is on this guide only — with a free account it's saved once and stamped on every new discharge guide automatically, along with your clinic's contact details. A real time-saver for the front desk. We'll ask about that after publishing, so keep going.";
     m.hidden = false;
   }
 
@@ -1465,12 +1565,18 @@
           showToast("Added — tidy it with ✨ Polish.");
           done(); return;
         }
-        // image / PDF — let the AI read it for this field
+        // image / PDF — let the AI read it for this field. A big PDF arrives
+        // rasterised as page images, sent through the multi-file arguments.
         var ctx = aiCtx(opts.question);
-        GotItStore.ai("field", {
-          category: ctx.category, question: ctx.question,
-          fileData: payload.data, fileType: payload.type
-        }).then(function (res) {
+        var aiOpts = { category: ctx.category, question: ctx.question };
+        if (payload.pages) {
+          aiOpts.fileDatas = payload.pages.map(function (p) { return p.data; });
+          aiOpts.fileTypes = payload.pages.map(function (p) { return p.type; });
+        } else {
+          aiOpts.fileData = payload.data;
+          aiOpts.fileType = payload.type;
+        }
+        GotItStore.ai("field", aiOpts).then(function (res) {
           if (!res) { showToast("AI isn't available right now — try typing it in."); done(); return; }
           var t = (res.text || "").trim();
           if (!t) { showToast("Couldn't find anything to add from that file."); done(); return; }
@@ -4388,6 +4494,14 @@
     if (!m) return;
     $("keepNote").hidden = true;
     $("keepSkip").textContent = "Skip for now (it stays saved on this device)";
+    // The promise made when a clinic added its logo lands here: an account is
+    // also what saves the clinic kit, so every future guide starts stamped.
+    var lead = m.querySelector(".feedback-lead");
+    if (lead) {
+      lead.textContent = (state.guide && state.guide.category === "vet" && state.guide.clinicLogo)
+        ? "Your guide is live! A free account keeps your edit access AND saves your clinic's logo and contacts, so every future discharge guide starts with them automatically."
+        : "Your guide is live! To edit it later you'll need a way back in. Save it to a free account with Google, or keep your private edit link somewhere safe.";
+    }
     m.hidden = false;
     GotItStore.event("keep_show", state.guide && state.guide.slug);
     var d = $("keepDash");
@@ -5100,6 +5214,13 @@
       } else {
         // Stash and sign in; dashboard.js finishes the save after the redirect.
         try { localStorage.setItem("gotit_pending_save", JSON.stringify(payload)); } catch (e) {}
+        // A vet guide's clinic logo rides along too, so the new account's
+        // clinic kit starts with it (what the logo popup promised).
+        if (state.guide && state.guide.category === "vet" && state.guide.clinicLogo) {
+          try {
+            localStorage.setItem("gotit_pending_clinickit", JSON.stringify({ clinicLogo: state.guide.clinicLogo }));
+          } catch (e) {}
+        }
         btn.disabled = true;
         saveDashNote("Taking you to sign in…", false);
         GotItAuth.signInWithGoogle().catch(function (e) {

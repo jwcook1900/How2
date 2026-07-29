@@ -1176,26 +1176,6 @@ ul { margin: 0; padding: 0; list-style: none; }
   color: var(--ink);
   box-shadow: var(--shadow-sm);
 }
-.vets-quote {
-  max-width: 640px;
-  margin: 0 auto 34px;
-  padding: 22px 26px;
-  background: var(--white);
-  border-left: 4px solid var(--coral);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.45;
-}
-.vets-quote cite {
-  display: block;
-  margin-top: 10px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  font-style: normal;
-  color: var(--ink-muted);
-}
 /* Workflow timeline: six quiet steps down the page, joined by a line. */
 .vets-flow {
   list-style: none;

@@ -28,15 +28,19 @@ export const handler: Schema["sendFeedback"]["functionHandler"] = async (event) 
   const hasImage =
     !!image && /^(image\/jpeg|image\/png|image\/webp)$/.test(imageType) && image.length < 12_000_000;
 
+  // Demo requests from the vets page ride this same pipe; give them their own
+  // subject so they never drown in general feedback.
+  const isDemo = /\bdemo\b/i.test(context);
+
   const text =
-    "New GotIt Guides feedback\n\n" + message + "\n\n—\n" +
+    (isDemo ? "New demo request — Digital Recovery Guides" : "New GotIt Guides feedback") + "\n\n" + message + "\n\n—\n" +
     "From: " + (replyOk ? email : "(not provided)") + "\n" +
     "Context: " + (context || "(none)") +
     (hasImage ? "\n(Screenshot attached)" : "");
 
   const html =
     '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#1A1A1A">' +
-    '<h2 style="font-size:18px">New GotIt Guides feedback</h2>' +
+    '<h2 style="font-size:18px">' + (isDemo ? "New demo request — Digital Recovery Guides" : "New GotIt Guides feedback") + "</h2>" +
     '<p style="white-space:pre-wrap;background:#F7F7F7;padding:14px 16px;border-radius:8px;margin:0 0 16px">' +
     esc(message) + "</p>" +
     '<p style="margin:4px 0;color:#555"><strong>From:</strong> ' + (replyOk ? esc(email) : "(not provided)") + "</p>" +
@@ -44,7 +48,7 @@ export const handler: Schema["sendFeedback"]["functionHandler"] = async (event) 
     (hasImage ? '<p style="margin:8px 0 0;color:#555">📎 Screenshot attached.</p>' : "") +
     "</div>";
 
-  const subject = "GotIt Guides feedback";
+  const subject = isDemo ? "Demo request — Digital Recovery Guides" : "GotIt Guides feedback";
 
   // Resend takes attachments natively (base64 content), so the screenshot is
   // just another field — no hand-rolled MIME needed.

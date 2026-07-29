@@ -6,7 +6,7 @@ actually understand and follow the care plan once they leave the clinic.
 
 ## Origin
 
-James showed Whiskey's GotIt Guide to his vet (Dr Hunt) and a senior nurse at
+James showed Whiskey's GotIt Guide to his treating vet and a senior nurse at
 the end of a consultation about Whiskey's ongoing care (idiopathic epilepsy,
 medication three times a day, chronic lip fold dermatitis, environmental
 seizure triggers). Unprompted, they stopped talking about pet sitters and

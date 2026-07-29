@@ -55,7 +55,7 @@
             system, no app for owners to download.
           </p>
           <div class="hero-cta">
-            <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-primary btn-lg" data-evt="vets_cta" data-evt-slug="demo">Request a demo</a>
+            <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-primary btn-lg" data-demo-open data-evt="vets_cta" data-evt-slug="demo">Request a demo</a>
             <a href="builder.html?cat=vet" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="hero">Try it with your own notes</a>
           </div>
           <ul class="hero-reassure">
@@ -149,10 +149,6 @@
             owners understand them once they leave the clinic.
           </p>
         </div>
-        <blockquote class="vets-quote">
-          "People don't listen to me. They're distracted."
-          <cite>Dr Hunt, during Whiskey's discharge consultation. This product exists because of that sentence.</cite>
-        </blockquote>
         <div class="trust-grid">
           <div class="trust-item">
             <div class="trust-emoji">😵‍💫</div>
@@ -218,7 +214,7 @@
             Upload a real discharge sheet and see the Digital Recovery Guide it becomes, in about a
             minute. Free while we work with our first clinics.
           </p>
-          <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="footer_demo">Request a demo</a>
+          <a href="mailto:jamescook@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo" class="btn btn-ghost btn-lg" data-demo-open data-evt="vets_cta" data-evt-slug="footer_demo">Request a demo</a>
           <a href="builder.html?cat=vet" class="btn btn-ghost btn-lg" data-evt="vets_cta" data-evt-slug="footer">Try it now</a>
         </div>
       </div>
@@ -241,6 +237,28 @@
     </div>
   </footer>
 
+  <!-- Request a demo: a small form that emails the team. The CTAs keep their
+       mailto hrefs so the page still works if this script never runs. -->
+  <div class="feedback-modal" id="demoModal" hidden>
+    <div class="feedback-backdrop" data-demo-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-demo-close>×</button>
+      <h3 class="feedback-title" id="demoTitle">Request a demo<span class="accent">.</span></h3>
+      <p class="feedback-lead">Tell us where to reach you and we'll set up a walkthrough with your clinic's own discharge notes. It takes about fifteen minutes.</p>
+      <form id="demoForm" novalidate>
+        <input class="q-input" id="demoName" type="text" placeholder="Your name" autocomplete="name" />
+        <input class="q-input" id="demoClinic" type="text" placeholder="Clinic name" autocomplete="organization" />
+        <input class="q-input" id="demoEmail" type="email" placeholder="Email" autocomplete="email" required />
+        <input class="q-input" id="demoPhone" type="tel" placeholder="Phone (optional)" autocomplete="tel" />
+        <textarea class="q-textarea" id="demoMsg" placeholder="Anything you'd like us to know? (optional)" rows="3"></textarea>
+        <p class="feedback-note" id="demoNote" hidden></p>
+        <div class="feedback-actions">
+          <button class="btn btn-primary" id="demoSend" type="submit">Send request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="js/store.js"></script>
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
@@ -249,6 +267,65 @@
       var el = e.target.closest("[data-evt]");
       if (el && window.GotItStore) GotItStore.event(el.getAttribute("data-evt"), el.getAttribute("data-evt-slug") || null);
     });
+
+    // Request-a-demo modal: opens from either CTA, sends through the same
+    // pipeline as in-app feedback (stored + emailed to the team).
+    (function () {
+      var modal = document.getElementById("demoModal");
+      var note = document.getElementById("demoNote");
+      function openDemo() {
+        note.hidden = true;
+        modal.hidden = false;
+        setTimeout(function () { document.getElementById("demoName").focus(); }, 50);
+      }
+      function closeDemo() { modal.hidden = true; }
+      document.addEventListener("click", function (e) {
+        var open = e.target.closest("[data-demo-open]");
+        if (open) { e.preventDefault(); openDemo(); return; }
+        if (e.target.closest("[data-demo-close]")) closeDemo();
+      });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !modal.hidden) closeDemo();
+      });
+      document.getElementById("demoForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var email = document.getElementById("demoEmail").value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          note.textContent = "Please add an email so we can get back to you.";
+          note.className = "feedback-note error";
+          note.hidden = false;
+          return;
+        }
+        var name = document.getElementById("demoName").value.trim();
+        var clinic = document.getElementById("demoClinic").value.trim();
+        var phone = document.getElementById("demoPhone").value.trim();
+        var msg = document.getElementById("demoMsg").value.trim();
+        var message = "Demo request from the vets page.\n\n" +
+          "Name: " + (name || "(not given)") + "\n" +
+          "Clinic: " + (clinic || "(not given)") + "\n" +
+          "Email: " + email + "\n" +
+          "Phone: " + (phone || "(not given)") +
+          (msg ? "\n\nNotes:\n" + msg : "");
+        var btn = document.getElementById("demoSend");
+        btn.disabled = true; btn.textContent = "Sending…";
+        GotItStore.feedback({ message: message, email: email, context: "demo request · vets.html" })
+          .then(function (res) {
+            if (res && res.cloud === false) throw new Error("offline");
+            note.textContent = "Thanks — we'll be in touch within a day. 🙌";
+            note.className = "feedback-note ok";
+            note.hidden = false;
+            GotItStore.event("vets_demo_sent", null);
+            setTimeout(closeDemo, 1800);
+          })
+          .catch(function () {
+            note.innerHTML = "Couldn't send just now — please email " +
+              '<a href="mailto:hello@gotitguides.com?subject=Digital%20Recovery%20Guides%20demo">hello@gotitguides.com</a> instead.';
+            note.className = "feedback-note error";
+            note.hidden = false;
+          })
+          .then(function () { btn.disabled = false; btn.textContent = "Send request"; });
+      });
+    })();
   </script>
 </body>
 </html>

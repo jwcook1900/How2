@@ -173,18 +173,21 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       "times, doses, addresses) and keep any list structure. Write it clearly and concisely. Do not invent " +
       "anything. If there is no relevant content, return an empty string. " +
       "Return only the field text — no preamble, headings, or quotes.";
+    // `files` may be one attachment, or several (a big PDF arrives from the
+    // client rasterised into one image per page).
     const blocks: Block[] = [];
-    if (fileData && fileType) {
-      if (fileType === "application/pdf") {
-        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: fileData } });
-      } else if (fileType.indexOf("image/") === 0) {
-        blocks.push({ type: "image", source: { type: "base64", media_type: fileType, data: fileData } });
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
       }
     }
     blocks.push({
       type: "text",
       text: (text ? "Existing notes for this field:\n" + text + "\n\n" : "") +
-        "Write this field's content from the attached file" + (text ? ", merged with the notes above." : "."),
+        "Write this field's content from the attached file" + (blocks.length > 1 ? "(s)" : "") +
+        (text ? ", merged with the notes above." : "."),
     });
     userContent = blocks;
   } else if (mode === "guide") {

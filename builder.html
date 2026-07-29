@@ -190,6 +190,7 @@
           <p class="polish-all-hint">A quick AI read-through to tidy wording and titles. You approve every change, and facts (names, numbers, doses, contacts) stay exactly as you wrote them.</p>
         </div>
 
+        <p class="vet-disclaimer" id="vetNote" hidden>🩺 This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>
         <p class="pub-ready">You're ready to publish. Don't worry if it's not perfect — you can edit your guide anytime.</p>
         <p class="publish-save-note" id="publishNote">💾 Your changes are saved to your live guide each time you hit <strong>Save &amp; publish</strong>.</p>
         <div class="builder-toolbar" id="publishBar">
@@ -377,6 +378,32 @@
       </div>
       <p class="email-links-note ok" id="keepNote" hidden>Copied ✓ Now paste it somewhere safe: your notes app, or a message to yourself.</p>
       <button class="btn-link keep-skip" id="keepSkip" type="button">Skip for now (it stays saved on this device)</button>
+    </div>
+  </div>
+
+  <!-- Vet discharge safety check: shown before the first publish of a vet
+       guide (and re-armed by ⚠️ flags). The confirm button stays disabled
+       until the owner ticks that they've checked the clinical details against
+       the vet's paperwork — the one gate we make deliberately explicit. -->
+  <div class="feedback-modal" id="vetCheckModal" hidden>
+    <div class="feedback-backdrop" data-vetcheck-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vetCheckTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-vetcheck-close>×</button>
+      <h3 class="feedback-title" id="vetCheckTitle">🩺 A quick safety check.</h3>
+      <p class="feedback-lead">This guide carries medical instructions. Before it goes live, please check these against the paperwork from your vet:</p>
+      <ul class="vetcheck-list">
+        <li>💊 Medication names, doses and how often</li>
+        <li>🚨 Warning signs, and when to seek urgent care</li>
+        <li>📅 Follow-up appointments</li>
+        <li>📞 Clinic contact details</li>
+      </ul>
+      <p class="vetcheck-flags" id="vetCheckFlags" hidden></p>
+      <label class="vetcheck-confirm"><input type="checkbox" id="vetCheckBox" /> I've checked these against my vet's paperwork.</label>
+      <p class="vet-disclaimer">This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-vetcheck-close>← Keep checking</button>
+        <button class="btn btn-primary btn-sm" id="vetCheckGo" type="button" disabled>Confirmed — publish →</button>
+      </div>
     </div>
   </div>
 

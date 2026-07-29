@@ -2452,6 +2452,80 @@ body.dragging-active * {
 
 /* "Before You Worry" — the signature section. Warm amber, not alarming:
    a gentle tint that says "helpful tip", distinct from every other card. */
+/* ---------- Vet discharge guides ---------- */
+/* The veterinary-advice disclaimer: shown in the builder above the publish
+   bar, inside the safety-check modal, and under the published guide's cover.
+   Deliberately quiet — present, not alarming. */
+.vet-disclaimer {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--coral);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 14px 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+/* Medications: the section a carer reaches for first — orange spine, strong title. */
+.guide-section.sec-med { border-left: 5px solid var(--coral); }
+.guide-section.sec-med .acc-title-text { font-weight: 800; }
+/* Emergency warning signs: framed in ink so it reads as serious, not decorated. */
+.guide-section.sec-urgent { border: 2px solid var(--ink); }
+.guide-section.sec-urgent .acc-title-text { font-weight: 800; }
+/* Unresolved "⚠️ Check with your clinic" flags from the AI extraction: the
+   same amber language as Before You Worry, so "needs a human" reads
+   consistently across the product. */
+mark.vet-flag {
+  display: inline-block;
+  background: #FFF8E7;
+  border: 1px solid #F2D68A;
+  border-radius: 8px;
+  padding: 2px 8px;
+  margin: 2px 0;
+  color: #8A6D1C;
+  font-weight: 600;
+}
+/* Pre-publish safety-check modal bits */
+.vetcheck-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.vetcheck-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.vetcheck-list li:last-child { border-bottom: none; }
+.vetcheck-flags {
+  background: #FFF8E7;
+  border: 1px solid #F2D68A;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #8A6D1C;
+  font-weight: 600;
+}
+.vetcheck-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.vetcheck-confirm input {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  accent-color: var(--coral);
+  flex-shrink: 0;
+}
+
 .guide-section.sec-byw {
   background: #FFF8E7;
   border: 1.5px solid #F2D68A;
@@ -3582,6 +3656,9 @@ textarea.lf-input { resize: none; }
     border: 2px solid #C0392B !important; background: #fff !important;
     border-radius: 8px; padding: 10px 14px;
   }
+  /* Vet guides: the urgent-signs section keeps its weight on paper too */
+  .guide-section.sec-urgent { border: 2px solid #C0392B !important; }
+  .guide-section.sec-med { border-left: 4px solid #C0392B !important; }
   .em-head { color: #C0392B !important; }
   .contact-value a { color: #111 !important; }
 

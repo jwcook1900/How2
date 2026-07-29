@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="The GotIt Guides data processing summary: what data is handled, where, by whom, how it's protected, and how long it's kept." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>Data processing summary — GotIt Guides</title>
+
+  <meta property="og:title" content="Data processing summary — GotIt Guides" />
+  <meta property="og:description" content="What data is handled, where, by whom, how it's protected, and how long it's kept." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.gotitguides.com/data-processing.html" />
+  <link rel="canonical" href="https://www.gotitguides.com/data-processing.html" />
+  <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="builder.html" class="btn btn-primary btn-sm">Create</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section policy">
+      <div class="container policy-inner">
+        <span class="eyebrow">Data processing summary</span>
+        <h1 class="section-title">What we process, where, and for how long<span class="accent">.</span></h1>
+        <p class="policy-updated">Last updated 29 July 2026</p>
+        <p>
+          This page is the reference companion to the <a href="privacy.html">privacy policy</a> and the
+          <a href="clinic-security.html">one-page overview for vet clinics</a>. GotIt Guides acts as a
+          service provider: we process the information a creator (a clinic or an individual) gives us
+          solely to generate, store and serve their guide. The creator remains the owner of that
+          information.
+        </p>
+
+        <h2>Data we process</h2>
+        <div class="policy-table-wrap">
+          <table class="policy-table">
+            <thead><tr><th>Data</th><th>Purpose</th><th>Kept</th></tr></thead>
+            <tbody>
+              <tr><td>Guide content (text, photos, videos, contacts, routines, log entries)</td><td>Generating, storing and serving the guide</td><td>Until the creator deletes it</td></tr>
+              <tr><td>Uploaded source material (discharge notes, photos of paperwork, voice recordings)</td><td>One-off AI conversion into the draft guide</td><td>Not stored — only the resulting guide is kept</td></tr>
+              <tr><td>Account email + display name (optional Google sign-in)</td><td>The creator's dashboard and clinic kit</td><td>Until the account is deleted</td></tr>
+              <tr><td>Emails given for link delivery or the updates list</td><td>Sending what was asked for</td><td>Until unsubscribe / deletion request</td></tr>
+              <tr><td>Anonymous analytics (page views, a random browser id, referrer domain only)</td><td>Understanding product usage — never identity</td><td>Aggregate; contains no personal data</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Storage &amp; encryption</h2>
+        <ul>
+          <li>All data is stored on Amazon Web Services in Sydney, Australia (ap-southeast-2).</li>
+          <li>Everything is encrypted in transit (HTTPS) and at rest (AWS-managed encryption).</li>
+          <li>Code-locked guides (the default for vet discharge guides) are additionally encrypted
+            end-to-end on the creator's device (AES-256-GCM, key derived from the guide code via
+            PBKDF2). We store ciphertext we cannot decrypt; only the guide's title and emoji remain
+            readable. A lost code cannot be recovered — by design.</li>
+          <li>Edit access is verified server-side; edit secrets are stored only as SHA-256 hashes and
+            are generated with a cryptographic random number generator, as are guide links.</li>
+          <li>No guide or document content is written to server logs.</li>
+        </ul>
+
+        <h2>Who can access what</h2>
+        <ul>
+          <li><strong>Anyone with a guide's link</strong> can view that guide (they are unlisted,
+            unguessable and excluded from search engines) — unless it is code-locked, in which case
+            the code is also required.</li>
+          <li><strong>The operator</strong> can technically access unlocked guide content for support
+            and maintenance only, and cannot access locked guide content at all.</li>
+          <li><strong>No one else.</strong> No advertising or data resale; no third-party analytics or
+            tracking pixels.</li>
+        </ul>
+
+        <h2>Subprocessors</h2>
+        <div class="policy-table-wrap">
+          <table class="policy-table">
+            <thead><tr><th>Provider</th><th>What they do</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>Amazon Web Services</td><td>Hosting, storage, serverless compute</td><td>Sydney, Australia</td><td>Encrypted at rest</td></tr>
+              <tr><td>Anthropic (Claude API)</td><td>AI conversion of notes into a draft guide; optional wording polish</td><td>United States</td><td>No training on API data; inputs retained briefly (up to 30 days) for abuse monitoring, then deleted</td></tr>
+              <tr><td>OpenAI (Whisper API)</td><td>Voice transcription for the optional "Talk it out" flow</td><td>United States</td><td>No training on API data; transient processing</td></tr>
+              <tr><td>Cloudflare Stream</td><td>Hosting videos uploaded to guides</td><td>Global CDN</td><td>Video only</td></tr>
+              <tr><td>Resend</td><td>Delivering emails we send</td><td>United States</td><td>Vet guide codes are never included in emails</td></tr>
+              <tr><td>Google</td><td>Optional sign-in for the dashboard</td><td>Global</td><td>Authentication only</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Each provider receives only what its job requires. There are no others.</p>
+
+        <h2>Retention &amp; deletion</h2>
+        <ul>
+          <li>Guides stay published until deleted — a care guide that disappears mid-recovery helps no
+            one. Deleting is an email away: send any guide link to
+            <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> and it will be permanently
+            removed, no questions asked.</li>
+          <li>Uploaded source material (documents, photos of paperwork, recordings) is not retained
+            after the AI conversion — only the guide the creator publishes.</li>
+          <li>Account deletion removes the dashboard, its saved records, and the clinic kit.</li>
+        </ul>
+
+        <h2>The AI, precisely</h2>
+        <p>
+          The AI transforms presentation; it does not generate clinical advice. For veterinary
+          discharge guides it is instructed to transcribe clinical details exactly, never to invent or
+          infer a value, and to flag anything missing or ambiguous for human confirmation. Publishing
+          is gated behind the creator confirming medications, warning signs, follow-up and clinic
+          contact details against the source paperwork — and, for clinic-created guides, confirming the
+          owner's consent to receive the digital guide.
+        </p>
+
+        <p>
+          Questions, or a requirement this page doesn't cover?
+          <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> — a real person, usually
+          within a day.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img class="logo-img" src="/brand/logo-reversed.svg" alt="GotIt Guides" />
+        <p class="footer-made">Made in Sydney by James</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="about.html#who">About</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="clinic-security.html">For vet clinics</a>
+        <a href="mailto:hello@gotitguides.com">Contact</a>
+      </nav>
+      <p class="footer-copy">© <span id="year"></span> GotIt Guides. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

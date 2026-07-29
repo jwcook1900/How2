@@ -47,5 +47,10 @@ the guide is generated from what they already produce today.
 - Calm, reassuring, effortless. Medications and emergency warning signs are
   visually prioritised; the veterinary-advice disclaimer is always present.
 - Clinic-distributed guides raise the security bar: server-verified edit
-  access, unguessable links, and (Tier 2) locked-by-default with the code on
-  the discharge paperwork.
+  access, unguessable links, and locked-by-default with the code on the
+  discharge paperwork.
+- The privacy story lives in three public documents that must stay true to
+  the code: `privacy.html` (owners), `clinic-security.html` (one-page staff
+  overview), `data-processing.html` (storage, subprocessors, retention).
+  Clinic-created guides also confirm the owner's consent in the pre-publish
+  safety check, and vet guide codes are never included in emails.

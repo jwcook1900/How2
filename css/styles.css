@@ -2562,6 +2562,29 @@ body.dragging-active * {
 .policy ul { margin: 0 0 14px; padding-left: 22px; }
 .policy li { margin-bottom: 6px; }
 .policy a { color: var(--coral-dark); }
+/* Reference tables (data-processing.html): scroll inside their own frame on
+   phones — the page itself must never pan sideways. */
+.policy-table-wrap { overflow-x: auto; margin: 0 0 14px; }
+.policy-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.policy-table th, .policy-table td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.policy-table th {
+  font-weight: 800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
 
 /* ---------- Vet discharge guides ---------- */
 /* The veterinary-advice disclaimer: shown in the builder above the publish

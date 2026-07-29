@@ -2494,6 +2494,27 @@ body.dragging-active * {
 
 /* "Before You Worry" — the signature section. Warm amber, not alarming:
    a gentle tint that says "helpful tip", distinct from every other card. */
+.privacy-formal-link {
+  margin: 26px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+/* ---------- Privacy policy page ---------- */
+.policy-inner { max-width: 760px; }
+.policy .section-title .accent { color: var(--coral); }
+.policy-updated { color: var(--ink-muted); font-size: 0.85rem; margin: -6px 0 22px; }
+.policy p, .policy li { color: var(--ink-soft); line-height: 1.65; }
+.policy p { margin: 0 0 14px; }
+.policy h2 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 30px 0 10px;
+}
+.policy ul { margin: 0 0 14px; padding-left: 22px; }
+.policy li { margin-bottom: 6px; }
+.policy a { color: var(--coral-dark); }
+
 /* ---------- Vet discharge guides ---------- */
 /* The veterinary-advice disclaimer: shown in the builder above the publish
    bar, inside the safety-check modal, and under the published guide's cover.

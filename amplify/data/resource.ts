@@ -10,10 +10,13 @@ import { urlFn } from "../functions/url/resource";
  * GotIt Guides data model.
  *
  * A Guide is stored by its friendly slug (used as the record id). `payload`
- * holds the whole guide object as JSON; `editToken` is a secret known only to
- * the creator (it gates the edit UI). Public API-key auth keeps the free tier
- * account-less — this is intentionally soft security for the MVP and will be
- * hardened with real accounts/owner auth in a later phase.
+ * holds the whole guide object as JSON. The model is public READ-only:
+ * every write goes through the guide-write Lambda (see
+ * functions/guide-write), which verifies the creator's edit token against a
+ * hashed attribute (`tokenHash`) that this schema deliberately does not
+ * expose. Legacy rows still carry a plaintext `editToken` attribute; with the
+ * field removed here it is unreachable from the API, and the Lambda migrates
+ * it to the hash on each guide's next authorised save.
  *
  * `aiAssist` is a server-side AI helper (keyless for the client) used for
  * Polish and notes import.
@@ -21,10 +24,9 @@ import { urlFn } from "../functions/url/resource";
 const schema = a.schema({
   Guide: a
     .model({
-      editToken: a.string().required(),
       payload: a.json().required(),
     })
-    .authorization((allow) => [allow.publicApiKey()]),
+    .authorization((allow) => [allow.publicApiKey().to(["read"])]),
 
   // A signed-in user's saved guides (the "My Guides" dashboard). Owner-scoped:
   // only the owner can read/write their own rows. Stores the slug + edit token

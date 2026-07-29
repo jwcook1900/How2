@@ -3032,7 +3032,11 @@
   function updateAddRow() {
     var g = state.guide || {};
     var e = $("addEmergency"); if (e) e.hidden = !g.noEmergency;
-    var r = $("addRoutine"); if (r) r.hidden = !g.noRoutine;
+    var r = $("addRoutine");
+    if (r) {
+      r.hidden = !g.noRoutine;
+      r.textContent = g.category === "vet" ? "＋ Add medication reminders" : "＋ Add daily routine";
+    }
     var v = $("addVideos"); if (v) v.hidden = !!g.videos;
   }
 
@@ -3542,19 +3546,25 @@
   // Daily Routine widget: scheduled care (feeding, medication, walks) with
   // times. Stored on guide.routine.items; the published guide renders it as a
   // timeline and lets the sitter add the whole routine to their calendar.
+  // Vet guides keep the same machinery wearing discharge clothes: it IS the
+  // medication-reminder feature — missed doses are the clinic's number-one
+  // repeat call — so the copy speaks doses and owners, not sitters.
   function buildRoutineEl() {
     var g = state.guide;
     if (!g.routine) g.routine = { items: [] };
+    var isVet = g.category === "vet";
     var el = document.createElement("div");
     el.className = "guide-routine";
     el.innerHTML =
       '<div class="routine-head">' +
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
-        "<span>⏰ Daily Routine</span>" +
+        "<span>" + (isVet ? "💊 Medication & Care Reminders" : "⏰ Daily Routine") + "</span>" +
       "</div>" +
-      '<p class="routine-hint">Scheduled care like feeding, medication and walks. Your sitter presses one button and the whole routine lands in their calendar as timed reminders.</p>';
+      '<p class="routine-hint">' + (isVet
+        ? "Dose times and scheduled care from the discharge notes. The owner presses one button and every reminder lands in their calendar."
+        : "Scheduled care like feeding, medication and walks. Your sitter presses one button and the whole routine lands in their calendar as timed reminders.") + "</p>";
     enableDrag(el.querySelector(".drag-handle"), el);
-    addBlockRemoveBtn(el.querySelector(".routine-head"), "Remove daily routine", function () { removeWidget("routine", el); });
+    addBlockRemoveBtn(el.querySelector(".routine-head"), isVet ? "Remove reminders" : "Remove daily routine", function () { removeWidget("routine", el); });
 
     // Times mined from the creator's own answers, offered as tap-to-confirm
     // chips so nobody types their routine twice. Confirm-only: each chip must
@@ -3645,9 +3655,11 @@
       if (!g.routine.items.length) {
         var empty = document.createElement("p");
         empty.className = "routine-empty";
-        empty.textContent = "No routine yet — add " + (
-          { kids: "naps, feeds, bedtime…", care: "medication, meals, rest…", home: "check-out, bins, cleaning…" }
-          [state.guide && state.guide.category] || "feeding, medication, walks…");
+        empty.textContent = (state.guide && state.guide.category === "vet"
+          ? "No reminders yet — add each medication's dose times, wound checks, the recheck…"
+          : "No routine yet — add " + (
+            { kids: "naps, feeds, bedtime…", care: "medication, meals, rest…", home: "check-out, bins, cleaning…" }
+            [state.guide && state.guide.category] || "feeding, medication, walks…"));
         list.appendChild(empty);
       }
       g.routine.items.forEach(function (item) {

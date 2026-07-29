@@ -1158,6 +1158,46 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .cover-add-photo:hover { background: rgba(255, 255, 255, 0.28); transform: translateY(-1px); }
 .cover-add-photo[hidden] { display: none; }
+/* Section titles anywhere can end with the signature orange full stop. */
+.section-title .accent { color: var(--coral); }
+
+/* ---------- The vet clinic front door (vets.html + homepage band) ---------- */
+.vets-hero { padding-top: 64px; }
+.vets-quote {
+  max-width: 640px;
+  margin: 0 auto 34px;
+  padding: 22px 26px;
+  background: var(--white);
+  border-left: 4px solid var(--coral);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.vets-quote cite {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-style: normal;
+  color: var(--ink-muted);
+}
+/* Homepage band: a quiet signpost, not a fork in the funnel. */
+.vets-band {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 20px 24px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--coral);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.vets-band-emoji { font-size: 1.7rem; }
+.vets-band-body { flex: 1; min-width: 220px; }
+.vets-band-title { font-weight: 800; }
+.vets-band-body p { color: var(--ink-soft); font-size: 0.92rem; margin: 3px 0 0; line-height: 1.5; }
+
 /* Vet start screen: the upload card is a full-width horizontal lead bubble.
    (Doubled selector so it beats the later .start-card flex-column base.) */
 .start-card.start-card-lead {

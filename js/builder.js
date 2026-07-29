@@ -70,9 +70,12 @@
       // so showStart() opens the import panel automatically for this category.
       // The scratch questions below stay available for owners typing it in.
       id: "vet", emoji: "🩺", name: "Vet Discharge", desc: "After a vet visit",
+      // The chooser card wears the stethoscope; the guide itself wears the
+      // mending heart — recovery is the owner's story, not the clinic's tools.
+      coverEmoji: "❤️‍🩹",
       coverSub: "Recovery instructions, made simple",
       questions: [
-        { id: "name", q: "What's your pet's name?", hint: "We'll title the recovery guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: "'s Recovery Guide" },
+        { id: "name", q: "What's the patient's name?", hint: "We'll title the recovery guide after them.", ph: "e.g. Whiskey", type: "text", target: "title", titleSuffix: "'s Recovery Guide" },
         { id: "visit", q: "What was the visit for?", hint: "A sentence or two — what happened, and the diagnosis or procedure.", ph: "e.g. Desexing surgery on Tuesday. Everything went well…", type: "textarea", target: "section", icon: "📋", sectionTitle: "Visit Summary" },
         { id: "meds", q: "What medications is {name} going home with?", hint: "Copy them exactly from the paperwork: name, dose, how often, with food or not, start and finish dates.", ph: "Meloxicam 1.5mg/ml — 0.5ml once daily with food, for 5 days starting tomorrow…", type: "textarea", target: "section", icon: "💊", sectionTitle: "Medications" },
         { id: "care", q: "How should {name} be cared for at home?", hint: "Rest, food and water, toilet breaks, confinement, the cone.", ph: "Quiet rest for 10 days, no jumping or stairs. Small dinner tonight. Cone stays on…", type: "textarea", target: "section", icon: "🏠", sectionTitle: "Care at Home" },
@@ -600,12 +603,13 @@
       if (isVet) grid.insertBefore(pasteCard, grid.firstChild);
       else grid.insertBefore(pasteCard, $("startPhoto")); // original spot: before "Photo of a guide"
     }
-    // Vet: the OTHER start cards disappear. "Photo of a guide" duplicates the
-    // panel's own photo button, and dictating medication doses ("Talk it out")
-    // adds a transcription layer between the clinical record and the guide —
-    // the opposite of "copied exactly from your notes". Scratch survives as
-    // the quiet link below the panel.
-    ["startScratch", "startTalk", "startPhoto"].forEach(function (id) {
+    // Vet: ALL the start cards disappear — the panel with its upload buttons
+    // IS the step. "Photo of a guide" duplicated the panel's own photo button,
+    // and dictating medication doses ("Talk it out") adds a transcription
+    // layer between the clinical record and the guide — the opposite of
+    // "copied exactly from your notes". Scratch survives as the quiet link
+    // below the panel.
+    ["startScratch", "startTalk", "startPhoto", "startPaste"].forEach(function (id) {
       if ($(id)) $(id).hidden = isVet;
     });
     if ($("startScratchAlt")) $("startScratchAlt").hidden = !isVet;
@@ -663,12 +667,18 @@
     // promises the safety net: nothing gets invented, anything unclear is
     // flagged to confirm.
     if (state.category && state.category.id === "vet" && !talk && !photo) {
-      help.textContent = "Snap a photo of each page, add the PDF, or paste the discharge summary or email. We'll turn it into a clear recovery guide — copying every instruction exactly, and flagging anything unclear to confirm before it's shared.";
-      ta.placeholder = "Paste the discharge summary, consultation notes or medication instructions here — or add photos of the paperwork below.";
+      help.textContent = "Add the discharge notes, consultation notes or medication instructions. Every instruction is copied exactly, and anything unclear is flagged to confirm before it's shared.";
+      ta.placeholder = "Paste the discharge summary or the email from your practice software here…";
     }
-    // Clinic paperwork is a PDF, photos or an email — not a web link. Hiding
-    // the link row keeps the vet panel to the tools staff actually use.
+    // Vet panel: the upload buttons lead (file first — clinics export PDFs),
+    // and the duplicated small file row + web-link row disappear. Clinic
+    // paperwork is a file, photos or an email — not a URL.
     var isVetPanel = !!(state.category && state.category.id === "vet");
+    if ($("vetUploadRow")) $("vetUploadRow").hidden = !isVetPanel;
+    var smallFileRow = document.querySelector(".import-file-row");
+    if (smallFileRow) smallFileRow.hidden = isVetPanel;
+    var photoHint = document.querySelector(".paste-photo-hint");
+    if (photoHint) photoHint.hidden = isVetPanel;
     var linkRow = document.querySelector(".import-link-row");
     if (linkRow) linkRow.hidden = isVetPanel;
     if ($("pasteUrlNote") && isVetPanel) $("pasteUrlNote").hidden = true;
@@ -686,12 +696,14 @@
     } else if (talk) {
       // Don't pop the keyboard — the record button is the primary action.
       setTimeout(function () { $("recordRow").scrollIntoView({ block: "center", behavior: "smooth" }); }, 60);
-    } else {
+    } else if (!isVetPanel) {
       setTimeout(function () {
         ta.focus();
         ta.scrollIntoView({ block: "center", behavior: "smooth" });
       }, 60);
     }
+    // (Vet: no auto-focus — the upload buttons lead, and popping the phone
+    // keyboard over them would bury the primary action.)
   }
 
   // The "lights up as you answer" flow is the default scratch experience;
@@ -1072,7 +1084,7 @@
     state.guide = {
       slug: makeSlug(),
       category: cat.id,
-      emoji: cat.emoji,
+      emoji: cat.coverEmoji || cat.emoji,
       title: (ai.title || "").trim() || ("My " + cat.name + " Guide"),
       subtitle: cat.coverSub,
       cover: null,
@@ -1808,7 +1820,7 @@
         // Once a photo is on the cover the emoji bows out — it crowds the
         // photo, and the name + subtitle re-centre in its place. (The emoji
         // itself survives for share previews and the dashboard.)
-        (state.liveCover ? "" : '<span class="cover-emoji">' + esc(cat.emoji) + "</span>") +
+        (state.liveCover ? "" : '<span class="cover-emoji">' + esc(cat.coverEmoji || cat.emoji) + "</span>") +
         '<div class="cover-title">' + esc(name || "Your " + cat.name + " guide") + "</div>" +
         '<div class="cover-sub">' + esc(lit ? cat.coverSub : "A private draft only you can see, until you publish") + "</div>" +
       "</div>";
@@ -2225,7 +2237,7 @@
     state.guide = {
       slug: makeSlug(),
       category: cat.id,
-      emoji: cat.emoji,
+      emoji: cat.coverEmoji || cat.emoji,
       title: title,
       subtitle: cat.coverSub,
       // The live flow may have collected a cover photo (and framing) already.
@@ -4729,6 +4741,9 @@
   }
   $("pasteFile").addEventListener("change", function () { onPasteAttach($("pasteFile")); });
   $("pastePhoto").addEventListener("change", function () { onPasteAttach($("pastePhoto")); });
+  // Vet upload buttons drive the same hidden inputs as the small file row.
+  if ($("vetUploadFile")) $("vetUploadFile").addEventListener("click", function () { $("pasteFile").click(); });
+  if ($("vetUploadPhotos")) $("vetUploadPhotos").addEventListener("click", function () { $("pastePhoto").click(); });
   $("pasteGo").addEventListener("click", function () {
     runImport($("pasteText").value.trim(), importFiles);
   });

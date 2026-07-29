@@ -40,20 +40,69 @@
   </header>
 
   <main>
-    <!-- Hero -->
-    <section class="section vets-hero">
-      <div class="container">
-        <div class="section-head section-head--solo">
+    <!-- Hero: same shape as the consumer homepage, with a discharge-guide
+         mockup — a generic health badge stands in where the clinic's own
+         logo will live. -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-content reveal">
           <span class="eyebrow">For vet clinics</span>
-          <h1 class="section-title">Discharge instructions owners actually follow<span class="accent">.</span></h1>
-          <p class="section-lead">
+          <h1 class="hero-title">Discharge instructions <span class="accent">owners actually follow.</span></h1>
+          <p class="hero-sub">
             Your existing discharge notes, transformed into a clear, phone-friendly guide your team
             reviews before sending. Nothing to rewrite. No new system to learn.
           </p>
+          <div class="hero-cta">
+            <a href="builder.html?cat=vet" class="btn btn-primary btn-lg" data-evt="vets_cta" data-evt-slug="hero">Try it with real discharge notes</a>
+            <a href="clinic-security.html" class="btn btn-ghost btn-lg">Security &amp; privacy</a>
+          </div>
+          <ul class="hero-reassure">
+            <li>Built from notes you already write</li>
+            <li>Reviewed by your team</li>
+            <li>Locked with a guide code</li>
+            <li>Free while we pilot</li>
+          </ul>
         </div>
-        <div class="section-cta section-cta--center">
-          <a href="builder.html?cat=vet" class="btn btn-primary btn-lg" data-evt="vets_cta" data-evt-slug="hero">Try it with real discharge notes</a>
-          <a href="clinic-security.html" class="btn btn-ghost btn-lg">Security &amp; privacy</a>
+
+        <!-- Decorative phone mockup: a discharge guide, clinic-branded -->
+        <div class="hero-visual reveal" aria-hidden="true">
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div class="mock-track">
+                <div class="mock-slide">
+                  <div class="mock-cover">
+                    <span class="mock-logo">⚕️ Your Clinic</span>
+                    <div class="mock-title">Bella's Recovery Guide</div>
+                    <div class="mock-subtitle">Recovery instructions, made simple</div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">💊</span>
+                    <div>
+                      <div class="mock-card-title">Medications</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">🩹</span>
+                    <div>
+                      <div class="mock-card-title">Wound Care</div>
+                      <div class="mock-card-bar short"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">📞</span>
+                    <div>
+                      <div class="mock-card-title">When to Call the Clinic</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="blob blob-1"></div>
+          <div class="blob blob-2"></div>
         </div>
       </div>
     </section>

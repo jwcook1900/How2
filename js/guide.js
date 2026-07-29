@@ -122,7 +122,9 @@
   var hasRoutine = !guide.noRoutine && guide.routine && guide.routine.items &&
     guide.routine.items.some(function (it) { return it.times && it.times.length; });
   if (hasRoutine) {
-    html += '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
+    html += guide.category === "vet"
+      ? '<a class="routine-chip no-print" href="#routine">💊 Medication reminders inside — tap to add every dose to your calendar</a>'
+      : '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
   }
 
   // ---- Block renderers ----
@@ -249,7 +251,8 @@
       if (h < 12) groups.morning.push(e); else if (h < 17) groups.afternoon.push(e); else groups.evening.push(e);
     });
     var periods = [["morning", "🌅 Morning"], ["afternoon", "☀️ Afternoon"], ["evening", "🌙 Evening"]];
-    var s = '<div class="guide-routine" id="routine"><div class="routine-head">⏰ Daily Routine</div>';
+    var s = '<div class="guide-routine" id="routine"><div class="routine-head">' +
+      (guide.category === "vet" ? "💊 Medication & Care Reminders" : "⏰ Daily Routine") + "</div>";
     periods.forEach(function (p) {
       var list = groups[p[0]];
       if (!list.length) return;

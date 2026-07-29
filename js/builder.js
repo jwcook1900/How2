@@ -575,8 +575,19 @@
       pasteCard.querySelector(".start-desc").textContent = isVet
         ? "Add the PDF, photos of the paperwork, or the emailed summary — we'll turn it into an owner-ready guide."
         : "Already have notes? Paste them in and we'll organise everything for you.";
+      // The upload card spans the full row for vet (a horizontal lead bubble
+      // with the panel directly beneath), instead of half a grid cell.
+      pasteCard.classList.toggle("start-card-lead", isVet);
       if (isVet) grid.insertBefore(pasteCard, grid.firstChild);
       else grid.insertBefore(pasteCard, $("startPhoto")); // original spot: before "Photo of a guide"
+    }
+    // Step lead speaks to whoever is actually holding the paperwork — for vet
+    // that's clinic staff as often as owners.
+    var startLead = steps.start.querySelector(".step-lead");
+    if (startLead) {
+      startLead.textContent = isVet
+        ? "Upload what you already give owners — nothing needs rewriting. You'll review everything before it goes anywhere."
+        : "An imperfect note is enough to begin. You can edit everything afterwards.";
     }
     showStep("start");
     // Arrived from a homepage "Paste your notes" CTA — open the paste path.
@@ -627,6 +638,12 @@
       help.textContent = "Snap a photo of each page, add the PDF, or paste the discharge summary or email. We'll turn it into a clear recovery guide — copying every instruction exactly, and flagging anything unclear to confirm before it's shared.";
       ta.placeholder = "Paste the discharge summary, consultation notes or medication instructions here — or add photos of the paperwork below.";
     }
+    // Clinic paperwork is a PDF, photos or an email — not a web link. Hiding
+    // the link row keeps the vet panel to the tools staff actually use.
+    var isVetPanel = !!(state.category && state.category.id === "vet");
+    var linkRow = document.querySelector(".import-link-row");
+    if (linkRow) linkRow.hidden = isVetPanel;
+    if ($("pasteUrlNote") && isVetPanel) $("pasteUrlNote").hidden = true;
     // The panel opens INSIDE the chooser, directly under the tapped card —
     // never further down the page where it has to be scrolled to.
     var activeCard = photo ? $("startPhoto") : talk ? $("startTalk") : $("startPaste");
@@ -863,6 +880,16 @@
 
     if (isImage) {
       return compressImage(file, 1600, 0.8).then(function (dataUrl) {
+        // compressImage returns a canvas JPEG when the browser could decode
+        // the image, and the ORIGINAL data URL when it couldn't (e.g. HEIC
+        // photos AirDropped to a desktop browser — iPhones decode HEIC
+        // natively, most desktop browsers don't). Sending undecoded bytes
+        // mislabelled as JPEG just makes the AI fail downstream, so catch it
+        // here with an error that says what to do instead.
+        if (dataUrl.indexOf("data:image/jpeg") !== 0 && dataUrl.indexOf("data:image/png") !== 0) {
+          return { error: "This browser can't read " + (file.name || "that photo") +
+            " — it's an Apple HEIC photo. Upload it from your iPhone directly (that works), or convert it to JPEG first." };
+        }
         return { data: dataUrl.split(",")[1], type: "image/jpeg" };
       });
     }
@@ -923,6 +950,71 @@
     }
   }
 
+  // Vet guides name their own link — clinic + pet + a short random tail
+  // (never a bare patient number: those are sequential, and a guessable slug
+  // pattern would let outsiders enumerate a clinic's guides).
+  function vetSlug(g) {
+    var clinic = (clinicKit && clinicKit.clinicName) || "";
+    var pet = (g.title || "").split(/['’\s]/)[0] || "";
+    var base = [clinic, pet].map(function (s) {
+      return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    }).filter(Boolean).join("-").slice(0, 40).replace(/-+$/, "");
+    return (base || "recovery") + "-" + randChars(4);
+  }
+  // A guide code the front desk can write on the discharge paperwork:
+  // word + 4 digits — easy to say over a counter, easy to type.
+  var CODE_WORDS = ["sunny", "lucky", "happy", "gentle", "brave", "calm", "bright", "swift", "cosy", "merry"];
+  function friendlyCode() {
+    var n = "";
+    if (window.crypto && window.crypto.getRandomValues) {
+      var buf = new Uint32Array(5);
+      window.crypto.getRandomValues(buf);
+      n = CODE_WORDS[buf[0] % CODE_WORDS.length] + "-" +
+        (buf[1] % 10) + (buf[2] % 10) + (buf[3] % 10) + (buf[4] % 10);
+    } else {
+      n = CODE_WORDS[Math.floor(Math.random() * CODE_WORDS.length)] + "-" +
+        String(Math.floor(1000 + Math.random() * 9000));
+    }
+    return n;
+  }
+  // New vet guides start locked: the whole point of the privacy model, and the
+  // code travels on the discharge paperwork. Staff can still untick it. A
+  // fresh NON-vet guide in the same session resets the lock so it never
+  // inherits a vet code it didn't ask for.
+  function applyVetLockDefaults(g) {
+    if (state.created) return;
+    var vet = g.category === "vet";
+    $("lockOn").checked = vet;
+    $("lockPass").value = vet ? friendlyCode() : "";
+    // Reveal without toggleLockUI(): its focus() would yank the viewport to
+    // the lock row the moment the editor opens.
+    $("lockPass").hidden = !vet;
+    $("lockHint").hidden = !vet;
+  }
+
+  // One-time friendly note after a clinic logo lands on a vet guide: signed-in
+  // clinics learn it's saved for every future guide; signed-out ones learn a
+  // free account would do that. Later adds get a quiet toast instead.
+  var LOGO_NOTE_KEY = "gotit_logo_kit_note_v1";
+  function showLogoKitNote(signedIn) {
+    var seen = false;
+    try { seen = !!localStorage.getItem(LOGO_NOTE_KEY); } catch (e) {}
+    if (seen) {
+      if (signedIn) showToast("Logo saved — future discharge guides will start with it.");
+      return;
+    }
+    try { localStorage.setItem(LOGO_NOTE_KEY, "1"); } catch (e) {}
+    var m = $("logoKitModal");
+    if (!m) return;
+    $("logoKitTitle").textContent = signedIn
+      ? "🏥 Saved for next time."
+      : "🏥 Want this on every discharge guide?";
+    $("logoKitLead").textContent = signedIn
+      ? "Your logo is now in My clinic on your dashboard — every new discharge guide will start with it automatically. Your clinic's phone and after-hours numbers can live there too."
+      : "Right now the logo is on this guide only. With a free account it's saved once and added to every new discharge guide automatically — along with your clinic's contact details. You can set that up right after publishing.";
+    m.hidden = false;
+  }
+
   // Maps the AI's import result (or a fallback) into a fresh editable guide.
   function buildGuideFromAI(ai, cat, rawText) {
     state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
@@ -969,6 +1061,8 @@
     };
     state.created = false;
     applyClinicKit(state.guide);
+    if (cat.id === "vet") state.guide.slug = vetSlug(state.guide);
+    applyVetLockDefaults(state.guide);
     // Imported notes are the richest source of times of all ("kibble 7am and
     // 6pm") — mine the raw text plus what the AI structured from it.
     state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(
@@ -2125,6 +2219,8 @@
       createdAt: Date.now()
     };
     applyClinicKit(state.guide);
+    if (cat.id === "vet") state.guide.slug = vetSlug(state.guide);
+    applyVetLockDefaults(state.guide);
     // Draft routine steps from any times already typed into the answers
     // (offered as tap-to-confirm chips in the routine widget, never auto-added).
     state.routineSuggest = bd.noRoutine ? null : suggestRoutineItems(state.answers, cat);
@@ -2186,6 +2282,19 @@
     // guides only (it also appears in the published guide itself).
     var vn = $("vetNote");
     if (vn) vn.hidden = cat !== "vet";
+    // Vet guides name their own link (clinic-pet-tail) — no slug row to fill —
+    // and show the guide code in the clear, because the front desk has to
+    // write it on the discharge paperwork.
+    var sr = $("slugRow");
+    if (sr) sr.hidden = cat === "vet";
+    var lp = $("lockPass");
+    if (lp) lp.type = cat === "vet" ? "text" : "password";
+    var lh = $("lockHint");
+    if (lh) {
+      lh.textContent = cat === "vet"
+        ? "🔑 Give this code to the owner — write it on the discharge paperwork. The guide is encrypted; without the code it can't be opened (or recovered if the code is lost)."
+        : "The guide is encrypted — only people you give the code to can open it. Keep the code safe: if it's lost, the guide can't be recovered.";
+    }
   }
 
   function renderGuideEditor() {
@@ -2217,12 +2326,12 @@
       '<button class="cover-textmove-btn no-print" type="button" title="Move the title up or down" aria-label="Move the title up or down">↕</button>' +
       // Hero feature, so it gets a standing invitation right on the tile —
       // not just the entry buried in the dock's 📷 menu. Hidden once a photo
-      // is set (applyCover), when reposition/change take over.
-      '<button class="cover-add-photo no-print" type="button">📸 Add a cover photo</button>' +
-      // Vet guides: the clinic often builds the guide before the owner has
-      // sent a photo — the logo invitation keeps the cover professional.
-      (g.category === "vet" && !g.clinicLogo ?
-        '<button class="cover-add-logo no-print" type="button">🏥 Add your clinic logo</button>' : "");
+      // is set (applyCover), when reposition/change take over. Vet guides swap
+      // it for the clinic-logo invitation: the clinic rarely has the pet's
+      // photo, and always has its logo (a photo stays available via the dock).
+      (g.category === "vet"
+        ? (g.clinicLogo ? "" : '<button class="cover-add-logo cover-add-logo-lead no-print" type="button">🏥 Add your clinic logo</button>')
+        : '<button class="cover-add-photo no-print" type="button">📸 Add a cover photo</button>');
     var textEl = cover.querySelector(".cover-text");
     if (g.coverTextY) textEl.style.transform = "translateY(" + g.coverTextY + "px)";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
@@ -2504,19 +2613,16 @@
         state.guide.clinicLogo = dataUrl;
         renderGuideEditor(); // the logo badge lives in the cover markup
         recordHistory();
+        var signedIn = window.GotItAuth && GotItAuth.isSignedIn();
         // Signed in? Remember the logo in the clinic kit so every future vet
         // guide starts with it (best-effort; the guide itself already has it).
-        if (state.guide.category === "vet" && window.GotItAuth && GotItAuth.isSignedIn()) {
+        if (state.guide.category === "vet" && signedIn) {
           GotItAuth.idToken().then(function (t) {
             if (!t) return null;
             return GotItStore.saveProfile(t, { clinicLogo: dataUrl });
-          }).then(function (p) {
-            if (p) {
-              clinicKit = p;
-              showToast("Logo saved — future discharge guides will start with it.");
-            }
-          }).catch(function () {});
+          }).then(function (p) { if (p) clinicKit = p; }).catch(function () {});
         }
+        if (state.guide.category === "vet") showLogoKitNote(signedIn);
         if (onDone) onDone();
       });
     });
@@ -4136,6 +4242,14 @@
         ? "🔒 Locked — only people with the guide code can open it."
         : "Anyone with this link can view it.";
     }
+    // Vet guides: surface the code right here, because the front desk's next
+    // move is writing it on the discharge paperwork.
+    var codeRow = $("shareCodeRow");
+    if (codeRow) {
+      var showCode = g.category === "vet" && locked && state.password;
+      codeRow.hidden = !showCode;
+      if (showCode) $("shareCodeVal").textContent = state.password;
+    }
     // Reset the "email me my links" field; note whether the password is included.
     $("emailLinksInput").value = "";
     $("emailLinksNote").hidden = true;
@@ -4746,6 +4860,9 @@
     closeCoverAsk();
     pickLogo(function () { doPublish(); });
   });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-logokit-close]"), function (el) {
+    el.addEventListener("click", function () { $("logoKitModal").hidden = true; });
+  });
   // Vet safety check: the confirm button stays disabled until the checkbox is
   // ticked; confirming re-enters publish(), which continues to the cover
   // nudge / actual publish. ✕/backdrop just close (asks again next time).
@@ -4959,6 +5076,7 @@
     if (e.key === "Escape" && !$("videoModal").hidden) closeVideoModal();
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
     if (e.key === "Escape" && $("vetCheckModal") && !$("vetCheckModal").hidden) closeVetCheck();
+    if (e.key === "Escape" && $("logoKitModal") && !$("logoKitModal").hidden) $("logoKitModal").hidden = true;
     if (e.key === "Escape" && $("secPickModal") && !$("secPickModal").hidden) $("secPickModal").hidden = true;
     // Escape on the keep nudge counts as the skip (same logging rules)
     if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();

@@ -600,6 +600,15 @@
       if (isVet) grid.insertBefore(pasteCard, grid.firstChild);
       else grid.insertBefore(pasteCard, $("startPhoto")); // original spot: before "Photo of a guide"
     }
+    // Vet: the OTHER start cards disappear. "Photo of a guide" duplicates the
+    // panel's own photo button, and dictating medication doses ("Talk it out")
+    // adds a transcription layer between the clinical record and the guide —
+    // the opposite of "copied exactly from your notes". Scratch survives as
+    // the quiet link below the panel.
+    ["startScratch", "startTalk", "startPhoto"].forEach(function (id) {
+      if ($(id)) $(id).hidden = isVet;
+    });
+    if ($("startScratchAlt")) $("startScratchAlt").hidden = !isVet;
     // Step lead speaks to whoever is actually holding the paperwork — for vet
     // that's clinic staff as often as owners.
     var startLead = steps.start.querySelector(".step-lead");
@@ -4688,6 +4697,7 @@
 
   // Start chooser: paste existing notes vs start from scratch
   $("startScratch").addEventListener("click", startFromScratch);
+  if ($("startScratchAltBtn")) $("startScratchAltBtn").addEventListener("click", startFromScratch);
   $("startPaste").addEventListener("click", function () { revealImport("paste"); });
   $("startTalk").addEventListener("click", function () { revealImport("talk"); });
   if ($("startPhoto")) $("startPhoto").addEventListener("click", function () { revealImport("photo"); });

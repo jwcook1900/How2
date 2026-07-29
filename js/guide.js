@@ -97,10 +97,13 @@
   // Cover
   var coverTextY = Math.max(-110, Math.min(110, Number(guide.coverTextY) || 0));
   var coverTextStyle = coverTextY ? ' style="transform:translateY(' + coverTextY + 'px)"' : "";
+  // A clinic logo (vet guides) takes the emoji's place on the cover — a white
+  // badge, so it reads on cream, accent colours and photos alike.
   html +=
     '<div class="guide-cover">' +
       '<div class="cover-text"' + coverTextStyle + ">" +
-        (guide.emoji && !guide.coverEmojiOff ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "") +
+        (guide.clinicLogo ? '<img class="cover-logo" src="' + guide.clinicLogo + '" alt="" />' :
+          (guide.emoji && !guide.coverEmojiOff ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "")) +
         '<div class="cover-title">' + esc(guide.title) + "</div>" +
         '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
       "</div>" +
@@ -340,7 +343,7 @@
   // Cover photo (set via JS to avoid escaping the data URL in an attribute).
   // A cover photo always wins; otherwise an optional accent colour recolours it.
   var coverEl = doc.querySelector(".guide-cover");
-  if (coverEl && !guide.emoji) coverEl.classList.add("no-emoji"); // title sits up top, clear of the photo subject
+  if (coverEl && !guide.emoji && !guide.clinicLogo) coverEl.classList.add("no-emoji"); // title sits up top, clear of the photo subject
   if (guide.cover) {
     if (coverEl) {
       coverEl.classList.add("has-cover");

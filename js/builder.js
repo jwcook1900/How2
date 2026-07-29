@@ -2126,10 +2126,15 @@
     // block that can be nudged up/down (g.coverTextY) while staying centred.
     var cover = document.createElement("div");
     cover.className = "guide-cover";
-    var emojiHtml = g.coverEmojiOff ? "" :
+    // A clinic logo (vet guides) takes the emoji's spot on the cover — a white
+    // badge that reads on cream, accent colours and photos alike.
+    var logoHtml = g.clinicLogo ?
+      '<span class="cover-logo-wrap"><img class="cover-logo" src="' + g.clinicLogo + '" alt="Clinic logo" />' +
+        '<button class="cover-logo-x no-print" type="button" title="Remove the logo" aria-label="Remove the logo">✕</button></span>' : "";
+    var emojiHtml = (g.coverEmojiOff || g.clinicLogo) ? "" :
       '<span class="cover-emoji" contenteditable="true" data-bind="emoji" role="textbox" aria-label="Cover icon — type an emoji, or backspace to remove it">' + esc(g.emoji || "") + "</span>";
     cover.innerHTML =
-      '<div class="cover-text">' + emojiHtml +
+      '<div class="cover-text">' + logoHtml + emojiHtml +
         '<div class="cover-title" contenteditable="true" data-bind="title">' + esc(g.title) + "</div>" +
         '<div class="cover-sub" contenteditable="true" data-bind="subtitle">' + esc(g.subtitle) + "</div>" +
       "</div>" +
@@ -2139,7 +2144,11 @@
       // Hero feature, so it gets a standing invitation right on the tile —
       // not just the entry buried in the dock's 📷 menu. Hidden once a photo
       // is set (applyCover), when reposition/change take over.
-      '<button class="cover-add-photo no-print" type="button">📸 Add a cover photo</button>';
+      '<button class="cover-add-photo no-print" type="button">📸 Add a cover photo</button>' +
+      // Vet guides: the clinic often builds the guide before the owner has
+      // sent a photo — the logo invitation keeps the cover professional.
+      (g.category === "vet" && !g.clinicLogo ?
+        '<button class="cover-add-logo no-print" type="button">🏥 Add your clinic logo</button>' : "");
     var textEl = cover.querySelector(".cover-text");
     if (g.coverTextY) textEl.style.transform = "translateY(" + g.coverTextY + "px)";
     bindEditable(cover.querySelector('[data-bind="title"]'), function (v) { g.title = v; });
@@ -2160,12 +2169,25 @@
     if (coverAdd) {
       coverAdd.addEventListener("click", function (e) { e.stopPropagation(); pickCover(cover); });
     }
+    var logoAdd = cover.querySelector(".cover-add-logo");
+    if (logoAdd) {
+      logoAdd.addEventListener("click", function (e) { e.stopPropagation(); pickLogo(); });
+    }
+    var logoX = cover.querySelector(".cover-logo-x");
+    if (logoX) {
+      logoX.addEventListener("click", function (e) {
+        e.stopPropagation();
+        g.clinicLogo = null;
+        renderGuideEditor();
+        recordHistory();
+      });
+    }
     var textMove = cover.querySelector(".cover-textmove-btn");
     if (textMove) {
       textMove.addEventListener("click", function (e) { e.stopPropagation(); startCoverTextMove(cover); });
     }
     var emojiX = cover.querySelector(".cover-emoji-x");
-    if (g.coverEmojiOff) emojiX.hidden = true;
+    if (g.coverEmojiOff || g.clinicLogo) emojiX.hidden = true;
     emojiX.addEventListener("click", function (e) {
       e.stopPropagation();
       g.emoji = ""; g.coverEmojiOff = true;
@@ -2249,8 +2271,9 @@
       coverEl.style.backgroundPosition = "";
       GotItStore.applyCoverAccent(coverEl, g.coverColor); // colour gradient, or revert
     }
-    // With no icon, sit the title near the top so it clears the photo's subject.
-    coverEl.classList.toggle("no-emoji", !g.emoji);
+    // With no icon (and no clinic logo), sit the title near the top so it
+    // clears the photo's subject.
+    coverEl.classList.toggle("no-emoji", !g.emoji && !g.clinicLogo);
     // The reposition handle only makes sense once there's a photo to pan;
     // the "add a cover photo" invitation only until there is one.
     var rb = coverEl.querySelector(".cover-reposition-btn");
@@ -2375,6 +2398,39 @@
         applyCover(coverEl, state.guide);
         recordHistory();
         if (onDone) onDone(); // e.g. the publish nudge continuing to publish
+      });
+    });
+    input.click();
+  }
+
+  // Clinic logos (vet guides) keep their format: JPEG re-encoding would turn a
+  // transparent PNG/SVG background black. Small files pass through untouched;
+  // big ones are downscaled to PNG, which preserves transparency.
+  function compressLogo(file) {
+    return readFileAsDataURL(file).then(function (srcUrl) {
+      if (srcUrl.length < 120000) return srcUrl;
+      return loadImageEl(srcUrl).then(function (img) {
+        var scale = Math.min(1, 480 / Math.max(img.width, img.height));
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        try { return canvas.toDataURL("image/png"); } catch (e) { return srcUrl; }
+      }, function () { return srcUrl; });
+    });
+  }
+  function pickLogo(onDone) {
+    var input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      compressLogo(file).then(function (dataUrl) {
+        state.guide.clinicLogo = dataUrl;
+        renderGuideEditor(); // the logo badge lives in the cover markup
+        recordHistory();
+        if (onDone) onDone();
       });
     });
     input.click();
@@ -3785,7 +3841,20 @@
     if (g.category === "vet" && vetFlagCount() > 0) {
       showToast("Reminder: your guide still has ⚠️ details to confirm with your clinic.");
     }
-    if (!g.cover && !g.coverAskDone) { $("coverAskModal").hidden = false; return; }
+    // A clinic logo dresses the cover just as well as a photo — don't nag for
+    // one when the other is already set. Vet guides offer both in the nudge.
+    if (!g.cover && !g.clinicLogo && !g.coverAskDone) {
+      var isVetAsk = g.category === "vet";
+      var logoBtn = $("coverAskLogo");
+      if (logoBtn) logoBtn.hidden = !isVetAsk;
+      if (isVetAsk) {
+        $("coverAskTitle").textContent = "📸 Add a photo or logo first?";
+        var lead = document.querySelector("#coverAskModal .feedback-lead");
+        if (lead) lead.textContent = "A photo of the pet makes the guide feel theirs — or add your clinic's logo so it clearly comes from you.";
+      }
+      $("coverAskModal").hidden = false;
+      return;
+    }
     doPublish();
   }
   function closeCoverAsk() { $("coverAskModal").hidden = true; }
@@ -4324,6 +4393,10 @@
       item("📸 " + (state.guide.cover ? "Change photo" : "Add a photo"), function () { pickCover(selectedEl); });
       if (state.guide.cover) item("↔ Reposition photo", function () { startCoverReposition(selectedEl); });
       if (state.guide.cover) item("🗑 Remove photo", function () { state.guide.cover = null; state.guide.coverPos = null; applyCover(selectedEl, state.guide); recordHistory(); });
+      if (state.guide.category === "vet") {
+        item("🏥 " + (state.guide.clinicLogo ? "Change clinic logo" : "Add clinic logo"), function () { pickLogo(); });
+        if (state.guide.clinicLogo) item("🗑 Remove logo", function () { state.guide.clinicLogo = null; renderGuideEditor(); recordHistory(); });
+      }
       item("↕ Move title up/down", function () { startCoverTextMove(selectedEl); });
       if (state.guide.coverEmojiOff) item("😀 Add cover icon", function () {
         state.guide.coverEmojiOff = false; renderGuideEditor();
@@ -4577,6 +4650,10 @@
     var coverEl = $("guideDoc").querySelector(".guide-cover");
     if (!coverEl) { doPublish(); return; }
     pickCover(coverEl, function () { doPublish(); });
+  });
+  if ($("coverAskLogo")) $("coverAskLogo").addEventListener("click", function () {
+    closeCoverAsk();
+    pickLogo(function () { doPublish(); });
   });
   // Vet safety check: the confirm button stays disabled until the checkbox is
   // ticked; confirming re-enters publish(), which continues to the cover

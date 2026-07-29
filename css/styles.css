@@ -1154,6 +1154,48 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .cover-add-photo:hover { background: rgba(255, 255, 255, 0.28); transform: translateY(-1px); }
 .cover-add-photo[hidden] { display: none; }
+/* Vet guides: the clinic-logo invitation sits under the photo one, quieter. */
+.cover-add-logo {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  font-family: inherit; font-size: 0.82rem; font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  background: none;
+  border: 1.5px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.cover-add-logo:hover { background: rgba(255, 255, 255, 0.16); }
+/* The clinic logo on the cover: a white badge, so any logo (including
+   white-on-transparent) reads on cream, accent colours and photos alike. */
+.cover-logo-wrap { position: relative; display: inline-block; }
+.cover-logo {
+  display: block;
+  max-height: 64px;
+  max-width: min(230px, 70vw);
+  object-fit: contain;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin: 0 auto 12px;
+  box-shadow: var(--shadow-sm);
+}
+.cover-logo-x {
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 24px; height: 24px;
+  padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.75rem; line-height: 1;
+  cursor: pointer;
+  z-index: 4;
+}
+.cover-logo-x:hover { background: rgba(0, 0, 0, 0.62); }
 .cover-reposition-btn[hidden] { display: none; }
 .guide-cover.repositioning .cover-reposition-btn { display: none; }
 /* Drag-to-reposition the cover photo / move the title */
@@ -4112,7 +4154,7 @@ textarea.lf-input { resize: none; }
 /* .contact-del is absolutely positioned on phones (contact rows wrap), so it
    only gets `relative` on wider screens where it's still in normal flow. */
 @media (min-width: 561px) { .contact-del { position: relative; } }
-.block-x::after, .cover-emoji-x::after, .routine-item-del::after,
+.block-x::after, .cover-emoji-x::after, .cover-logo-x::after, .routine-item-del::after,
 .reminder-add-time::after, .contact-del::after, .dash-card-more::after,
 .dash-fb-close::after, .feedback-x::after {
   content: ""; position: absolute; inset: -8px;

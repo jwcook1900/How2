@@ -853,6 +853,11 @@
           showStep(3);
           initHistory();
           showToast(files.length > 1 ? "Built from your notes and photos ✨" : "Built from your notes ✨");
+          // Anything the paperwork left unclear becomes a to-do list right
+          // away, while the discharge notes are still in front of the staff.
+          if (state.category.id === "vet" && vetFlagItems().length) {
+            setTimeout(openVetTriage, 900);
+          }
         } else {
           importFallback(mergedText, !res); // null = no cloud backend
         }
@@ -2449,6 +2454,7 @@
     var g = state.guide;
     updateSlugUI();
     syncGuideHints();
+    syncVetTriageChip(); // every mutation re-renders, so the ⚠️ count stays live
     var doc = $("guideDoc");
     doc.innerHTML = "";
 
@@ -4224,6 +4230,145 @@
     });
     return n;
   }
+
+  /* ---------- Flag triage ----------
+     The moment a vet guide lands in the editor, its ⚠️ flags become a short
+     to-do list the nurse or front desk can action on the spot: type the
+     answer straight from the vet, or remove a flag that doesn't apply — one
+     click each, no hunting through the guide. The list reopens any time from
+     the amber chip above the editor, and the publish-time safety check stays
+     as the final gate. */
+
+  // Every ⚠️ line across the sections, addressable enough to edit in place.
+  function vetFlagItems() {
+    var items = [];
+    ((state.guide && state.guide.sections) || []).forEach(function (s) {
+      String(s.body || "").split("\n").forEach(function (line) {
+        if (line.indexOf("⚠️") !== -1) {
+          items.push({ secId: s.id, secTitle: s.title || "Section", line: line });
+        }
+      });
+    });
+    return items;
+  }
+  // What staff read in the list: the unclear detail, without the boilerplate.
+  function vetFlagDisplay(line) {
+    return line.replace(/^\s*⚠️\s*/, "").replace(/^check with your clinic:\s*/i, "");
+  }
+  // Removes (replacement == null) or replaces one flag line in its section.
+  // A section left with nothing (and holding no media) goes with it.
+  function resolveVetFlag(secId, line, replacement) {
+    var g = state.guide;
+    var sec = (g.sections || []).filter(function (s) { return s.id === secId; })[0];
+    if (!sec) return;
+    var lines = String(sec.body || "").split("\n");
+    var i = lines.indexOf(line);
+    if (i === -1) return;
+    if (replacement) lines.splice(i, 1, replacement);
+    else lines.splice(i, 1);
+    sec.body = lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\n+$/g, "");
+    var removedSection = false;
+    if (!sec.body.trim() && !sec.photo && !sec.videoId) {
+      g.sections = g.sections.filter(function (s) { return s.id !== secId; });
+      removedSection = true;
+    }
+    renderGuideEditor();
+    recordHistory();
+    return removedSection;
+  }
+  function openVetTriage() {
+    renderVetTriage();
+    $("vetTriageModal").hidden = false;
+  }
+  function closeVetTriage() { $("vetTriageModal").hidden = true; }
+  function renderVetTriage() {
+    var list = $("vetTriageList");
+    if (!list) return;
+    var items = vetFlagItems();
+    var lead = $("vetTriageLead");
+    if (lead) {
+      lead.textContent = items.length
+        ? "The paperwork left " + (items.length === 1 ? "one detail" : items.length + " details") +
+          " unclear, so nothing was guessed. Add the answer if you know it, or remove anything that doesn't apply — undo can bring any of them back."
+        : "All sorted — every ⚠️ flag has been actioned. 🎉";
+    }
+    list.innerHTML = "";
+    items.forEach(function (it) {
+      var row = document.createElement("div");
+      row.className = "vt-item";
+      var sec = document.createElement("div");
+      sec.className = "vt-item-sec";
+      sec.textContent = it.secTitle;
+      var text = document.createElement("p");
+      text.className = "vt-item-text";
+      text.textContent = vetFlagDisplay(it.line);
+      var actions = document.createElement("div");
+      actions.className = "vt-item-actions";
+      var answerBtn = document.createElement("button");
+      answerBtn.type = "button";
+      answerBtn.className = "btn btn-primary btn-sm";
+      answerBtn.textContent = "✏️ Add the answer";
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "btn btn-ghost btn-sm";
+      removeBtn.textContent = "Remove";
+      actions.appendChild(answerBtn);
+      actions.appendChild(removeBtn);
+      var form = document.createElement("div");
+      form.className = "vt-answer";
+      form.hidden = true;
+      var ta = document.createElement("textarea");
+      ta.className = "q-textarea";
+      ta.rows = 2;
+      ta.placeholder = "What the owner should be told instead — e.g. No teeth were extracted, just a scale and polish.";
+      var save = document.createElement("button");
+      save.type = "button";
+      save.className = "btn btn-primary btn-sm";
+      save.textContent = "Save — replaces the ⚠️ line";
+      form.appendChild(ta);
+      form.appendChild(save);
+      answerBtn.addEventListener("click", function () {
+        form.hidden = !form.hidden;
+        if (!form.hidden) ta.focus();
+      });
+      save.addEventListener("click", function () {
+        var v = ta.value.trim();
+        if (!v) { ta.focus(); return; }
+        resolveVetFlag(it.secId, it.line, v);
+        renderVetTriage();
+        showToast("Updated — the ⚠️ flag is gone.");
+      });
+      removeBtn.addEventListener("click", function () {
+        var droppedSection = resolveVetFlag(it.secId, it.line, null);
+        renderVetTriage();
+        showToast(droppedSection ? "Removed, along with its now-empty section." : "Removed.");
+      });
+      row.appendChild(sec);
+      row.appendChild(text);
+      row.appendChild(actions);
+      row.appendChild(form);
+      list.appendChild(row);
+    });
+    // The last flag actioned: let the 🎉 line land, then get out of the way.
+    if (!items.length) {
+      setTimeout(function () {
+        var m = $("vetTriageModal");
+        if (m && !m.hidden) m.hidden = true;
+      }, 1200);
+    }
+  }
+  // The chip above the editor: how many flags remain, and the way back in.
+  function syncVetTriageChip() {
+    var chip = $("vetTriageChip");
+    if (!chip) return;
+    var n = (state.guide && state.guide.category === "vet") ? vetFlagItems().length : 0;
+    chip.hidden = !n;
+    if (n) {
+      chip.textContent = "⚠️ " + n + (n === 1 ? " detail" : " details") +
+        " to check with the vet — tap to review";
+    }
+  }
+
   function openVetCheck() {
     var flags = vetFlagCount();
     var note = $("vetCheckFlags");
@@ -5053,6 +5198,10 @@
   Array.prototype.forEach.call(document.querySelectorAll("[data-logokit-close]"), function (el) {
     el.addEventListener("click", function () { $("logoKitModal").hidden = true; });
   });
+  if ($("vetTriageChip")) $("vetTriageChip").addEventListener("click", openVetTriage);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-triage-close]"), function (el) {
+    el.addEventListener("click", closeVetTriage);
+  });
   // Vet safety check: the confirm button stays disabled until the checkbox is
   // ticked; confirming re-enters publish(), which continues to the cover
   // nudge / actual publish. ✕/backdrop just close (asks again next time).
@@ -5273,6 +5422,7 @@
     if (e.key === "Escape" && !$("coverAskModal").hidden) closeCoverAsk();
     if (e.key === "Escape" && $("vetCheckModal") && !$("vetCheckModal").hidden) closeVetCheck();
     if (e.key === "Escape" && $("logoKitModal") && !$("logoKitModal").hidden) $("logoKitModal").hidden = true;
+    if (e.key === "Escape" && $("vetTriageModal") && !$("vetTriageModal").hidden) closeVetTriage();
     if (e.key === "Escape" && $("secPickModal") && !$("secPickModal").hidden) $("secPickModal").hidden = true;
     // Escape on the keep nudge counts as the skip (same logging rules)
     if (e.key === "Escape" && $("keepModal") && !$("keepModal").hidden) $("keepSkip").click();

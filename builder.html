@@ -168,6 +168,10 @@
         <h1 class="step-heading">Make it yours</h1>
         <p class="step-lead">Tap any text to edit. Expand a section to add photos or video.</p>
 
+        <!-- Vet guides only: how many ⚠️ flags still need actioning, and the
+             way back into the triage list. Hidden once they're all resolved. -->
+        <button class="vet-triage-chip" id="vetTriageChip" type="button" hidden></button>
+
         <div class="guide-doc" id="guideDoc"><!-- guide rendered here --></div>
 
         <div class="add-block-row">
@@ -405,6 +409,23 @@
       <p class="feedback-lead" id="logoKitLead"></p>
       <div class="feedback-actions">
         <button class="btn btn-primary btn-sm" type="button" data-logokit-close>Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flag triage: opens as soon as a vet guide lands in the editor with
+       ⚠️ "Check with your clinic" flags. Staff action each one on the spot —
+       type the answer, or remove it in one click — instead of hunting the
+       ⚠️ lines through the guide. Reopens any time from the editor chip. -->
+  <div class="feedback-modal" id="vetTriageModal" hidden>
+    <div class="feedback-backdrop" data-triage-close></div>
+    <div class="feedback-card vt-card" role="dialog" aria-modal="true" aria-labelledby="vetTriageTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-triage-close>×</button>
+      <h3 class="feedback-title" id="vetTriageTitle">⚠️ A few details to check.</h3>
+      <p class="feedback-lead" id="vetTriageLead"></p>
+      <div id="vetTriageList"></div>
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-triage-close>I'll sort these later</button>
       </div>
     </div>
   </div>

@@ -520,10 +520,12 @@
   }
 
   /* ---------- Step 1: render category cards ----------
-     Three hero guides lead (the ones we're actually known for); everything
-     else lives one tap away behind "More guide types", so the first screen
-     reads focused instead of a wall of twelve equal choices. */
-  var HERO_CATS = { pet: 1, vet: 1, kids: 1 };
+     Three hero guides lead (the consumer story: pets, homes, kids);
+     everything else lives one tap away behind "More guide types", so the
+     first screen reads focused instead of a wall of twelve equal choices.
+     Vet Discharge lives in the expansion — clinics arrive through their own
+     front door (vets.html → builder?cat=vet), which skips this screen. */
+  var HERO_CATS = { pet: 1, home: 1, kids: 1 };
   function renderCategories() {
     var grid = $("catGrid");
     grid.innerHTML = "";

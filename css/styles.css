@@ -1196,6 +1196,45 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-style: normal;
   color: var(--ink-muted);
 }
+/* Workflow timeline: six quiet steps down the page, joined by a line. */
+.vets-flow {
+  list-style: none;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+}
+.vets-flow::before {
+  content: "";
+  position: absolute;
+  left: 21px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--line);
+}
+.vets-flow li {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  padding: 0 0 26px;
+}
+.vets-flow li:last-child { padding-bottom: 0; }
+.vets-flow-emoji {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  font-size: 1.15rem;
+  box-shadow: var(--shadow-sm);
+}
+.vets-flow strong { display: block; font-size: 1.02rem; }
+.vets-flow p { margin: 3px 0 0; color: var(--ink-soft); font-size: 0.92rem; line-height: 1.55; }
+
 /* Homepage band: a quiet signpost, not a fork in the funnel. */
 .vets-band {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;

@@ -1172,6 +1172,15 @@ ul { margin: 0; padding: 0; list-style: none; }
 .start-card.start-card-lead .start-name { align-self: end; }
 .start-card.start-card-lead .start-desc { align-self: start; }
 
+/* Vet flow: the quiet scratch alternative under the upload panel. */
+.start-scratch-alt {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+.start-scratch-alt .btn-link { font-size: inherit; }
+
 /* Share step: the guide code the front desk writes on the paperwork. */
 .share-code {
   background: var(--bg-tint);

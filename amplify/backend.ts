@@ -163,13 +163,12 @@ const guideWriteUrl = guideWriteLambda.addFunctionUrl({
   },
 });
 
-// Abuse/cost guard on the expensive public endpoints: cap how many of each can
-// run at once. Generous for real traffic; a flood hits the cap, not the bill.
-backend.aiFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 10;
-backend.transcribeFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
-backend.videoFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
-backend.urlFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
-backend.emailFn.resources.cfnResources.cfnFunction.reservedConcurrentExecutions = 5;
+// NOTE: reserved-concurrency caps on the AI/transcribe/video/url/email
+// functions were tried here as an abuse guard and ROLLED BACK the deploy —
+// this account's Lambda concurrency quota is at the small default, and AWS
+// requires ≥10 unreserved, so any reservation fails CloudFormation. Revisit
+// only after a service-quota increase; until then the per-IP limiter on
+// guide writes (above) is the rate limiting that matters.
 
 // Broadcast email: reads recipients (Cognito emails + waitlist Feedback rows),
 // writes unsubscribes back as Feedback rows, and serves the GET /unsub link.

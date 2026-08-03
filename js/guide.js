@@ -123,7 +123,7 @@
     guide.routine.items.some(function (it) { return it.times && it.times.length; });
   if (hasRoutine) {
     html += guide.category === "vet"
-      ? '<a class="routine-chip no-print" href="#routine">💊 Medication reminders inside — tap to add every dose to your calendar</a>'
+      ? '<a class="routine-chip no-print" href="#routine">⏰ Dose reminders inside — tap to add every dose to your calendar</a>'
       : '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
   }
 
@@ -194,9 +194,10 @@
     }
     var open = (firstSectionOpen || vetCls) ? " open" : "";
     firstSectionOpen = false;
-    // "Before You Worry" gets its warm signature treatment in the published
-    // guide too — same title match as the editor.
-    var byw = /before you worry/i.test(sec.title || "") ? " sec-byw" : "";
+    // The Quirks section gets its warm signature treatment in the published
+    // guide too — same title match as the editor, and still matching the
+    // "Before You Worry" name guides published before the rename carry.
+    var byw = /before you worry|\bquirks\b/i.test(sec.title || "") ? " sec-byw" : "";
     if (byw && bodyHtml) {
       bodyHtml = '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' + bodyHtml;
     }
@@ -252,7 +253,7 @@
     });
     var periods = [["morning", "🌅 Morning"], ["afternoon", "☀️ Afternoon"], ["evening", "🌙 Evening"]];
     var s = '<div class="guide-routine" id="routine"><div class="routine-head">' +
-      (guide.category === "vet" ? "💊 Medication & Care Reminders" : "⏰ Daily Routine") + "</div>";
+      (guide.category === "vet" ? "⏰ Dose Times & Reminders" : "⏰ Daily Routine") + "</div>";
     periods.forEach(function (p) {
       var list = groups[p[0]];
       if (!list.length) return;

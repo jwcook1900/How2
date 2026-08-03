@@ -62,7 +62,7 @@
         { id: "emergency", q: "Any emergency contacts?", hint: "Vet, and a backup human.", ph: "Vet: Dr Smith — 0400 000 000\nMe: …", type: "textarea", target: "emergency" },
         // The signature section: what's normal for them but alarming to a
         // stranger. Prevents panicked calls better than any other question.
-        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that are obvious to you but reassuring for someone new.", ph: "He eats lying down. She growls while playing. He snores loudly. She hides under the bed during storms…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that are obvious to you but reassuring for someone new.", ph: "He eats lying down. She growls while playing. He snores loudly. She hides under the bed during storms…", type: "textarea", target: "section", icon: "✨", jas: true, sectionTitle: "{name's} Quirks" }
       ]
     },
     {
@@ -99,7 +99,7 @@
         { id: "local", q: "Local recommendations?", hint: "Coffee, food, the supermarket, walks, the pharmacy.", ph: "Best coffee: …\nDinner: …\nSupermarket: 5 minutes up the road…", type: "textarea", target: "section", icon: "📍", sectionTitle: "Local Recommendations" },
         { id: "help", q: "Who do they call if something goes wrong?", hint: "You, a neighbour, the building manager, a plumber.", ph: "Me: 0400 000 000\nNeighbour (Sue, No. 12): …\nPlumber: …\nEmergency: 000", type: "textarea", target: "section", icon: "🚨", sectionTitle: "Emergency & Important Contacts" },
         // The signature question: the quirks that read as problems to a stranger.
-        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone staying here for the first time.", ph: "The front door sticks. The hot water takes a minute. The washing machine is noisy. The upstairs floor creaks…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone staying here for the first time.", ph: "The front door sticks. The hot water takes a minute. The washing machine is noisy. The upstairs floor creaks…", type: "textarea", target: "section", icon: "✨", jas: true, sectionTitle: "Quirks of the House" }
       ]
     },
     {
@@ -120,7 +120,7 @@
         { id: "comfort", q: "What helps if they're upset, overwhelmed or having a hard day?", hint: "Comfort items, songs, quiet time — the things that always work.", ph: "One extra cuddle before bed. Reading together. Her teddy, and the hallway light left on…", type: "textarea", target: "section", icon: "❤️", sectionTitle: "Comfort & Calm" },
         { id: "emergency", q: "Emergency contacts?", hint: "Parents, a backup, doctor.", ph: "Mum: …\nDad: …\nDoctor: …", type: "textarea", target: "emergency" },
         // The signature section: what only their parent would think to say.
-        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "She always wants one more bedtime story. He only drinks from the blue cup. She cries for a minute before falling asleep. He gets shy around new people…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "She always wants one more bedtime story. He only drinks from the blue cup. She cries for a minute before falling asleep. He gets shy around new people…", type: "textarea", target: "section", icon: "✨", jas: true, sectionTitle: "{name's} Quirks" }
       ]
     },
     {
@@ -193,7 +193,7 @@
         { id: "problems", q: "What to do if something breaks?", hint: "Water main, fuse box, who to call.", ph: "Water shutoff is under the sink. Fuse box in the garage…", type: "textarea", target: "section", icon: "🚧", sectionTitle: "If Something Goes Wrong" },
         { id: "emergency", q: "Emergency contacts?", hint: "You, a neighbour, a tradie.", ph: "Me: …\nNeighbour: …\nPlumber: …", type: "textarea", target: "emergency" },
         // Same signature moment as every other guide.
-        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "The back door sticks. The hot water takes a minute. The fridge hums at night. The smoke alarm chirps when it rains…", type: "textarea", target: "section", icon: "✨", sectionTitle: "Before You Worry" }
+        { id: "extra", q: "What's something that's completely normal to you, but might confuse, surprise or worry someone else?", hint: "The little things that feel obvious to you but reassuring for someone new.", ph: "The back door sticks. The hot water takes a minute. The fridge hums at night. The smoke alarm chirps when it rains…", type: "textarea", target: "section", icon: "✨", jas: true, sectionTitle: "Quirks of the House" }
       ]
     },
     {
@@ -1177,13 +1177,14 @@
       sections.push({ id: uid(), icon: "📝", title: "My notes", body: rawText || "", photo: null, videoId: null });
     }
     // Every funnel ends with the signature invitation: imported notes never
-    // contain a Before You Worry section, so offer the empty amber card in
-    // review. Left unfilled, it never appears in the published guide (the
-    // viewer hides placeholder-only sections). Vet discharge skips it — its
-    // "What's Normal" section already plays that role, clinically.
+    // contain a Quirks section, so offer the empty amber card in review. Left
+    // unfilled, it never appears in the published guide (the viewer hides
+    // placeholder-only sections). Imports have no name to personalise with, so
+    // it stays plain "Quirks". Vet discharge skips it — its "What's Normal"
+    // section already plays that role, clinically.
     if (cat.id !== "vet" &&
-        !sections.some(function (s) { return /before you worry/i.test(s.title || ""); })) {
-      sections.push({ id: uid(), icon: "✨", title: "Before You Worry", body: "", photo: null, videoId: null });
+        !sections.some(function (s) { return isQuirksSection(s.title); })) {
+      sections.push({ id: uid(), icon: "✨", title: "Quirks", body: "", photo: null, videoId: null });
     }
     var contacts = (ai.contacts || [])
       .filter(function (c) { return c && (c.label || c.value); })
@@ -1238,7 +1239,20 @@
     state.category.questions.forEach(function (q) {
       if (q.target === "title" && state.answers[q.id]) nameAns = state.answers[q.id];
     });
+    // Possessive token: "{name's} Quirks" → "Whiskey's Quirks", or plain
+    // "Quirks" when we don't have a name yet ("them's Quirks" isn't English).
+    // Names already ending in s take the bare apostrophe: "The Kids' Quirks".
+    str = String(str).replace(/\{name's\}\s*/g, nameAns
+      ? nameAns + (/s$/i.test(nameAns) ? "' " : "'s ")
+      : "");
     return str.replace(/\{name\}/g, nameAns || "them");
+  }
+
+  // The signature section goes by a personalised name now ("Whiskey's Quirks",
+  // "Quirks of the House"), but guides published before the rename still carry
+  // "Before You Worry" in their payload — both must keep the amber treatment.
+  function isQuirksSection(title) {
+    return /before you worry|\bquirks\b/i.test(title || "");
   }
 
   function captureAnswer() {
@@ -1752,7 +1766,7 @@
       // no ghost card while unanswered (the skeleton stays shorter), and when
       // active it stands alone without a section-card shell. Once answered it
       // shows as a normal lit card — that IS the guide section it becomes.
-      var isJas = s.q.sectionTitle === "Before You Worry";
+      var isJas = !!s.q.jas;
       if (isJas && idx === liveIdx) {
         var jw = document.createElement("div");
         jw.className = "lf-jas-wrap lf-open";
@@ -1789,10 +1803,10 @@
   // Back / Skip / Next. Returns the wrapper; wires everything.
   function buildLiveEmbed(q, isLast) {
     var wrap = document.createElement("div");
-    // "Just a sec…" — the Before You Worry question is a conversational pause,
+    // "Just a sec…" — the Quirks question is a conversational pause,
     // not another form field. Softer card, the product speaking directly.
     // Used exactly once per flow so it keeps its charm.
-    var isJas = q.sectionTitle === "Before You Worry";
+    var isJas = !!q.jas;
     wrap.className = "lf-embed" + (isJas ? " lf-jas" : "");
     var isArea = q.type === "textarea";
     wrap.innerHTML =
@@ -3163,16 +3177,17 @@
     var r = $("addRoutine");
     if (r) {
       r.hidden = !g.noRoutine;
-      r.textContent = g.category === "vet" ? "＋ Add medication reminders" : "＋ Add daily routine";
+      r.textContent = g.category === "vet" ? "＋ Add dose reminders" : "＋ Add daily routine";
     }
     var v = $("addVideos"); if (v) v.hidden = !!g.videos;
   }
 
   function buildSectionEl(sec, openFirst) {
     var el = document.createElement("div");
-    // "Before You Worry" is the signature section — it gets a warm accent and
-    // a line explaining why it exists (matched on title so imports get it too)
-    var isByw = /before you worry/i.test(sec.title || "");
+    // Quirks ("Before You Worry" on older guides) is the signature section —
+    // a warm accent and a line explaining why it exists (matched on title so
+    // imports and renames get it too)
+    var isByw = isQuirksSection(sec.title);
     // Vet guides mirror the viewer's chrome in the editor, so what the owner
     // reviews looks like what a carer will see.
     var isVet = state.guide && state.guide.category === "vet";
@@ -3686,7 +3701,10 @@
     el.innerHTML =
       '<div class="routine-head">' +
         '<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">⠿</span>' +
-        "<span>" + (isVet ? "💊 Medication & Care Reminders" : "⏰ Daily Routine") + "</span>" +
+        // Not "Medications" — that's the extracted section listing WHAT to
+        // give. This widget is WHEN, so it takes the clock and says so; two
+        // 💊 blocks a few centimetres apart just read as a duplicate.
+        "<span>" + (isVet ? "⏰ Dose Times & Reminders" : "⏰ Daily Routine") + "</span>" +
       "</div>" +
       '<p class="routine-hint">' + (isVet
         ? "Dose times and scheduled care from the discharge notes. The owner presses one button and every reminder lands in their calendar."

@@ -833,7 +833,9 @@
       ? "Reading your photos and turning them into a guide."
       : "Turning what you have into a guide.";
     var be2 = $("buildingEmoji");
-    if (be2 && state.category) be2.textContent = state.category.emoji;
+    // The recovery heart (vet), not the clinical stethoscope — same choice the
+    // guide's own cover makes.
+    if (be2 && state.category) be2.textContent = state.category.coverEmoji || state.category.emoji;
     showStep("building");
 
     getFilePayloads(files).then(function (agg) {
@@ -2316,7 +2318,7 @@
   /* ---------- Generate guide from answers ---------- */
   function buildGuide() {
     var be = $("buildingEmoji");
-    if (be && state.category) be.textContent = state.category.emoji;
+    if (be && state.category) be.textContent = state.category.coverEmoji || state.category.emoji;
     showStep("building");
 
     var cat = state.category;

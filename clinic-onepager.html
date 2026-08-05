@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Digital Recovery Guides for veterinary clinics: the one-page summary a practice manager can check, print or forward." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <!-- A handout for trial clinics, not a page we want indexed or shared as a
+       landing page: vets.html is the front door. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Digital Recovery Guides — the one-page summary for clinics</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+</head>
+<body class="onepager-body">
+
+  <div class="op-bar no-print">
+    <span class="op-bar-note">One page. Print it, or save as PDF for your practice manager.</span>
+    <button class="btn btn-primary btn-sm" id="opPrint" type="button">🖨️ Print / Save as PDF</button>
+  </div>
+
+  <main class="op-sheet">
+    <header class="op-head">
+      <img class="op-logo" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+      <div class="op-head-right">
+        <span class="eyebrow">For veterinary clinics</span>
+        <p class="op-url">gotitguides.com/vets</p>
+      </div>
+    </header>
+
+    <h1 class="op-title">Digital Recovery Guides <span class="accent">owners actually follow.</span></h1>
+    <p class="op-sub">
+      Your clinic already writes the discharge notes. We turn them into a guide the owner reads on
+      their phone, reviewed by your team before it goes anywhere. No rewriting, no new system, no app
+      for owners to download.
+    </p>
+
+    <div class="op-cols">
+      <section class="op-col">
+        <h2 class="op-h2">How it fits your day</h2>
+        <ol class="op-flow">
+          <li><strong>Write the discharge notes</strong> exactly as you do now, in the system you already use.</li>
+          <li><strong>Upload the PDF, a photo or the text.</strong> Front desk drops in whatever exists.</li>
+          <li><strong>The guide drafts itself.</strong> Every instruction copied exactly. Anything unclear is flagged, never guessed.</li>
+          <li><strong>Your team reviews.</strong> Confirm medications, warning signs and follow-up before publishing.</li>
+          <li><strong>Send one link</strong> by SMS, email or WhatsApp, locked with a code you write on the paperwork.</li>
+          <li><strong>The owner recovers with it</strong>, dose reminders and all, one tap from their calendar.</li>
+        </ol>
+      </section>
+
+      <section class="op-col">
+        <h2 class="op-h2">Why clinics ask for it</h2>
+        <ul class="op-list">
+          <li><strong>Owners leave overwhelmed.</strong> Medications, feeding, restrictions, wound care and follow-up, all in one emotional moment.</li>
+          <li><strong>The same questions, every day.</strong> How often do I give this? Can she eat? Is this normal? Reception answers them all again.</li>
+          <li><strong>Paper gets skimmed once and lost.</strong> A guide stays on the phone for the whole recovery.</li>
+        </ul>
+
+        <h2 class="op-h2">Your team stays the author</h2>
+        <p class="op-p">
+          The AI changes presentation, not advice. It never invents a dose, a frequency or a warning
+          sign. Unclear details become visible flags your team actions before publishing, and the
+          veterinary-advice disclaimer is on every guide.
+        </p>
+      </section>
+    </div>
+
+    <section class="op-claim">
+      <h2 class="op-claim-t">Safer than the email you'd have sent<span class="accent">.</span></h2>
+      <p class="op-p">
+        Your discharge notes are encrypted on your own computer before they reach us, with a code only
+        your clinic sets. We can't read them. Neither can anyone who gets hold of the link, because the
+        code that opens it never travels with the link. It goes home on the paperwork.
+      </p>
+      <ul class="op-ticks">
+        <li>No readable copy sitting in an inbox</li>
+        <li>No wrong address moment you can't take back</li>
+        <li>Nothing a search engine can ever find</li>
+        <li>Stored on AWS in Sydney, encrypted in transit and at rest</li>
+        <li>No AI training on your data, no advertising, deleted on request</li>
+        <li>Consent confirmed by your team before anything is published</li>
+      </ul>
+      <p class="op-honest">
+        <strong>One thing worth knowing:</strong> to turn your notes into a guide, they pass through
+        our AI provider in the United States. Transiently, never stored there, never used to train
+        anything. Everything else stays in Sydney. Full detail at gotitguides.com/clinic-security.html
+        and the data processing summary beside it.
+      </p>
+    </section>
+
+    <footer class="op-foot">
+      <div>
+        <p class="op-foot-t">Trialling with our first clinics now. Free while we do.</p>
+        <p class="op-foot-p">Bring a real discharge sheet and we'll build the guide with you, in about fifteen minutes.</p>
+      </div>
+      <div class="op-foot-contact">
+        <p><strong>hello@gotitguides.com</strong></p>
+        <p>gotitguides.com/vets</p>
+        <p class="op-foot-made">Made in Sydney</p>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    document.getElementById("opPrint").addEventListener("click", function () { window.print(); });
+  </script>
+</body>
+</html>

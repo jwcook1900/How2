@@ -532,7 +532,18 @@ window.GotItStore = (function () {
         var q = "query Get($id: ID!){ getGuide(id: $id){ id payload } }";
         return gql(cfg, q, { id: slug }).then(function (d) {
           if (!d.getGuide) return null;
-          return JSON.parse(d.getGuide.payload);
+          var p = d.getGuide.payload;
+          // Normally an AWSJSON string. Defensive on both sides: a payload that
+          // arrives already parsed is used as-is, and one that was stored
+          // double-encoded is unwrapped — otherwise JSON.parse hands back a
+          // STRING, every field reads undefined, and the guide renders blank.
+          if (typeof p === "string") {
+            try { p = JSON.parse(p); } catch (e) { return null; }
+          }
+          if (typeof p === "string") {
+            try { p = JSON.parse(p); } catch (e) { return null; }
+          }
+          return (p && typeof p === "object") ? p : null;
         });
       });
     },

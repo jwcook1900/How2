@@ -75,22 +75,6 @@
         </div>
       </form>
 
-      <!-- Search (only when 3+ guides) -->
-      <div class="dash-search" id="dashSearchWrap" hidden>
-        <input type="search" id="dashSearch" class="q-input" placeholder="Search your guides…" autocomplete="off" />
-      </div>
-
-      <!-- Empty state -->
-      <div class="dash-empty" id="dashEmpty" hidden>
-        <span class="dash-emoji">📭</span>
-        <h2 class="dash-empty-title">Your guides will live here</h2>
-        <p>Create your first guide, save it to your dashboard, then come back any time to edit, share or duplicate it.</p>
-        <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
-      </div>
-
-      <div class="dash-grid" id="dashGrid"></div>
-      <p class="dash-noresults" id="dashNoResults" hidden>No guides match that search.</p>
-
       <!-- The clinic kit: a vet clinic sets its logo + contact details once,
            and every new vet discharge guide starts stamped with them. -->
       <div class="clinic-kit" id="clinicKit">
@@ -117,6 +101,23 @@
           </div>
         </div>
       </div>
+
+      <!-- Search (only when 3+ guides) -->
+      <div class="dash-search" id="dashSearchWrap" hidden>
+        <input type="search" id="dashSearch" class="q-input" placeholder="Search your guides…" autocomplete="off" />
+      </div>
+
+      <!-- Empty state -->
+      <div class="dash-empty" id="dashEmpty" hidden>
+        <span class="dash-emoji">📭</span>
+        <h2 class="dash-empty-title">Your guides will live here</h2>
+        <p>Create your first guide, save it to your dashboard, then come back any time to edit, share or duplicate it.</p>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
+      </div>
+
+      <div class="dash-grid" id="dashGrid"></div>
+      <p class="dash-noresults" id="dashNoResults" hidden>No guides match that search.</p>
+
 
       <!-- Soft teaser for where things are headed -->
       <div class="dash-teaser" id="dashTeaser" hidden>

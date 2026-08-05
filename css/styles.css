@@ -2802,6 +2802,37 @@ mark.vet-flag {
 .vt-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .vt-answer { margin-top: 10px; }
 .vt-answer .q-textarea { width: 100%; min-height: 64px; margin: 0 0 8px; }
+.vt-saveall { margin: 4px 0 12px; }
+/* SMS to the owner: signposted, not yet built — faded so it reads as a
+   promise rather than a button someone will keep pressing. */
+.sms-soon { opacity: 0.55; margin-top: 18px; }
+.sms-soon input, .sms-soon button { cursor: not-allowed; }
+.soon-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--white);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+/* The tidy-up offer, once every flag has been actioned. */
+.vt-refine {
+  padding: 16px;
+  margin: 4px 0 12px;
+  background: var(--cream);
+  border: 1.5px solid var(--coral);
+  border-radius: var(--radius-sm);
+}
+.vt-refine-t { margin: 0 0 6px; font-size: 1rem; font-weight: 800; color: var(--ink); }
+.vt-refine-p { margin: 0 0 12px; font-size: 0.88rem; line-height: 1.5; color: var(--ink-muted); }
+.vt-refine-note { margin: 10px 0 0; font-size: 0.85rem; font-weight: 600; }
+.vt-refine-note.ok { color: #1a9e57; }
+.vt-refine-note.error { color: var(--coral-dark); }
 
 .guide-section.sec-byw {
   background: #FFF8E7;

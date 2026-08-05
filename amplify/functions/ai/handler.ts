@@ -58,7 +58,8 @@ function importPriorities(category: string): string {
 export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   const mode = event.arguments.mode;
   // The whole-guide polish sends every field at once, so give it more headroom.
-  const text = (event.arguments.text || "").slice(0, mode === "guide" ? 24000 : 8000);
+  const bigModes = mode === "guide" || mode === "vetrefine";
+  const text = (event.arguments.text || "").slice(0, bigModes ? 24000 : 8000);
   const category = event.arguments.category || "general";
   const question = event.arguments.question || "";
   const fileData = event.arguments.fileData || "";
@@ -190,6 +191,40 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
         (text ? ", merged with the notes above." : "."),
     });
     userContent = blocks;
+  } else if (mode === "vetrefine") {
+    // Second pass over a vet guide, after the clinic answered what the
+    // discharge document left unclear. Those answers are facts about the WHOLE
+    // guide, so the hedged passages they resolve ("if any teeth have been
+    // extracted…") have to go. Strictly subtractive: this mode may delete and
+    // rejoin, never add.
+    maxTokens = 4096;
+    system =
+      "You are tidying a veterinary recovery guide that was drafted from a clinic's discharge document. " +
+      "The clinic has now answered the questions the document left unclear. Fold those answers through the " +
+      "guide and delete what they make irrelevant — nothing else. " +
+      'Input is JSON: {"sections":[{"id","title","body"}],"answers":[{"section","unclear","answer"}]}. ' +
+      'Return ONLY JSON: {"sections":[{"id":string,"body":string}],"remove":[string],"summary":string}. ' +
+      'In "sections" return ONLY sections whose body you actually changed, with the full new body. ' +
+      'In "remove" put the ids of sections left with nothing meaningful to say. ' +
+      "APPLYING AN ANSWER: treat it as confirmed fact everywhere in the guide, not only in its own section. " +
+      "When an answer rules something out — say the clinic confirms no teeth were extracted — delete every " +
+      "conditional passage anywhere in the guide that depended on it (soft-food instructions that applied only " +
+      "after extractions, dissolving stitches in the mouth, extraction-only rechecks). Do not leave the owner " +
+      "to work out which half applies to their pet. " +
+      "When an answer says something was not given or is not needed (no medications went home, no recheck " +
+      "booked), state that once, plainly, in that section — and if the section then holds nothing else, put its " +
+      'id in "remove" instead. ' +
+      "SAFETY RULES, absolute: " +
+      "Never invent, infer, calculate or add any clinical instruction, medication, dose, frequency, date or " +
+      "warning sign. You may only delete text the answers made irrelevant and lightly rejoin what remains. " +
+      "Keep surviving wording as close to the original as possible. " +
+      "Never remove or soften emergency warning signs, when-to-contact-the-clinic guidance, or contact details. " +
+      "Never remove a section just because it is short. " +
+      "If an answer is ambiguous, change nothing rather than guess. " +
+      "Leave any remaining ⚠️ lines exactly as they are. " +
+      '"summary": one plain sentence in Australian English saying what changed, e.g. "Removed the Medications ' +
+      'section and the soft-food instructions, since no teeth were extracted and no medications went home."';
+    userContent = text;
   } else if (mode === "guide") {
     // Whole-guide polish: improve every field's wording/labels at once, without
     // touching facts. Returns only the fields that actually changed.
@@ -251,6 +286,19 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       return JSON.parse(m ? m[0] : out);
     } catch (e) {
       return { title: "", sections: [{ emoji: "📝", title: "Notes", body: text }], contacts: [] };
+    }
+  }
+  if (mode === "vetrefine") {
+    const m = out.match(/\{[\s\S]*\}/);
+    try {
+      const r = JSON.parse(m ? m[0] : out);
+      return {
+        sections: Array.isArray(r.sections) ? r.sections : [],
+        remove: Array.isArray(r.remove) ? r.remove : [],
+        summary: typeof r.summary === "string" ? r.summary : "",
+      };
+    } catch (e) {
+      return { sections: [], remove: [], summary: "" };
     }
   }
   if (mode === "guide") {

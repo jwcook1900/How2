@@ -240,8 +240,8 @@
             <button class="btn btn-primary btn-sm" id="copyBtn" type="button">Copy</button>
           </div>
 
-          <label class="share-label">Send the view link to someone</label>
-          <p class="email-links-hint">These send the view-only link — they can read the guide but not edit it.</p>
+          <label class="share-label" id="shareSendLabel">Send the view link to someone</label>
+          <p class="email-links-hint" id="shareSendHint">These send the view-only link — they can read the guide but not edit it.</p>
           <div class="share-channels">
             <button class="chip" id="shareNative" type="button" hidden>
               <svg class="chip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share…
@@ -257,8 +257,20 @@
             </a>
           </div>
 
+          <!-- Clinics text owners; that's the channel they actually use. The
+               field is deliberately inert until the SMS backend exists — shown
+               faded, so it reads as a signpost rather than a broken button. -->
+          <div class="sms-soon" id="smsSoon" hidden>
+            <label class="share-label">Text it to them <span class="soon-pill">Coming soon</span></label>
+            <p class="email-links-hint" id="smsSoonHint">We're building one-tap SMS so the guide lands on the owner's phone before they've left the car park. For now, use Messages or WhatsApp above.</p>
+            <div class="share-link">
+              <input type="tel" id="smsSoonInput" placeholder="04XX XXX XXX" disabled />
+              <button class="btn btn-primary btn-sm" type="button" disabled>Send</button>
+            </div>
+          </div>
+
           <!-- ② SAVE IT & COME BACK TO EDIT -->
-          <div class="share-divider"><span>Save it &amp; edit later</span></div>
+          <div class="share-divider" id="shareSaveDivider"><span>Save it &amp; edit later</span></div>
 
           <div class="save-dash save-dash-hero" id="saveDash">
             <label class="share-label">⭐ Keep it in your dashboard <span class="save-dash-rec">Recommended</span></label>
@@ -440,12 +452,9 @@
       <button class="feedback-x" type="button" aria-label="Close" data-vetcheck-close>×</button>
       <h3 class="feedback-title" id="vetCheckTitle">🩺 A quick safety check.</h3>
       <p class="feedback-lead">This guide carries medical instructions. Before it goes live, please check these against the paperwork from your vet:</p>
-      <ul class="vetcheck-list">
-        <li>💊 Medication names, doses and how often</li>
-        <li>🚨 Warning signs, and when to seek urgent care</li>
-        <li>📅 Follow-up appointments</li>
-        <li>📞 Clinic contact details</li>
-      </ul>
+      <!-- Filled in by openVetCheck() from what this guide actually contains,
+           so a guide with no medications isn't asked to check the doses. -->
+      <ul class="vetcheck-list" id="vetCheckList"></ul>
       <p class="vetcheck-flags" id="vetCheckFlags" hidden></p>
       <label class="vetcheck-confirm"><input type="checkbox" id="vetCheckBox" /> I've checked these against the vet's paperwork.</label>
       <label class="vetcheck-confirm" id="vetConsentRow" hidden><input type="checkbox" id="vetConsentBox" /> I confirm I have the owner's consent to create and send this digital guide.</label>

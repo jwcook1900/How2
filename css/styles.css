@@ -4773,3 +4773,15 @@ textarea.lf-input { resize: none; }
   .op-foot-t { font-size: 0.85rem; }
   .op-foot-p, .op-foot-contact p { font-size: 0.74rem; }
 }
+
+/* The tidy-up sparkle turns while the pass runs: a disabled button with static
+   text gives no sign the press registered. */
+.vt-spark {
+  display: inline-block;
+  animation: vt-spin 1.1s linear infinite;
+}
+@keyframes vt-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .vt-spark { animation: vt-pulse 1.4s ease-in-out infinite; }
+  @keyframes vt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+}

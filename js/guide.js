@@ -80,13 +80,24 @@
   var slug = getSlug();
 
   function render(guide) {
-    if (!guide) {
+    // A guide that loads but carries nothing renderable used to come out as an
+    // empty cover with the feedback box under it: a blank page that looks
+    // broken and says nothing. Treat it like a missing guide and say so.
+    var hasContent = !!(guide && typeof guide === "object" && (
+      guide.title || guide.subtitle ||
+      (guide.sections || []).length || (guide.contacts || []).length ||
+      (guide.logs || []).length ||
+      (guide.routine && guide.routine.items && guide.routine.items.length) ||
+      (guide.videos && guide.videos.items && guide.videos.items.length)
+    ));
+    if (!guide || !hasContent) {
     doc.innerHTML =
       '<div class="guide-cover"><span class="cover-emoji">🔍</span>' +
       '<div class="cover-title">Guide not found</div>' +
       '<div class="cover-sub">This guide may have been created on another device or browser.</div></div>' +
       '<p style="text-align:center;margin-top:24px"><a class="btn btn-primary" href="builder.html">Create a guide →</a></p>';
     document.title = "Guide not found — GotIt Guides";
+    if (footer) footer.innerHTML = "";
     return;
   }
 

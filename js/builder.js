@@ -1167,6 +1167,8 @@
   // Maps the AI's import result (or a fallback) into a fresh editable guide.
   function buildGuideFromAI(ai, cat, rawText) {
     state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
+    state.vetResolved = []; // flag answers belong to THIS guide only
+    state.vetRefined = false;
     var sections = (ai.sections || []).map(function (s) {
       return {
         id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
@@ -4277,13 +4279,15 @@
   }
   // Removes (replacement == null) or replaces one flag line in its section.
   // A section left with nothing (and holding no media) goes with it.
-  function resolveVetFlag(secId, line, replacement) {
+  // Mutates the guide only — no re-render, so a batch save can apply several
+  // answers and repaint once.
+  function applyVetFlag(secId, line, replacement) {
     var g = state.guide;
     var sec = (g.sections || []).filter(function (s) { return s.id === secId; })[0];
-    if (!sec) return;
+    if (!sec) return null;
     var lines = String(sec.body || "").split("\n");
     var i = lines.indexOf(line);
-    if (i === -1) return;
+    if (i === -1) return null;
     if (replacement) lines.splice(i, 1, replacement);
     else lines.splice(i, 1);
     sec.body = lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\n+$/g, "");
@@ -4292,15 +4296,33 @@
       g.sections = g.sections.filter(function (s) { return s.id !== secId; });
       removedSection = true;
     }
+    // Remembered for the tidy-up pass: what was unclear, and what the clinic
+    // said about it. These are facts for the WHOLE guide, not just this line.
+    if (!state.vetResolved) state.vetResolved = [];
+    state.vetResolved.push({
+      section: sec.title || "Section",
+      unclear: vetFlagDisplay(line),
+      answer: replacement || null
+    });
+    return { removedSection: removedSection };
+  }
+  function resolveVetFlag(secId, line, replacement) {
+    var r = applyVetFlag(secId, line, replacement);
     renderGuideEditor();
     recordHistory();
-    return removedSection;
+    return r && r.removedSection;
   }
   function openVetTriage() {
     renderVetTriage();
     $("vetTriageModal").hidden = false;
   }
   function closeVetTriage() { $("vetTriageModal").hidden = true; }
+  // Answers typed but not yet saved, keyed by the flag they belong to, so
+  // saving ONE never wipes what's been typed into the others. (Staff work down
+  // the list filling everything in, then save.)
+  var triageDrafts = {};
+  function triageKey(it) { return it.secId + " " + it.line; }
+
   function renderVetTriage() {
     var list = $("vetTriageList");
     if (!list) return;
@@ -4347,18 +4369,34 @@
       save.textContent = "Save — replaces the ⚠️ line";
       form.appendChild(ta);
       form.appendChild(save);
+
+      // Restore anything already typed for this flag (and whether its box was
+      // open) — a save elsewhere in the list repaints, it doesn't reset.
+      var key = triageKey(it);
+      var draft = triageDrafts[key];
+      if (draft) {
+        ta.value = draft.text || "";
+        form.hidden = !draft.open;
+      }
+      ta.addEventListener("input", function () {
+        triageDrafts[key] = { text: ta.value, open: true };
+        syncSaveAll();
+      });
       answerBtn.addEventListener("click", function () {
         form.hidden = !form.hidden;
+        triageDrafts[key] = { text: ta.value, open: !form.hidden };
         if (!form.hidden) ta.focus();
       });
       save.addEventListener("click", function () {
         var v = ta.value.trim();
         if (!v) { ta.focus(); return; }
+        delete triageDrafts[key];
         resolveVetFlag(it.secId, it.line, v);
         renderVetTriage();
         showToast("Updated — the ⚠️ flag is gone.");
       });
       removeBtn.addEventListener("click", function () {
+        delete triageDrafts[key];
         var droppedSection = resolveVetFlag(it.secId, it.line, null);
         renderVetTriage();
         showToast(droppedSection ? "Removed, along with its now-empty section." : "Removed.");
@@ -4369,14 +4407,156 @@
       row.appendChild(form);
       list.appendChild(row);
     });
-    // The last flag actioned: let the 🎉 line land, then get out of the way.
+
+    // "Save all" appears once there's more than one answer waiting, so filling
+    // the list in and committing it in one go is a single tap.
+    var saveAll = document.createElement("button");
+    saveAll.type = "button";
+    saveAll.className = "btn btn-primary btn-block vt-saveall";
+    saveAll.hidden = true;
+    saveAll.addEventListener("click", function () {
+      var pending = items.filter(function (it) {
+        var d = triageDrafts[triageKey(it)];
+        return d && d.text && d.text.trim();
+      });
+      if (!pending.length) return;
+      pending.forEach(function (it) {
+        applyVetFlag(it.secId, it.line, triageDrafts[triageKey(it)].text.trim());
+        delete triageDrafts[triageKey(it)];
+      });
+      renderGuideEditor();
+      recordHistory();
+      renderVetTriage();
+      showToast("Saved " + pending.length + " answers — those ⚠️ flags are gone.");
+    });
+    list.appendChild(saveAll);
+    function syncSaveAll() {
+      var n = items.filter(function (it) {
+        var d = triageDrafts[triageKey(it)];
+        return d && d.text && d.text.trim();
+      }).length;
+      saveAll.hidden = n < 2;
+      saveAll.textContent = "Save all " + n + " answers";
+    }
+    syncSaveAll();
+
+    // Every flag actioned. If the clinic actually answered some of them, those
+    // answers are facts about the whole guide ("no teeth were extracted"), not
+    // just the lines they replaced — so offer the tidy-up pass before leaving.
     if (!items.length) {
-      setTimeout(function () {
-        var m = $("vetTriageModal");
-        if (m && !m.hidden) m.hidden = true;
-      }, 1200);
+      var answered = (state.vetResolved || []).filter(function (r) { return r.answer; });
+      if (answered.length && !state.vetRefined) {
+        renderVetRefineOffer(list, answered.length);
+      } else {
+        setTimeout(function () {
+          var m = $("vetTriageModal");
+          if (m && !m.hidden) m.hidden = true;
+        }, 1200);
+      }
     }
   }
+  /* ---------- The second magic round ----------
+     The answers staff just gave are facts about the WHOLE guide. Confirm "no
+     teeth were extracted" and the guide is still carrying every "if any teeth
+     have been extracted…" passage the discharge sheet hedged with, plus a
+     Medications section that now says nothing. This pass folds the answers
+     through the guide and deletes what they made irrelevant — deletion only,
+     never invention, and it lands in undo like any other edit. */
+  function renderVetRefineOffer(list, n) {
+    var box = document.createElement("div");
+    box.className = "vt-refine";
+    var t = document.createElement("p");
+    t.className = "vt-refine-t";
+    t.textContent = "✨ Want me to tidy the guide with " +
+      (n === 1 ? "that answer" : "those " + n + " answers") + "?";
+    var p = document.createElement("p");
+    p.className = "vt-refine-p";
+    p.textContent = "The discharge notes hedge (\"if any teeth have been extracted…\"). " +
+      "Now that you've confirmed what actually happened, I can take out the parts that don't " +
+      "apply to this patient and drop any section left with nothing to say. Nothing new gets " +
+      "added, and undo brings it all back.";
+    var go = document.createElement("button");
+    go.type = "button";
+    go.className = "btn btn-primary btn-block";
+    go.textContent = "✨ Tidy up the guide";
+    var note = document.createElement("p");
+    note.className = "vt-refine-note";
+    note.hidden = true;
+    go.addEventListener("click", function () { runVetRefine(go, note); });
+    box.appendChild(t); box.appendChild(p); box.appendChild(go); box.appendChild(note);
+    list.appendChild(box);
+  }
+
+  function runVetRefine(btn, note) {
+    var g = state.guide;
+    var payload = {
+      sections: (g.sections || []).map(function (s) {
+        return { id: s.id, title: s.title || "", body: s.body || "" };
+      }),
+      answers: (state.vetResolved || []).map(function (r) {
+        return {
+          section: r.section,
+          unclear: r.unclear,
+          answer: r.answer || "(the clinic removed this flag as not applicable)"
+        };
+      })
+    };
+    btn.disabled = true;
+    btn.textContent = "✨ Tidying…";
+    GotItStore.ai("vetrefine", { text: JSON.stringify(payload), category: "vet discharge" })
+      .then(function (res) {
+        if (!res || (!res.sections && !res.remove)) throw new Error("no result");
+        var changed = applyVetRefine(res);
+        state.vetRefined = true;
+        if (!changed) {
+          note.textContent = "Nothing needed changing — the guide already reads for this patient.";
+          note.className = "vt-refine-note ok";
+          note.hidden = false;
+          btn.hidden = true;
+          return;
+        }
+        showToast((res.summary || "Tidied up.") + " (Undo is one tap away.)");
+        closeVetTriage();
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = "✨ Tidy up the guide";
+        note.textContent = "Couldn't tidy up just now — the guide is fine as it is, and you can edit any section by hand.";
+        note.className = "vt-refine-note error";
+        note.hidden = false;
+      });
+  }
+
+  // Applies the pass, with guardrails: the AI may only rewrite bodies and drop
+  // sections that have become empty. It can never delete the safety-critical
+  // sections, anything carrying media, or the whole guide.
+  function applyVetRefine(res) {
+    var g = state.guide;
+    var changed = 0;
+    var byId = {};
+    (g.sections || []).forEach(function (s) { byId[s.id] = s; });
+    (res.sections || []).forEach(function (u) {
+      var s = u && byId[u.id];
+      if (s && typeof u.body === "string" && u.body.trim() && u.body !== s.body) {
+        s.body = u.body;
+        changed++;
+      }
+    });
+    var drop = {};
+    (res.remove || []).forEach(function (id) { drop[id] = 1; });
+    var kept = (g.sections || []).filter(function (s) {
+      if (!drop[s.id]) return true;
+      // Never let a tidy-up take the sections an owner needs in an emergency.
+      if (/emergenc|urgent|warning|contact the clinic/i.test(s.title || "")) return true;
+      if (s.photo || (s.photos && s.photos.length) || s.videoId || (s.videos && s.videos.length)) return true;
+      changed++;
+      return false;
+    });
+    if (kept.length) g.sections = kept;
+    if (changed) { renderGuideEditor(); recordHistory(); }
+    return changed;
+  }
+
   // The chip above the editor: how many flags remain, and the way back in.
   function syncVetTriageChip() {
     var chip = $("vetTriageChip");
@@ -4389,8 +4569,44 @@
     }
   }
 
+  // The pet's name, taken from the guide's own title ("Whiskey's Recovery
+  // Guide" → "Whiskey"). Used to speak about the patient by name on the
+  // safety check and the share step. Empty when the title doesn't carry one.
+  function patientName() {
+    var t = ((state.guide && state.guide.title) || "").trim();
+    var m = t.match(/^(.+?)['’]s\s/i);
+    return m ? m[1].trim() : "";
+  }
+
+  // The checklist only asks about what this guide actually contains: a visit
+  // with no medications shouldn't be asked to confirm doses, and a triaged-away
+  // section shouldn't reappear as a chore.
+  function vetCheckRows() {
+    var g = state.guide;
+    var secs = (g.sections || []).filter(function (s) { return (s.body || "").trim(); });
+    function has(re) { return secs.some(function (s) { return re.test(s.title || ""); }); }
+    var rows = [];
+    if (has(/medicat|dose|drug/i)) rows.push("💊 Medication names, doses and how often");
+    if (has(/emergenc|urgent|warning|what's normal|whats normal/i)) rows.push("🚨 Warning signs, and when to seek urgent care");
+    if (has(/follow.?up|recheck|appointment/i)) rows.push("📅 Follow-up appointments");
+    if (has(/wound|stitch|incision|treatment care/i)) rows.push("🩹 Wound and treatment care");
+    if ((g.contacts || []).length) rows.push("📞 Clinic contact details");
+    // Nothing matched (a heavily trimmed guide) — still ask for one honest look.
+    if (!rows.length) rows.push("📋 Every instruction, against the paperwork");
+    return rows;
+  }
+
   function openVetCheck() {
     var flags = vetFlagCount();
+    var listEl = $("vetCheckList");
+    if (listEl) {
+      listEl.innerHTML = "";
+      vetCheckRows().forEach(function (r) {
+        var li = document.createElement("li");
+        li.textContent = r;
+        listEl.appendChild(li);
+      });
+    }
     var note = $("vetCheckFlags");
     if (note) {
       note.hidden = !flags;
@@ -4605,11 +4821,84 @@
     $("openGuide").href = url;
     if ($("printGuide")) $("printGuide").href = url + "?print=1";
 
+    // A vet guide travels clinic → owner, so the whole step speaks that way:
+    // it's the patient's guide, going to the patient's family, and the edit
+    // link stays behind with the practice.
+    var isVetShare = g.category === "vet";
+    var pet = isVetShare ? patientName() : "";
+    var who = pet ? pet + "'s owner" : "the owner";
+    var heading = document.querySelector("#step4 .step-heading");
+    var stepLead = document.querySelector("#step4 .step-lead");
+    if (heading) {
+      heading.textContent = isVetShare
+        ? (pet ? pet + "'s guide is ready to send 🎉" : "The recovery guide is ready to send 🎉")
+        : "Your guide is live 🎉";
+    }
+    if (stepLead) {
+      stepLead.textContent = isVetShare
+        ? "Send it to " + who + " — it opens on any phone, no app to download."
+        : "Share the link or QR code — it opens on any phone, no app needed.";
+    }
+    if ($("shareSendLabel")) {
+      $("shareSendLabel").textContent = isVetShare ? "Send it to " + who : "Send the view link to someone";
+    }
+    if ($("shareSendHint")) {
+      $("shareSendHint").textContent = isVetShare
+        ? "They can read the guide, not edit it — so the clinic stays the author." +
+          (locked ? " Give them the guide code on the paperwork." : "")
+        : "These send the view-only link — they can read the guide but not edit it.";
+    }
+    if ($("smsSoon")) {
+      $("smsSoon").hidden = !isVetShare;
+      if (isVetShare && $("smsSoonHint")) {
+        $("smsSoonHint").textContent = "We're building one-tap SMS so the guide lands on " +
+          (pet ? pet + "'s" : "the owner's") + " phone before they've left the car park. " +
+          "For now, use Messages or WhatsApp above.";
+      }
+    }
+    if ($("shareSaveDivider")) {
+      $("shareSaveDivider").querySelector("span").textContent = isVetShare
+        ? "Keep it at the clinic" : "Save it & edit later";
+    }
+    var dashLabel = document.querySelector("#saveDash .share-label");
+    if (dashLabel) {
+      dashLabel.innerHTML = (isVetShare ? "🏥 Keep it in your clinic dashboard " : "⭐ Keep it in your dashboard ") +
+        '<span class="save-dash-rec">Recommended</span>';
+    }
+    var dashHint = document.querySelector("#saveDash .email-links-hint");
+    if (dashHint) {
+      dashHint.textContent = isVetShare
+        ? "Every recovery guide your team creates in one place, with your clinic's logo and contacts saved for the next one. You'll sign in with Google."
+        : "Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. You'll sign in with Google.";
+    }
+    var fallbackHead = document.querySelector(".save-fallback-head");
+    if (fallbackHead) {
+      fallbackHead.textContent = isVetShare
+        ? "Prefer not to make an account? Keep the edit link at the clinic so your team can come back to this guide:"
+        : "Prefer not to make an account? Keep your edit link so you can come back to it:";
+    }
+    var collab = document.querySelector(".collab-note");
+    if (collab) {
+      collab.innerHTML = isVetShare
+        ? "👥 <strong>Working as a team?</strong> Anyone at the clinic with this edit link can update the guide — keep it inside the practice, never send it to the owner."
+        : "👥 <strong>Editing together?</strong> You can send this edit link to a partner or co-carer — anyone with it can edit this guide, so only share it with people you trust.";
+    }
+    var emailSelfLabel = document.querySelector(".save-fallback .share-label:not(#shareSendLabel)");
+    if (emailSelfLabel && /email these links/i.test(emailSelfLabel.textContent)) {
+      emailSelfLabel.textContent = isVetShare ? "Or email these links to the clinic" : "Or email these links to yourself";
+    }
+    if ($("emailLinksInput")) {
+      $("emailLinksInput").placeholder = isVetShare ? "clinic@yourpractice.com.au" : "you@email.com";
+    }
+
     // Share-to channels
-    var msg = "Check out my guide on GotIt Guides — " + g.title + ": " + url;
+    var msg = isVetShare
+      ? (pet ? pet + "'s recovery guide from your vet: " + url : "Your pet's recovery guide from your vet: " + url)
+      : "Check out my guide on GotIt Guides — " + g.title + ": " + url;
     $("shareWhatsapp").href = "https://wa.me/?text=" + encodeURIComponent(msg);
     $("shareSms").href = "sms:?&body=" + encodeURIComponent(msg);
-    $("shareEmail").href = "mailto:?subject=" + encodeURIComponent(g.title + " — a guide made with GotIt Guides") +
+    $("shareEmail").href = "mailto:?subject=" +
+      encodeURIComponent(isVetShare ? g.title : g.title + " — a guide made with GotIt Guides") +
       "&body=" + encodeURIComponent(msg);
 
     var nativeBtn = $("shareNative");
@@ -4659,13 +4948,28 @@
     if (!m) return;
     $("keepNote").hidden = true;
     $("keepSkip").textContent = "Skip for now (it stays saved on this device)";
-    // The promise made when a clinic added its logo lands here: an account is
-    // also what saves the clinic kit, so every future guide starts stamped.
+    // Vet guides are made by a clinic, not a pet owner, so the nudge speaks to
+    // the practice: the account is the clinic's, and it's what saves the clinic
+    // kit (logo + contacts) that every future guide starts from.
+    var isVet = state.guide && state.guide.category === "vet";
     var lead = m.querySelector(".feedback-lead");
-    if (lead) {
-      lead.textContent = (state.guide && state.guide.category === "vet" && state.guide.clinicLogo)
-        ? "Your guide is live! A free account keeps your edit access AND saves your clinic's logo and contacts, so every future discharge guide starts with them automatically."
-        : "Your guide is live! To edit it later you'll need a way back in. Save it to a free account with Google, or keep your private edit link somewhere safe.";
+    var title = $("keepTitle");
+    var dash = $("keepDash");
+    if (isVet) {
+      if (title) title.textContent = "🏥 Keep this in your clinic account.";
+      if (lead) {
+        lead.textContent = state.guide.clinicLogo
+          ? "The guide is live and sent. A free clinic account keeps every recovery guide your team creates in one place — and saves your logo and contact details, so the next one starts already stamped."
+          : "The guide is live and sent. A free clinic account keeps every recovery guide your team creates in one place, so anyone on the team can find and update this one later.";
+      }
+      if (dash) dash.textContent = "🏥 Save to my clinic account";
+      $("keepSkip").textContent = "Skip for now (it stays on this computer)";
+    } else {
+      if (title) title.textContent = "🔑 Don't lose edit access.";
+      if (lead) {
+        lead.textContent = "Your guide is live! To edit it later you'll need a way back in. Save it to a free account with Google, or keep your private edit link somewhere safe.";
+      }
+      if (dash) dash.textContent = "⭐ Save to my guides";
     }
     m.hidden = false;
     GotItStore.event("keep_show", state.guide && state.guide.slug);

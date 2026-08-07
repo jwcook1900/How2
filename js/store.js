@@ -425,7 +425,20 @@ window.GotItStore = (function () {
     canEncrypt: function () { return !!subtle(); },
 
     // True if a stored object is a locked/encrypted envelope.
-    isEncrypted: function (obj) { return !!(obj && obj.enc === 1 && obj.ct); },
+    // Identified by its PARTS, not just its flag. `enc === 1` alone is brittle:
+    // a payload that round-trips through a store which stringifies numbers
+    // comes back as enc:"1", the check fails, and the viewer renders the
+    // envelope as though it were a plain guide — an empty cover and nothing
+    // else, with the guide's contents sitting right there, unread. A ciphertext
+    // plus its salt and iv is an envelope whatever the flag says, and a
+    // plaintext guide has none of those, so this can't false-positive.
+    isEncrypted: function (obj) {
+      if (!obj || typeof obj !== "object" || !obj.ct) return false;
+      var flagged = obj.enc === 1 || obj.enc === "1" || obj.enc === true;
+      var shaped = typeof obj.ct === "string" &&
+        typeof obj.salt === "string" && typeof obj.iv === "string";
+      return flagged || shaped;
+    },
 
     // Encrypt a guide object with a password → storable envelope. The title
     // and cover emoji ride OUTSIDE the encryption on purpose: the unlock

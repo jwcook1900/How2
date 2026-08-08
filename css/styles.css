@@ -1308,6 +1308,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 /* Vet flow: upload actions lead the panel — file first, photos second. */
 .vet-upload-row { display: flex; flex-direction: column; gap: 10px; margin: 0 0 6px; }
+/* These labels are full sentences and the buttons are full width, so let them
+   wrap on a narrow phone rather than run past the panel edge. */
+.vet-upload-row .btn { white-space: normal; line-height: 1.35; }
 .vet-upload-or {
   display: flex;
   align-items: center;
@@ -3214,7 +3217,11 @@ mark.vet-flag {
 /* Start chooser — paste existing notes vs start from scratch */
 .start-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, …) not 1fr: a bare 1fr track is minmax(auto, 1fr) and cannot
+     shrink below its widest child's min-content. Buttons are white-space:
+     nowrap, so one long label ("Take or add photos of the paperwork") would
+     otherwise inflate the track past the card and push the panel off-screen. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-bottom: 8px;
 }
@@ -3318,7 +3325,7 @@ mark.vet-flag {
 .paste-attach-doc .paste-attach-x { top: 50%; transform: translateY(-50%); background: var(--ink-muted); }
 
 @media (max-width: 560px) {
-  .start-grid { grid-template-columns: 1fr; }
+  .start-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Stats page */

@@ -55,6 +55,10 @@ const schema = a.schema({
       // the dashboard label is independent and re-publishes stop syncing the
       // guide's cover title over it.
       customTitle: a.boolean(),
+      // Which guide type this is ("vet", "pet", "home"…). Lets the dashboard
+      // show clinic-only surfaces to clinics and nobody else. Nullable: rows
+      // saved before this field existed simply don't carry it.
+      category: a.string(),
     })
     .authorization((allow) => [allow.owner()]),
 

@@ -48,6 +48,20 @@ window.GotItStore = (function () {
       });
   }
 
+  // A stored payload is normally an AWSJSON string. But a record that round
+  // trips through a store handing back native maps arrives already parsed, and
+  // a double-encoded one arrives wrapped a layer too deep. JSON.parse THROWS on
+  // an object, so one naive parse turns a perfectly readable guide into a hard
+  // failure — a blank page in the viewer, "Couldn't load that guide" in the
+  // editor. Accept all three shapes; return null only when there is really
+  // nothing usable.
+  function parsePayload(p) {
+    for (var i = 0; i < 2 && typeof p === "string"; i++) {
+      try { p = JSON.parse(p); } catch (e) { return null; }
+    }
+    return (p && typeof p === "object") ? p : null;
+  }
+
   function gql(cfg, query, variables) {
     return fetch(cfg.url, {
       method: "POST",
@@ -184,7 +198,7 @@ window.GotItStore = (function () {
       return loadConfig().then(function (cfg) {
         if (!cfg) return [];
         return gqlAuth(cfg,
-          "query { listSavedGuides { items { id slug editToken title emoji status locked customTitle createdAt updatedAt } } }",
+          "query { listSavedGuides { items { id slug editToken title emoji status locked customTitle category createdAt updatedAt } } }",
           {}, idToken
         ).then(function (d) {
           var items = (d.listSavedGuides && d.listSavedGuides.items) || [];
@@ -204,6 +218,7 @@ window.GotItStore = (function () {
             slug: g.slug, editToken: g.editToken,
             title: g.title || "Untitled guide", emoji: g.emoji || "📘",
             status: g.status || "published", locked: !!g.locked,
+            category: g.category || null,
             ownerEmail: emailFromIdToken(idToken), // so sitter feedback can reach them
             ownerSub: subFromIdToken(idToken)      // ...and show on their dashboard
           } },
@@ -545,18 +560,7 @@ window.GotItStore = (function () {
         var q = "query Get($id: ID!){ getGuide(id: $id){ id payload } }";
         return gql(cfg, q, { id: slug }).then(function (d) {
           if (!d.getGuide) return null;
-          var p = d.getGuide.payload;
-          // Normally an AWSJSON string. Defensive on both sides: a payload that
-          // arrives already parsed is used as-is, and one that was stored
-          // double-encoded is unwrapped — otherwise JSON.parse hands back a
-          // STRING, every field reads undefined, and the guide renders blank.
-          if (typeof p === "string") {
-            try { p = JSON.parse(p); } catch (e) { return null; }
-          }
-          if (typeof p === "string") {
-            try { p = JSON.parse(p); } catch (e) { return null; }
-          }
-          return (p && typeof p === "object") ? p : null;
+          return parsePayload(d.getGuide.payload);
         });
       });
     },
@@ -830,7 +834,9 @@ window.GotItStore = (function () {
         return guideWrite(cfg, { action: "verify", slug: slug, token: token || "" })
           .then(function (res) {
             if (!res.ok) return { denied: true };
-            return { guide: JSON.parse(res.payload), editToken: token };
+            var g = parsePayload(res.payload);
+            if (!g) return null; // unreadable — treat as missing, not as a crash
+            return { guide: g, editToken: token };
           }, function (err) {
             if (/not found/i.test(err.message || "")) return null;
             throw err;

@@ -5660,7 +5660,8 @@
       title: state.guide.title,
       emoji: state.guide.emoji,
       status: "published",
-      locked: !!state.password
+      locked: !!state.password,
+      category: state.guide.category || null
     };
   }
   // On publish (signed in), make sure the guide is on the user's dashboard:

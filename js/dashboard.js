@@ -719,7 +719,27 @@
      Set once here; the builder stamps every NEW vet discharge guide with the
      logo and contact details automatically. */
   var ckLogo = null; // data URL staged for the next save (null = unchanged)
+
+  // The clinic kit is a vet-clinic surface, not something every guide creator
+  // should meet: someone making a guide for their dog sitter has no use for a
+  // clinic logo and after-hours number. Show it only to accounts that actually
+  // are a clinic — they've filled it in before, or they have a discharge guide.
+  // The emoji check covers rows saved before SavedGuide carried a category.
+  var VET_COVER_EMOJI = "❤️‍🩹";
+  function looksLikeClinic() {
+    if (profile && (profile.clinicName || profile.clinicPhone ||
+        profile.clinicAfterHours || profile.clinicLogo)) return true;
+    return (guides || []).some(function (g) {
+      return g.category === "vet" || (g.emoji && g.emoji.indexOf(VET_COVER_EMOJI) === 0);
+    });
+  }
+  function syncClinicKitVisibility() {
+    var box = $("clinicKit");
+    if (box) box.hidden = !looksLikeClinic();
+  }
+
   function syncClinicKit() {
+    syncClinicKitVisibility();
     if (!profile) return;
     $("ckName").value = profile.clinicName || "";
     $("ckPhone").value = profile.clinicPhone || "";

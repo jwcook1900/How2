@@ -3244,7 +3244,7 @@
     // reviews looks like what a carer will see.
     var isVet = state.guide && state.guide.category === "vet";
     var vetCls = "";
-    if (isVet && /medication/i.test(sec.title || "")) vetCls = " sec-med";
+    if (isVet && /medication/i.test(sec.title || "") && GotItStore.hasMeds(sec.body)) vetCls = " sec-med";
     else if (isVet && /emergency|urgent|warning/i.test(sec.title || "")) vetCls = " sec-urgent";
     el.className = "guide-section" + (openFirst ? " open" : "") + (isByw ? " sec-byw" : "") + vetCls;
     el.dataset.id = sec.id;
@@ -5000,6 +5000,35 @@
     }
     if ($("emailLinksInput")) {
       $("emailLinksInput").placeholder = isVetShare ? "clinic@yourpractice.com.au" : "you@email.com";
+    }
+
+    // A clinic that's signed in has every guide waiting in its dashboard, so
+    // the private-edit-link and email-these-links blocks are pure noise on
+    // the clinic's screen — two link boxes to ignore between them and the
+    // send buttons. They stay for a clinic that hasn't saved yet: without an
+    // account the edit link is the only way back into the guide, and hiding
+    // it there would strand the guide for good.
+    var fallback = document.querySelector(".save-fallback");
+    if (fallback) {
+      fallback.hidden = isVetShare &&
+        !!(window.GotItAuth && GotItAuth.isSignedIn && GotItAuth.isSignedIn());
+    }
+
+    // Preview: the clinic checking its own work before it goes to the owner.
+    // Same destination as "Open guide", so on a clinic's step it replaces it
+    // rather than sitting beside it saying the same thing twice.
+    var prev = $("previewGuide");
+    if (prev) {
+      prev.hidden = !isVetShare;
+      prev.href = url;
+      if ($("openGuide")) $("openGuide").hidden = isVetShare;
+      prev.onclick = function () {
+        // Hand the code to the new tab so the clinic isn't asked to retype
+        // what it just set. sessionStorage only — never the URL.
+        if (locked && state.password) {
+          try { sessionStorage.setItem("gotit_preview_" + g.slug, state.password); } catch (e) {}
+        }
+      };
     }
 
     // Share-to channels

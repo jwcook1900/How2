@@ -198,7 +198,7 @@
     // chrome; any unresolved "⚠️ Check with your clinic" flags stand out too.
     var isVet = guide.category === "vet";
     var vetCls = "";
-    if (isVet && /medication/i.test(sec.title || "")) vetCls = " sec-med";
+    if (isVet && /medication/i.test(sec.title || "") && GotItStore.hasMeds(sec.body)) vetCls = " sec-med";
     else if (isVet && /emergency|urgent|warning/i.test(sec.title || "")) vetCls = " sec-urgent";
     if (isVet && bodyHtml && bodyHtml.indexOf("⚠️") >= 0) {
       bodyHtml = bodyHtml.replace(/⚠️\s*([^<]*)/g, '<mark class="vet-flag">⚠️ $1</mark>');
@@ -885,6 +885,24 @@
     });
   })();
 
+  /* ---- One-shot preview handoff from the builder ----
+     The clinic has just typed the guide code upstairs and taps "Preview live
+     page" to check their own work; asking for the code again is friction for
+     nothing. The code rides in sessionStorage (same origin, cloned into the
+     tab the button opens) and never in the URL — a URL would put the code in
+     browser history and in anything the clinic pastes to someone else, which
+     is exactly the promise that the code only travels on the paperwork.
+     Read once, deleted on read, and any miss falls back to the lock screen. */
+  function takePreviewCode() {
+    if (!slug) return null;
+    try {
+      var k = "gotit_preview_" + slug;
+      var v = sessionStorage.getItem(k);
+      if (v) sessionStorage.removeItem(k);
+      return v || null;
+    } catch (e) { return null; }
+  }
+
   // Load the guide (cloud or local), then render (or prompt to unlock).
   if (!slug) {
     render(null);
@@ -892,8 +910,13 @@
     doc.innerHTML = '<div class="guide-cover"><span class="cover-emoji">⏳</span>' +
       '<div class="cover-title">Loading…</div></div>';
     GotItStore.get(slug).then(function (obj) {
-      if (GotItStore.isEncrypted(obj)) showLock(obj);
-      else render(obj);
+      if (!GotItStore.isEncrypted(obj)) { render(obj); return; }
+      var pc = takePreviewCode();
+      if (!pc) { showLock(obj); return; }
+      GotItStore.decrypt(obj, pc).then(function (real) {
+        currentPassword = pc;
+        render(real);
+      }, function () { showLock(obj); });
     }).catch(function () { render(null); });
   }
 })();

@@ -1210,6 +1210,15 @@
     state.liveOrigin = false; // imported, not from the live flow — back goes to the wizard
     state.vetResolved = []; // flag answers belong to THIS guide only
     state.vetRefined = false;
+    // Flags that share one underlying unknown ("were any teeth extracted?"),
+    // so the clinic answers it once instead of typing the same sentence into
+    // three cards. Keyed by the exact line text the extraction produced.
+    state.vetFlagGroups = (ai.flagGroups || []).filter(function (g) {
+      return g && g.question && (g.lines || []).length > 1;
+    }).map(function (g, i) {
+      return { id: "fg" + i, question: String(g.question).trim(),
+        lines: g.lines.map(function (l) { return String(l).trim(); }) };
+    });
     var sections = (ai.sections || []).map(function (s) {
       return {
         id: uid(), icon: s.emoji || "📄", title: s.title || "Section",
@@ -4303,12 +4312,22 @@
      as the final gate. */
 
   // Every ⚠️ line across the sections, addressable enough to edit in place.
+  // Which shared question (if any) this flag line belongs to.
+  function vetGroupFor(line) {
+    var t = String(line).trim();
+    var groups = (state && state.vetFlagGroups) || [];
+    for (var i = 0; i < groups.length; i++) {
+      if (groups[i].lines.indexOf(t) !== -1) return groups[i];
+    }
+    return null;
+  }
   function vetFlagItems() {
     var items = [];
     ((state.guide && state.guide.sections) || []).forEach(function (s) {
       String(s.body || "").split("\n").forEach(function (line) {
         if (line.indexOf("⚠️") !== -1) {
-          items.push({ secId: s.id, secTitle: s.title || "Section", line: line });
+          items.push({ secId: s.id, secTitle: s.title || "Section", line: line,
+            group: vetGroupFor(line) });
         }
       });
     });
@@ -4322,7 +4341,7 @@
   // A section left with nothing (and holding no media) goes with it.
   // Mutates the guide only — no re-render, so a batch save can apply several
   // answers and repaint once.
-  function applyVetFlag(secId, line, replacement) {
+  function applyVetFlag(secId, line, replacement, skipRecord) {
     var g = state.guide;
     var sec = (g.sections || []).filter(function (s) { return s.id === secId; })[0];
     if (!sec) return null;
@@ -4340,12 +4359,31 @@
     // Remembered for the tidy-up pass: what was unclear, and what the clinic
     // said about it. These are facts for the WHOLE guide, not just this line.
     if (!state.vetResolved) state.vetResolved = [];
+    if (!skipRecord) {
+      state.vetResolved.push({
+        section: sec.title || "Section",
+        unclear: vetFlagDisplay(line),
+        answer: replacement || null
+      });
+    }
+    return { removedSection: removedSection };
+  }
+  // Resolves one triage card: every flag line it stands for, recorded once as
+  // a single fact for the tidy-up pass. Returns true if a section was emptied.
+  function resolveEntry(entry, replacement) {
+    var dropped = false;
+    entry.members.forEach(function (m) {
+      var r = applyVetFlag(m.secId, m.line, replacement, true);
+      if (r && r.removedSection) dropped = true;
+    });
+    if (!state.vetResolved) state.vetResolved = [];
     state.vetResolved.push({
-      section: sec.title || "Section",
-      unclear: vetFlagDisplay(line),
+      section: entry.members.map(function (m) { return m.secTitle; })
+        .filter(function (t, i, a) { return a.indexOf(t) === i; }).join(", "),
+      unclear: entry.group ? entry.group.question : vetFlagDisplay(entry.members[0].line),
       answer: replacement || null
     });
-    return { removedSection: removedSection };
+    return dropped;
   }
   function resolveVetFlag(secId, line, replacement) {
     var r = applyVetFlag(secId, line, replacement);
@@ -4376,15 +4414,40 @@
         : "All sorted — every ⚠️ flag has been actioned. 🎉";
     }
     list.innerHTML = "";
+    // Flags that share one underlying question collapse into a single card:
+    // the clinic answers "were any teeth extracted?" once, and every line that
+    // hangs off it is resolved together. The card names the sections it will
+    // change, so nothing is rewritten out of sight.
+    var shown = [], seenGroup = {};
     items.forEach(function (it) {
+      if (it.group) {
+        if (seenGroup[it.group.id]) return;
+        seenGroup[it.group.id] = 1;
+        shown.push({ group: it.group,
+          members: items.filter(function (x) { return x.group === it.group; }) });
+      } else {
+        shown.push({ members: [it] });
+      }
+    });
+    shown.forEach(function (entry) {
+      var it = entry.members[0];
+      var many = entry.members.length > 1;
       var row = document.createElement("div");
       row.className = "vt-item";
       var sec = document.createElement("div");
       sec.className = "vt-item-sec";
-      sec.textContent = it.secTitle;
+      sec.textContent = entry.members.map(function (m) { return m.secTitle; })
+        .filter(function (t, i, a) { return a.indexOf(t) === i; }).join(" · ");
       var text = document.createElement("p");
       text.className = "vt-item-text";
-      text.textContent = vetFlagDisplay(it.line);
+      text.textContent = many ? entry.group.question : vetFlagDisplay(it.line);
+      if (many) {
+        var covers = document.createElement("p");
+        covers.className = "vt-item-covers";
+        covers.textContent = "Answer once — this settles " + entry.members.length +
+          " flagged details across the guide.";
+        text.appendChild(covers);
+      }
       var actions = document.createElement("div");
       actions.className = "vt-item-actions";
       var answerBtn = document.createElement("button");
@@ -4413,7 +4476,7 @@
 
       // Restore anything already typed for this flag (and whether its box was
       // open) — a save elsewhere in the list repaints, it doesn't reset.
-      var key = triageKey(it);
+      var key = many ? ("g:" + entry.group.id) : triageKey(it);
       var draft = triageDrafts[key];
       if (draft) {
         ta.value = draft.text || "";
@@ -4432,15 +4495,19 @@
         var v = ta.value.trim();
         if (!v) { ta.focus(); return; }
         delete triageDrafts[key];
-        resolveVetFlag(it.secId, it.line, v);
+        resolveEntry(entry, v);
+        renderGuideEditor(); recordHistory();
         renderVetTriage();
-        showToast("Updated — the ⚠️ flag is gone.");
+        showToast(many
+          ? "Answered once — " + entry.members.length + " ⚠️ flags are gone."
+          : "Updated — the ⚠️ flag is gone.");
       });
       removeBtn.addEventListener("click", function () {
         delete triageDrafts[key];
-        var droppedSection = resolveVetFlag(it.secId, it.line, null);
+        var dropped = resolveEntry(entry, null);
+        renderGuideEditor(); recordHistory();
         renderVetTriage();
-        showToast(droppedSection ? "Removed, along with its now-empty section." : "Removed.");
+        showToast(dropped ? "Removed, along with its now-empty section." : "Removed.");
       });
       row.appendChild(sec);
       row.appendChild(text);
@@ -4455,15 +4522,19 @@
     saveAll.type = "button";
     saveAll.className = "btn btn-primary btn-block vt-saveall";
     saveAll.hidden = true;
-    saveAll.addEventListener("click", function () {
-      var pending = items.filter(function (it) {
-        var d = triageDrafts[triageKey(it)];
+    function entryKey(e) { return e.group ? ("g:" + e.group.id) : triageKey(e.members[0]); }
+    function pendingEntries() {
+      return shown.filter(function (e) {
+        var d = triageDrafts[entryKey(e)];
         return d && d.text && d.text.trim();
       });
+    }
+    saveAll.addEventListener("click", function () {
+      var pending = pendingEntries();
       if (!pending.length) return;
-      pending.forEach(function (it) {
-        applyVetFlag(it.secId, it.line, triageDrafts[triageKey(it)].text.trim());
-        delete triageDrafts[triageKey(it)];
+      pending.forEach(function (e) {
+        resolveEntry(e, triageDrafts[entryKey(e)].text.trim());
+        delete triageDrafts[entryKey(e)];
       });
       renderGuideEditor();
       recordHistory();
@@ -4472,10 +4543,7 @@
     });
     list.appendChild(saveAll);
     function syncSaveAll() {
-      var n = items.filter(function (it) {
-        var d = triageDrafts[triageKey(it)];
-        return d && d.text && d.text.trim();
-      }).length;
+      var n = pendingEntries().length;
       saveAll.hidden = n < 2;
       saveAll.textContent = "Save all " + n + " answers";
     }

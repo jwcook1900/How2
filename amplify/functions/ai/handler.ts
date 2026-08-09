@@ -93,7 +93,7 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       "the owner's typed notes) into a structured GotIt Guides recovery guide the pet's owner and carers " +
       "can follow at home. " +
       "Return ONLY a JSON object of this exact shape: " +
-      '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}]}. ' +
+      '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}], "flagGroups": [{"question": string, "lines": [string]}]}. ' +
       'Title: use "<Pet name>\'s Recovery Guide" when the pet\'s name appears in the document, otherwise "Recovery Guide". ' +
       "Prefer these sections, in this order, but include ONLY the ones the document actually supports: " +
       "📋 Visit Summary; 🩺 Diagnosis & Procedure; 💊 Medications; 🏠 Care at Home; " +
@@ -113,6 +113,15 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
       'document, do NOT guess: add a line in the relevant section of the exact form ' +
       '"⚠️ Check with your clinic: <what was unclear>" — for example ' +
       '"⚠️ Check with your clinic: how often to give this medication was unclear in the notes." ' +
+      "flagGroups: one entry for each underlying unknown that MORE THAN ONE warning line depends on. " +
+      "A dental discharge that never says whether teeth came out produces several flags - the extraction " +
+      "itself, whether soft food is needed, whether a recheck applies - and one answer settles them all. " +
+      '"question" is that single unknown as a short plain question the clinic can answer in a few words ' +
+      '("Were any teeth extracted?"). "lines" holds the EXACT, character-for-character text of every ' +
+      "flagged line it covers, copied from the bodies above. Group only lines a single answer genuinely " +
+      "resolves; when in doubt leave a line out, because a wrong grouping makes a clinic answer one " +
+      "question and silently change an unrelated instruction. A lone flag needs no entry, and an empty " +
+      "list is correct when every flag stands on its own. " +
       "Write calmly, clearly and reassuringly, in plain language; where the document uses a medical term " +
       "an owner may not know, keep it and add a short plain-language explanation in brackets. " +
       "Put the clinic's name and phone number, and any after-hours or emergency hospital numbers, into " +
@@ -283,7 +292,18 @@ export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
   if (mode === "import") {
     const m = out.match(/\{[\s\S]*\}/);
     try {
-      return JSON.parse(m ? m[0] : out);
+      const r = JSON.parse(m ? m[0] : out);
+      // Only well-formed groups survive: each needs a question and two or more
+      // exact line texts, or there is nothing for it to link.
+      if (Array.isArray(r.flagGroups)) {
+        r.flagGroups = r.flagGroups.filter(
+          (g: any) =>
+            g && typeof g.question === "string" && g.question.trim() &&
+            Array.isArray(g.lines) &&
+            g.lines.filter((l: any) => typeof l === "string").length > 1
+        );
+      }
+      return r;
     } catch (e) {
       return { title: "", sections: [{ emoji: "📝", title: "Notes", body: text }], contacts: [] };
     }

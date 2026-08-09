@@ -4792,3 +4792,13 @@ textarea.lf-input { resize: none; }
   .vt-spark { animation: vt-pulse 1.4s ease-in-out infinite; }
   @keyframes vt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 }
+
+/* A flag card that stands for several linked flags says so, so a clinic can
+   see what one answer is about to settle. */
+.vt-item-covers {
+  display: block;
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #8A6D1C;
+}

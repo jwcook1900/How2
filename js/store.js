@@ -436,6 +436,29 @@ window.GotItStore = (function () {
     },
     sanitizeHtml: function (html) { return sanitizeHtml(html); },
 
+    /* ---- Does a Medications section actually list a medication? ----
+       Vet guides give Medications an orange spine, a bold title and an
+       open-by-default panel, because it's the section a carer reaches for
+       first. When nothing was sent home that emphasis points at an empty
+       room: the loudest thing on the page ends up being the news that there
+       is nothing to give, while Care at Home sits collapsed underneath.
+       Shared by the editor and the viewer so the two always agree.
+
+       Deliberately conservative. Only a body that says nothing BUT "none"
+       loses the treatment — a section that dispenses one drug and notes that
+       nothing else was sent home still counts as having medications, because
+       demoting a real instruction is the expensive mistake here. */
+    hasMeds: function (body) {
+      var t = String(body == null ? "" : body)
+        .replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ").trim();
+      if (!t || t === "Tap to add details…") return false;
+      if (t.length > 90) return true;
+      // One short sentence opening with a negative: "No medications were sent
+      // home.", "None.", "Nil". A second sentence means there's real content.
+      return !/^(no|none|nil|n\/?a|not)\b[^.!?]*[.!?]?$/i.test(t);
+    },
+
     // Can we password-protect (needs a secure context)?
     canEncrypt: function () { return !!subtle(); },
 

@@ -2160,6 +2160,10 @@ body.dragging-active * {
 .chip:hover { border-color: var(--coral); transform: translateY(-2px); }
 .chip-ico { width: 18px; height: 18px; flex: none; }
 .share-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+/* "Preview live page" leads the action row on a clinic's share step — an ink
+   border so it reads as the thing to do next, without a second orange fill
+   competing with the save button above it. */
+#previewGuide { border-color: var(--color-ink); font-weight: 700; }
 
 /* "Download QR" as a quiet text link tucked under the QR image */
 .share-qr-dl-row { margin: -12px 0 22px; }

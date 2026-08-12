@@ -3893,6 +3893,10 @@ textarea.lf-input { resize: none; }
 .dash-title { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 10px; }
 .dash-lead { color: var(--ink-soft); line-height: 1.55; margin: 0 0 24px; }
 .dash-signin-actions { display: flex; justify-content: center; }
+/* Names both doors under the button. The sign-in page itself leads with Google,
+   so the button stays one plain "Sign in" rather than a Google-branded one that
+   would read as the only way in. */
+.dash-signin-ways { margin-top: 12px; color: var(--ink-muted); font-size: 0.9rem; }
 .dash-signin-note { margin-top: 16px; color: var(--coral-dark); font-size: 0.92rem; }
 .dash-back { display: inline-block; margin-top: 22px; color: var(--ink-muted); font-weight: 600; font-size: 0.92rem; }
 .dash-back:hover { color: var(--coral); }

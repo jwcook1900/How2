@@ -229,6 +229,11 @@ window.GotItAuth = (function () {
 
   return {
     config: loadCfg,
+    // signIn shows the hosted page with every option the pool offers (Google
+    // plus a one-time code to any email address). signInWithGoogle skips it and
+    // goes straight to Google — kept for a caller that knows the account is a
+    // Google one, but NOT the default: a clinic on Outlook or its own practice
+    // domain has no way past a Google-only screen.
     signInWithGoogle: function () { return startLogin({ idp: "Google" }); },
     signIn: function () { return startLogin({}); },
     handleRedirect: handleRedirect,

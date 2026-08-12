@@ -4979,8 +4979,8 @@
     var dashHint = document.querySelector("#saveDash .email-links-hint");
     if (dashHint) {
       dashHint.textContent = isVetShare
-        ? "Every recovery guide your team creates in one place, with your clinic's logo and contacts saved for the next one. You'll sign in with Google."
-        : "Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. You'll sign in with Google.";
+        ? "Every recovery guide your team creates in one place, with your clinic's logo and contacts saved for the next one. Sign in with Google, or a one-time code to your practice email."
+        : "Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. Sign in with Google, or a one-time code to your email.";
     }
     var fallbackHead = document.querySelector(".save-fallback-head");
     if (fallbackHead) {
@@ -5837,7 +5837,7 @@
         }
         btn.disabled = true;
         saveDashNote("Taking you to sign in…", false);
-        GotItAuth.signInWithGoogle().catch(function (e) {
+        GotItAuth.signIn().catch(function (e) {
           btn.disabled = false;
           saveDashNote(e.message || "Sign-in isn't available right now.", false);
         });

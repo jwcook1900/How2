@@ -885,10 +885,10 @@
   }
 
   /* ---------- wire up ---------- */
-  $("signinGoogle").addEventListener("click", function () {
+  $("signinBtn").addEventListener("click", function () {
     this.disabled = true;
-    GotItAuth.signInWithGoogle().catch(function (e) {
-      $("signinGoogle").disabled = false;
+    GotItAuth.signIn().catch(function (e) {
+      $("signinBtn").disabled = false;
       $("dashSigninNote").textContent = e.message || "Couldn't start sign-in.";
       $("dashSigninNote").hidden = false;
     });

@@ -16,7 +16,10 @@ import { urlFn } from "./functions/url/resource";
 import { transcribeFn } from "./functions/transcribe/resource";
 import { ogFn } from "./functions/og/resource";
 import { broadcastFn } from "./functions/broadcast/resource";
+import { authEmailFn } from "./functions/auth-email/resource";
 import { CfnUserPoolDomain } from "aws-cdk-lib/aws-cognito";
+import { Key as KmsKey } from "aws-cdk-lib/aws-kms";
+import { ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
 /**
  * GotIt Guides backend: guide storage (Data), a server-side AI helper (aiFn), a
@@ -39,6 +42,7 @@ const backend = defineBackend({
   ogFn,
   broadcastFn,
   guideWriteFn,
+  authEmailFn,
 });
 
 // Custom hosted-UI domain so the Google sign-in screen shows
@@ -70,6 +74,44 @@ const authCustomDomain = isProdBranch
 
 // The email + feedback functions send via Resend's HTTPS API (key injected as
 // the RESEND_API_KEY secret), so they need no AWS SES/IAM permissions.
+
+// Cognito's own emails (sign-in codes, sign-up confirmations, password resets)
+// go out through Resend too, via the custom email sender trigger. Cognito can
+// otherwise only send from its shared no-reply@verificationemail.com address,
+// which Gmail put straight in spam when we tested a sign-in code — unusable for
+// clinics. Resend already delivers every other GotIt email from a verified
+// gotitguides.com, so this puts the code on a road that works.
+//
+// Cognito encrypts the code with the AWS Encryption SDK under this key before
+// handing it over, so the key has to allow Cognito to encrypt and the function
+// to decrypt. RETAIN on purpose: destroying the key would make any code already
+// in flight undecryptable, and a replacement key is cheap to make but a lost one
+// is not recoverable.
+const authEmailLambda = backend.authEmailFn.resources.lambda as LambdaFunction;
+const authCodeKey = new KmsKey(Stack.of(authEmailLambda), "AuthEmailCodeKey", {
+  description: "Encrypts Cognito one-time codes in transit to the auth-email sender",
+  enableKeyRotation: true,
+  removalPolicy: RemovalPolicy.RETAIN,
+});
+authCodeKey.grantEncrypt(new ServicePrincipal("cognito-idp.amazonaws.com"));
+authCodeKey.grantDecrypt(authEmailLambda);
+authEmailLambda.addEnvironment("KMS_KEY_ARN", authCodeKey.keyArn);
+// Cognito invokes the function directly, so it needs its own invoke permission.
+authEmailLambda.addPermission("CognitoInvokeAuthEmail", {
+  principal: new ServicePrincipal("cognito-idp.amazonaws.com"),
+  sourceArn: backend.auth.resources.userPool.userPoolArn,
+});
+// defineAuth has no first-class custom-sender option at this Amplify version,
+// so the trigger goes on via the L1 pool. LambdaVersion V1_0 is the only value
+// Cognito accepts for this trigger today.
+backend.auth.resources.cfnResources.cfnUserPool.lambdaConfig = {
+  ...(backend.auth.resources.cfnResources.cfnUserPool.lambdaConfig || {}),
+  kmsKeyId: authCodeKey.keyArn,
+  customEmailSender: {
+    lambdaArn: authEmailLambda.functionArn,
+    lambdaVersion: "V1_0",
+  },
+};
 
 // Stats reader: read the Event table and expose a passphrase-protected URL.
 // It's a standalone Lambda URL (not a GraphQL resolver) so the data <-> function

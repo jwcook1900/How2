@@ -18,7 +18,17 @@ window.GotItAuth = (function () {
   // logout) through this so the Google sign-in screen shows our domain instead of
   // the generated "…amazoncognito.com" one. Set to "" to fall back to the
   // Amplify-provisioned domain from amplify_outputs.json (instant rollback).
+  // Production only. A Cognito custom domain belongs to exactly one user pool,
+  // and this one belongs to production's — the same reason backend.ts only
+  // creates it on the production branch. A preview branch has its own pool, so
+  // sending its client id here comes back "invalid client", which quietly made
+  // sign-in impossible to test anywhere except live. Any other host falls back
+  // to its own pool's Amplify-provisioned domain.
   var CUSTOM_AUTH_DOMAIN = "auth.gotitguides.com";
+  var PROD_HOSTS = ["gotitguides.com", "www.gotitguides.com"];
+  function customDomain() {
+    return PROD_HOSTS.indexOf(window.location.hostname) >= 0 ? CUSTOM_AUTH_DOMAIN : "";
+  }
 
   /* ---- config from amplify_outputs.json ---- */
   function loadCfg() {
@@ -28,7 +38,7 @@ window.GotItAuth = (function () {
       .then(function (j) {
         if (!j || !j.auth || !j.auth.oauth || !j.auth.oauth.domain) return null;
         var a = j.auth, o = a.oauth;
-        var domain = CUSTOM_AUTH_DOMAIN || o.domain;
+        var domain = customDomain() || o.domain;
         if (domain.indexOf("http") !== 0) domain = "https://" + domain;
         return {
           region: a.aws_region,

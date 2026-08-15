@@ -97,21 +97,33 @@ authCodeKey.grantEncrypt(new ServicePrincipal("cognito-idp.amazonaws.com"));
 authCodeKey.grantDecrypt(authEmailLambda);
 authEmailLambda.addEnvironment("KMS_KEY_ARN", authCodeKey.keyArn);
 // Cognito invokes the function directly, so it needs its own invoke permission.
+// Scoped to any user pool in this account and region rather than to the pool
+// itself: naming the pool would make this stack depend on the auth stack while
+// the auth stack already depends on this one for the trigger's ARN, and
+// CloudFormation refuses the cycle. Nothing outside the account can invoke it.
 authEmailLambda.addPermission("CognitoInvokeAuthEmail", {
   principal: new ServicePrincipal("cognito-idp.amazonaws.com"),
-  sourceArn: backend.auth.resources.userPool.userPoolArn,
+  sourceArn: Stack.of(authEmailLambda).formatArn({
+    service: "cognito-idp",
+    resource: "userpool",
+    resourceName: "*",
+  }),
 });
 // defineAuth has no first-class custom-sender option at this Amplify version,
-// so the trigger goes on via the L1 pool. LambdaVersion V1_0 is the only value
-// Cognito accepts for this trigger today.
-backend.auth.resources.cfnResources.cfnUserPool.lambdaConfig = {
-  ...(backend.auth.resources.cfnResources.cfnUserPool.lambdaConfig || {}),
-  kmsKeyId: authCodeKey.keyArn,
-  customEmailSender: {
-    lambdaArn: authEmailLambda.functionArn,
-    lambdaVersion: "V1_0",
-  },
-};
+// so the trigger goes on via the L1 pool. Property overrides, not an assignment
+// to cfnUserPool.lambdaConfig: that property is a lazily-resolved wrapper, and
+// spreading it copies its internal resolver function into the template, which
+// fails synthesis with "Trying to resolve a non-data object". Overrides also
+// leave any triggers Amplify sets itself alone instead of replacing them.
+// These are CloudFormation property names, so KMSKeyID keeps its odd casing,
+// and V1_0 is the only LambdaVersion Cognito accepts for this trigger today.
+const cfnUserPool = backend.auth.resources.cfnResources.cfnUserPool;
+cfnUserPool.addPropertyOverride("LambdaConfig.KMSKeyID", authCodeKey.keyArn);
+cfnUserPool.addPropertyOverride(
+  "LambdaConfig.CustomEmailSender.LambdaArn",
+  authEmailLambda.functionArn
+);
+cfnUserPool.addPropertyOverride("LambdaConfig.CustomEmailSender.LambdaVersion", "V1_0");
 
 // Stats reader: read the Event table and expose a passphrase-protected URL.
 // It's a standalone Lambda URL (not a GraphQL resolver) so the data <-> function

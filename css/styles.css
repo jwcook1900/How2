@@ -1540,6 +1540,17 @@ ul { margin: 0; padding: 0; list-style: none; }
   background: var(--bg-tint);
 }
 /* Rich-text lists (the global ul reset hides bullets, so restore them here) */
+/* Links in a section body. Underlined as well as coloured, because orange on
+   cream is not enough on its own for a reader who can't distinguish it, and
+   a guide gets read on a phone in a hallway. Long URLs wrap rather than
+   pushing the card sideways. */
+.acc-content a {
+  color: var(--coral-dark);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+.acc-content a:hover { color: var(--color-orange); }
 .acc-content ul, .acc-content ol { margin: 6px 0; padding-left: 1.5em; }
 .acc-content ul { list-style: disc; }
 .acc-content ol { list-style: decimal; }
@@ -1659,6 +1670,13 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .dock-pop-btn:hover { background: var(--coral-soft); color: var(--coral-dark); }
 .dock-pop-wide { width: auto; justify-content: flex-start; padding: 10px 14px; font-weight: 600; }
+/* The link panel: a label, one or two inputs and a confirm button, stacked. */
+.dock-pop-link { flex-direction: column; align-items: stretch; width: 268px; gap: 8px; padding: 12px; }
+.dock-pop-label { font-size: 0.82rem; font-weight: 700; color: var(--ink); }
+.dock-pop-input { font-size: 0.9rem; padding: 9px 12px; width: 100%; }
+.dock-pop-err { font-size: 0.78rem; color: var(--coral-dark); margin: 0; line-height: 1.4; }
+.dock-pop-go { width: 100%; }
+@media (max-width: 480px) { .dock-pop-link { width: min(268px, 78vw); } }
 
 /* Selected-block highlight */
 .guide-section.selected,
@@ -4037,6 +4055,13 @@ textarea.lf-input { resize: none; }
   .guide-section .acc-header { background: transparent !important; padding: 8px 0 4px; cursor: default; }
   .acc-title-text { font-weight: 700; color: #111; }
   .acc-content { color: #222; font-size: 0.9rem; line-height: 1.45; }
+  /* On paper a link is just words, so the address is printed after it. Skipped
+     for auto-detected URLs, where the visible text is already the address. */
+  .acc-content a { color: #111 !important; text-decoration: underline; }
+  .acc-content a:not(.lnk-auto)::after {
+    content: " (" attr(href) ")";
+    font-size: 0.82em; color: #555; word-break: break-all;
+  }
 
   /* Emergency contacts: boxed + prominent (the bit you want on the fridge) */
   .guide-emergency {

@@ -5206,6 +5206,15 @@
     if (pop) { pop.hidden = true; pop.innerHTML = ""; }
     Array.prototype.forEach.call(document.querySelectorAll("#editDock .dock-btn.on"), function (b) { b.classList.remove("on"); });
   }
+  /* Replace an open popover's contents in place. openDockPop would treat a
+     second click on the same dock button as "close", so a panel that leads to
+     another panel (format -> link) has to swap rather than reopen. */
+  function swapDockPop(build) {
+    var pop = $("dockPop");
+    if (!pop || pop.hidden) return;
+    pop.innerHTML = "";
+    build(pop);
+  }
   function openDockPop(btn, build) {
     if (btn.disabled) return;
     var pop = $("dockPop");
@@ -5333,6 +5342,122 @@
     dd.addEventListener("mousedown", function (e) { e.preventDefault(); });
     dd.addEventListener("click", function (e) { e.stopPropagation(); insertDropdown(); });
     pop.appendChild(dd);
+    // Link. Opens its own panel rather than acting straight away, because it
+    // needs an address typed in.
+    var lk = document.createElement("button");
+    lk.type = "button"; lk.className = "dock-pop-btn";
+    lk.textContent = "🔗"; lk.title = "Add a link";
+    lk.setAttribute("aria-label", "Add a link");
+    lk.addEventListener("mousedown", function (e) { e.preventDefault(); saveLinkRange(); });
+    lk.addEventListener("click", function (e) {
+      e.stopPropagation();
+      swapDockPop(buildLinkPop);
+    });
+    pop.appendChild(lk);
+  }
+
+  /* ---- Links ----
+     Typing in the URL box takes focus off the section, and the browser throws
+     the text selection away with it. So the range is captured on mousedown,
+     before focus moves, and put back just before the link is applied. */
+  var linkRange = null;
+  function saveLinkRange() {
+    linkRange = null;
+    if (selectedType !== "section" || !selectedEl) return;
+    var content = selectedEl.querySelector(".acc-content");
+    var sel = window.getSelection();
+    if (sel && sel.rangeCount && content && content.contains(sel.anchorNode)) {
+      linkRange = sel.getRangeAt(0).cloneRange();
+    }
+  }
+
+  function buildLinkPop(pop) {
+    pop.className = "dock-pop dock-pop-link";
+    var picked = linkRange && !linkRange.collapsed ? String(linkRange.toString()).trim() : "";
+
+    var lab = document.createElement("div");
+    lab.className = "dock-pop-label";
+    lab.textContent = picked ? 'Link "' + (picked.length > 28 ? picked.slice(0, 28) + "…" : picked) + '" to' : "Link text and address";
+    pop.appendChild(lab);
+
+    var textIn = null;
+    if (!picked) {
+      textIn = document.createElement("input");
+      textIn.type = "text"; textIn.className = "q-input dock-pop-input";
+      textIn.placeholder = "Words to show, e.g. our vet";
+      pop.appendChild(textIn);
+    }
+
+    var urlIn = document.createElement("input");
+    urlIn.type = "url"; urlIn.className = "q-input dock-pop-input";
+    urlIn.placeholder = "gotitguides.com/g/whiskey";
+    urlIn.autocapitalize = "off"; urlIn.spellcheck = false;
+    pop.appendChild(urlIn);
+
+    var err = document.createElement("p");
+    err.className = "dock-pop-err"; err.hidden = true;
+    pop.appendChild(err);
+
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "btn btn-primary btn-sm dock-pop-go";
+    go.textContent = "Add link";
+    pop.appendChild(go);
+
+    function apply() {
+      var url = (urlIn.value || "").trim();
+      var words = textIn ? (textIn.value || "").trim() : picked;
+      if (!url) { err.textContent = "Paste a web address first."; err.hidden = false; return; }
+      var href = GotItStore.safeHref(url);
+      if (!href) {
+        err.textContent = "That doesn't look like a web address. Try one starting with https://";
+        err.hidden = false; return;
+      }
+      if (!words) { err.textContent = "Add the words you want people to tap."; err.hidden = false; return; }
+      insertLink(href, words);
+      closeDockPop();
+    }
+    go.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    go.addEventListener("click", function (e) { e.stopPropagation(); apply(); });
+    [textIn, urlIn].forEach(function (i) {
+      if (!i) return;
+      i.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); apply(); }
+      });
+      i.addEventListener("click", function (e) { e.stopPropagation(); });
+    });
+    setTimeout(function () { (textIn || urlIn).focus(); }, 30);
+  }
+
+  function insertLink(href, words) {
+    if (selectedType !== "section") return;
+    var content = selectedEl.querySelector(".acc-content");
+    if (!selectedEl.classList.contains("open")) selectedEl.classList.add("open");
+    content.focus();
+    var sel = window.getSelection();
+    // Put the writer's selection back before replacing it, or the link lands
+    // wherever the caret happens to be sitting.
+    if (linkRange && content.contains(linkRange.startContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(linkRange);
+    }
+    var range = (sel.rangeCount && content.contains(sel.anchorNode)) ? sel.getRangeAt(0) : null;
+    var a = document.createElement("a");
+    a.setAttribute("href", href);
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer nofollow");
+    a.textContent = words;
+    if (range) {
+      range.deleteContents();
+      range.insertNode(a);
+      range.setStartAfter(a); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+    } else {
+      content.appendChild(a);
+    }
+    linkRange = null;
+    selectedRef.body = GotItStore.sanitizeHtml(content.innerHTML);
+    recordHistory();
+    showToast("Link added 🔗");
   }
   function applyFormat(cmd) {
     if (selectedType !== "section") return;

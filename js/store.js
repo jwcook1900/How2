@@ -156,7 +156,86 @@ window.GotItStore = (function () {
   /* DETAILS/SUMMARY power the "dropdown inside a section" blocks for long
      lists. Attributes are stripped like everything else, which also drops
      `open` — so published dropdowns always start collapsed. */
-  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1, DETAILS: 1, SUMMARY: 1 };
+  /* A is the one tag allowed to keep an attribute, and only href, and only
+     after safeHref approves the value. Everything else is still rebuilt bare. */
+  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1, DETAILS: 1, SUMMARY: 1, A: 1 };
+
+  /* ---- Is this href safe to publish? ----
+     A guide travels by link to people who did not write it, so a link inside
+     one is an attacker's dream if the scheme is not checked: javascript: and
+     data: both execute in the reader's page. Only the four schemes a care
+     guide legitimately needs get through, plus a bare domain typed without
+     one, which is what most people actually type.
+
+     Whitespace and control characters are stripped BEFORE the scheme test,
+     because browsers ignore them inside a URL: "java\nscript:alert(1)" is a
+     working javascript: URL, and a test run against the raw string would see
+     something starting "java" and wave it past. */
+  function safeHref(raw) {
+    var v = String(raw == null ? "" : raw).replace(/[\u0000-\u0020\u007F-\u00A0]/g, "");
+    if (!v) return null;
+    if (/^(https?:\/\/|mailto:|tel:)/i.test(v)) return v;
+    // "gotitguides.com/g/x" or "www.example.com" — assume https rather than
+    // dropping a link the writer clearly meant.
+    if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/?#]|$)/i.test(v)) return "https://" + v;
+    return null;
+  }
+
+  // Bare URLs sitting in text, so links a writer pasted before this existed
+  // (and any they paste without reaching for the button) still work.
+  var URL_RE = /((?:https?:\/\/|www\.)[^\s<>"')\]]*[^\s<>"')\].,;:!?]|[a-z0-9][a-z0-9-]*\.(?:com|net|org|au|co|io|nz|uk)(?:\.[a-z]{2,})?(?:\/[^\s<>"')\]]*[^\s<>"')\].,;:!?])?)/gi;
+
+  function insideLink(node, root) {
+    for (var n = node; n && n !== root; n = n.parentNode) {
+      if (n.nodeType === 1 && n.tagName === "A") return true;
+    }
+    return false;
+  }
+
+  function makeLink(href, text) {
+    var a = document.createElement("a");
+    a.setAttribute("href", href);
+    // Guides open on someone else's phone, often from a message. A link must
+    // not be able to reach back into the guide's tab (noopener) or leak the
+    // guide URL to wherever it points (noreferrer) — that URL is the secret.
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer nofollow");
+    a.textContent = text;
+    return a;
+  }
+
+  function linkifyIn(root) {
+    var texts = [];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var n;
+    while ((n = walker.nextNode())) {
+      if (!insideLink(n.parentNode, root)) texts.push(n);
+    }
+    texts.forEach(function (t) {
+      var s = t.nodeValue || "";
+      URL_RE.lastIndex = 0;
+      if (!URL_RE.test(s)) return;
+      URL_RE.lastIndex = 0;
+      var frag = document.createDocumentFragment(), last = 0, m;
+      while ((m = URL_RE.exec(s))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        var href = safeHref(m[0]);
+        if (href) {
+          var auto = makeLink(href, m[0]);
+          // Marked so print can skip repeating an address that is already the
+          // visible text. Render-time only; never stored.
+          auto.className = "lnk-auto";
+          frag.appendChild(auto);
+        } else {
+          frag.appendChild(document.createTextNode(m[0]));
+        }
+        last = m.index + m[0].length;
+      }
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      t.parentNode.replaceChild(frag, t);
+    });
+  }
+
   function sanitizeHtml(html) {
     var docp;
     try { docp = new DOMParser().parseFromString(String(html), "text/html"); }
@@ -168,7 +247,19 @@ window.GotItStore = (function () {
           frag.appendChild(document.createTextNode(ch.nodeValue));
         } else if (ch.nodeType === 1) {
           var inner = clean(ch);
-          if (ALLOWED_TAGS[ch.tagName]) {
+          if (ch.tagName === "A") {
+            // The one attribute that survives, and only once safeHref says so.
+            // A link with a rejected scheme is unwrapped, not dropped: the
+            // words stay readable, they just stop being clickable.
+            var href = safeHref(ch.getAttribute("href"));
+            if (href) {
+              var a = makeLink(href, "");
+              a.appendChild(inner);
+              frag.appendChild(a);
+            } else {
+              frag.appendChild(inner);
+            }
+          } else if (ALLOWED_TAGS[ch.tagName]) {
             var keep = document.createElement(ch.tagName); // fresh = no attributes
             keep.appendChild(inner);
             frag.appendChild(keep);
@@ -181,6 +272,7 @@ window.GotItStore = (function () {
     }
     var out = document.createElement("div");
     out.appendChild(clean(docp.body));
+    linkifyIn(out);
     return out.innerHTML;
   }
 
@@ -426,15 +518,28 @@ window.GotItStore = (function () {
        Bodies may be plain text (legacy) or limited HTML (bullets/bold/italic
        added in the editor). renderBody returns safe HTML to drop into the DOM:
        plain text is escaped with line breaks; HTML is sanitised to a small tag
-       whitelist with all attributes stripped (no XSS from a shared link). */
+       whitelist, with href on a link the only attribute that survives (no XSS
+       from a shared link). Bare URLs in either become links, so the ones people
+       pasted before there was a link button start working on their own. */
     renderBody: function (body) {
       body = body == null ? "" : String(body);
       if (!/<[a-z!/][\s\S]*>/i.test(body)) {
-        return body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+        // Built as text nodes rather than escaped string surgery, so the
+        // linkifier sees real text and can't be fooled into writing markup.
+        var box = document.createElement("div");
+        String(body).split("\n").forEach(function (line, i) {
+          if (i) box.appendChild(document.createElement("br"));
+          box.appendChild(document.createTextNode(line));
+        });
+        linkifyIn(box);
+        return box.innerHTML;
       }
       return sanitizeHtml(body);
     },
     sanitizeHtml: function (html) { return sanitizeHtml(html); },
+    // Exposed so the editor can reject a bad address while the writer is still
+    // looking at it, rather than silently dropping the link on save.
+    safeHref: function (raw) { return safeHref(raw); },
 
     /* ---- Does a Medications section actually list a medication? ----
        Vet guides give Medications an orange spine, a bold title and an

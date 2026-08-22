@@ -4368,9 +4368,31 @@
     }
     return { removedSection: removedSection };
   }
+  /* Does this answer say only that something didn't happen?
+     "No surgery was performed" is pure absence and belongs out of the guide.
+     "No teeth were extracted, just a scale and polish" is an absence that
+     carries information, and reassures an owner, so it stays. The difference
+     is whether anything follows the negative, which is why a comma, a
+     "just"/"but"/"only", or any real length disqualifies it. Conservative on
+     purpose: failing to offer removal leaves a tidy-up job, offering it
+     wrongly invites someone to delete a real instruction. */
+  function readsAsAbsence(text) {
+    var t = String(text || "").replace(/\s+/g, " ").trim().replace(/[.!]+$/, "");
+    if (!t || t.length > 70) return false;
+    if (/[,;:]/.test(t)) return false;
+    if (/\b(just|but|only|instead|however|although|apart from|other than)\b/i.test(t)) return false;
+    return /^(no|none|nil|n\/?a|not applicable|nothing|didn'?t|did not|wasn'?t|was not|weren'?t|were not|hasn'?t|has not)\b/i.test(t);
+  }
+
   // Resolves one triage card: every flag line it stands for, recorded once as
   // a single fact for the tidy-up pass. Returns true if a section was emptied.
-  function resolveEntry(entry, replacement) {
+  /* `note` is what the clinic typed when the line is being taken out rather
+     than replaced. It still gets recorded: "no medications went home" is a
+     fact about the whole guide even when it earns no sentence of its own, and
+     the tidy-up pass needs it so nothing downstream keeps referring to
+     medication. Dropping it would mean the clinic told us something and we
+     forgot it the moment we acted on it. */
+  function resolveEntry(entry, replacement, note) {
     var dropped = false;
     entry.members.forEach(function (m) {
       var r = applyVetFlag(m.secId, m.line, replacement, true);
@@ -4381,7 +4403,7 @@
       section: entry.members.map(function (m) { return m.secTitle; })
         .filter(function (t, i, a) { return a.indexOf(t) === i; }).join(", "),
       unclear: entry.group ? entry.group.question : vetFlagDisplay(entry.members[0].line),
-      answer: replacement || null
+      answer: replacement || note || null
     });
     return dropped;
   }
@@ -4491,16 +4513,56 @@
         triageDrafts[key] = { text: ta.value, open: !form.hidden };
         if (!form.hidden) ta.focus();
       });
+      var confirmRow = document.createElement("div");
+      confirmRow.className = "vt-absent";
+      confirmRow.hidden = true;
+      form.appendChild(confirmRow);
+
+      function commit(v, note) {
+        delete triageDrafts[key];
+        var dropped = resolveEntry(entry, v, note);
+        renderGuideEditor(); recordHistory();
+        renderVetTriage();
+        if (!v) {
+          showToast(dropped ? "Removed, along with its now-empty section." : "Removed.");
+        } else {
+          showToast(many
+            ? "Answered once — " + entry.members.length + " ⚠️ flags are gone."
+            : "Updated — the ⚠️ flag is gone.");
+        }
+      }
+
       save.addEventListener("click", function () {
         var v = ta.value.trim();
         if (!v) { ta.focus(); return; }
-        delete triageDrafts[key];
-        resolveEntry(entry, v);
-        renderGuideEditor(); recordHistory();
-        renderVetTriage();
-        showToast(many
-          ? "Answered once — " + entry.members.length + " ⚠️ flags are gone."
-          : "Updated — the ⚠️ flag is gone.");
+        // "No surgery was performed" as a line in a recovery guide is noise at
+        // best: an owner reads a Surgical Care heading and then a sentence
+        // telling them it doesn't apply, and wonders what they've missed. But
+        // the nurse might mean "none this visit, the old wound still needs
+        // care", so this offers rather than decides. Silently deleting from a
+        // medical document on a text match is the sort of thing that goes
+        // wrong once and badly.
+        if (readsAsAbsence(v) && !confirmRow.dataset.asked) {
+          confirmRow.dataset.asked = "1";
+          confirmRow.hidden = false;
+          confirmRow.innerHTML = "";
+          var q = document.createElement("p");
+          q.className = "vt-absent-q";
+          q.textContent = "That reads like it doesn't apply here. Take it out of the guide instead of adding the line?";
+          var yes = document.createElement("button");
+          yes.type = "button"; yes.className = "btn btn-primary btn-sm";
+          yes.textContent = many ? "Take all " + entry.members.length + " out" : "Take it out";
+          var no = document.createElement("button");
+          no.type = "button"; no.className = "btn btn-ghost btn-sm";
+          no.textContent = "No, use my wording";
+          yes.addEventListener("click", function () { commit(null, v); });
+          no.addEventListener("click", function () { commit(v); });
+          confirmRow.appendChild(q);
+          confirmRow.appendChild(yes);
+          confirmRow.appendChild(no);
+          return;
+        }
+        commit(v);
       });
       removeBtn.addEventListener("click", function () {
         delete triageDrafts[key];

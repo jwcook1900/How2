@@ -64,6 +64,14 @@ const authCustomDomain = isProdBranch
       {
         userPoolId: backend.auth.resources.userPool.userPoolId,
         domain: "auth.gotitguides.com",
+        // 2 = managed login, the only screen that can draw the email-code
+        // option; 1 is the classic hosted UI, which cannot, and is the default.
+        // Set here so it survives a redeploy rather than living only as a
+        // console click. The branding STYLE stays console-managed on purpose:
+        // both pools already have one created by hand, and declaring an
+        // AWS::Cognito::ManagedLoginBranding here would collide with it and
+        // fail the deploy.
+        managedLoginVersion: 2,
         customDomainConfig: {
           certificateArn:
             "arn:aws:acm:us-east-1:485215543116:certificate/fd7963c2-72ba-44d7-87e4-b2b2815e0822",
@@ -124,6 +132,31 @@ cfnUserPool.addPropertyOverride(
   authEmailLambda.functionArn
 );
 cfnUserPool.addPropertyOverride("LambdaConfig.CustomEmailSender.LambdaVersion", "V1_0");
+
+/* ---- Passwordless email sign-in ----
+   A clinic on Outlook or its own practice domain has no Google account, so
+   without this the only door into an account is one they can't use.
+
+   These four settings were originally clicked into the Cognito console, twice,
+   once per pool, and lived nowhere else. That meant a new environment needed
+   somebody to remember all four in the right order, and nothing stopped a
+   later deploy resetting them. In code they come back on every deploy.
+
+   EMAIL_OTP alongside PASSWORD, not instead of it: taking the password factor
+   away would lock out anyone who already has one. ALLOW_USER_AUTH is the flow
+   the choice-based screen runs on, and the three flows beside it are the ones
+   Amplify sets by default, restated because this property replaces the list
+   rather than adding to it. */
+cfnUserPool.addPropertyOverride("Policies.SignInPolicy.AllowedFirstAuthFactors", [
+  "PASSWORD",
+  "EMAIL_OTP",
+]);
+backend.auth.resources.cfnResources.cfnUserPoolClient.explicitAuthFlows = [
+  "ALLOW_USER_SRP_AUTH",
+  "ALLOW_CUSTOM_AUTH",
+  "ALLOW_REFRESH_TOKEN_AUTH",
+  "ALLOW_USER_AUTH",
+];
 
 // Stats reader: read the Event table and expose a passphrase-protected URL.
 // It's a standalone Lambda URL (not a GraphQL resolver) so the data <-> function

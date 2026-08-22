@@ -2888,6 +2888,14 @@ mark.vet-flag {
 }
 .vt-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .vt-answer { margin-top: 10px; }
+/* The "that reads like it doesn't apply" check, shown in place of committing. */
+.vt-absent {
+  margin-top: 10px; padding: 12px 14px;
+  background: var(--color-cream); border: 1px solid var(--line);
+  border-left: 3px solid var(--color-orange); border-radius: var(--radius-sm);
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+}
+.vt-absent-q { flex: 1 1 100%; margin: 0; font-size: 0.88rem; line-height: 1.5; color: var(--ink); }
 .vt-answer .q-textarea { width: 100%; min-height: 64px; margin: 0 0 8px; }
 .vt-saveall { margin: 4px 0 12px; }
 /* SMS to the owner: signposted, not yet built — faded so it reads as a

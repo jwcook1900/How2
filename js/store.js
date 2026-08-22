@@ -1,0 +1,975 @@
+/* ============================================================
+   GotIt Guides — storage layer
+   Saves/loads guides from the cloud (AWS Amplify Data) when configured,
+   and transparently falls back to localStorage otherwise so the app
+   always works (offline, file://, or before the backend is deployed).
+   ============================================================ */
+window.GotItStore = (function () {
+  "use strict";
+
+  var GUIDES_KEY = "how2_guides";
+  var TOKENS_KEY = "how2_tokens";
+  var cfgPromise = null;
+
+  /* ---- config: read amplify_outputs.json (generated at deploy) ---- */
+  function loadConfig() {
+    if (cfgPromise) return cfgPromise;
+    cfgPromise = fetch("amplify_outputs.json", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (j && j.data && j.data.url && j.data.api_key) {
+          return {
+            url: j.data.url,
+            key: j.data.api_key,
+            statsUrl: j.custom && j.custom.statsFunctionUrl,
+            broadcastUrl: j.custom && j.custom.broadcastFunctionUrl,
+            guideFeedbackUrl: j.custom && j.custom.guideFeedbackFunctionUrl,
+            transcribeUrl: j.custom && j.custom.transcribeFunctionUrl,
+            guideWriteUrl: j.custom && j.custom.guideWriteFunctionUrl
+          };
+        }
+        return null;
+      })
+      .catch(function () { return null; });
+    return cfgPromise;
+  }
+
+  // All guide WRITES go through the guide-write Lambda, which verifies the
+  // edit token server-side (the Guide model itself is public read-only).
+  function guideWrite(cfg, body) {
+    return fetch(cfg.guideWriteUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (res) {
+        if (res && res.error) throw new Error(res.error);
+        return res || {};
+      });
+  }
+
+  // A stored payload is normally an AWSJSON string. But a record that round
+  // trips through a store handing back native maps arrives already parsed, and
+  // a double-encoded one arrives wrapped a layer too deep. JSON.parse THROWS on
+  // an object, so one naive parse turns a perfectly readable guide into a hard
+  // failure — a blank page in the viewer, "Couldn't load that guide" in the
+  // editor. Accept all three shapes; return null only when there is really
+  // nothing usable.
+  function parsePayload(p) {
+    for (var i = 0; i < 2 && typeof p === "string"; i++) {
+      try { p = JSON.parse(p); } catch (e) { return null; }
+    }
+    return (p && typeof p === "object") ? p : null;
+  }
+
+  function gql(cfg, query, variables) {
+    return fetch(cfg.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": cfg.key },
+      body: JSON.stringify({ query: query, variables: variables })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res.errors && res.errors.length) {
+        throw new Error(res.errors[0].message || "Request failed");
+      }
+      return res.data;
+    });
+  }
+
+  // Same as gql but authenticated as a signed-in user (Cognito id token in the
+  // Authorization header → AppSync userPool auth). Used for owner-scoped data
+  // like the "My Guides" dashboard (SavedGuide).
+  function gqlAuth(cfg, query, variables, idToken) {
+    return fetch(cfg.url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "Authorization": idToken },
+      body: JSON.stringify({ query: query, variables: variables })
+    }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res.errors && res.errors.length) {
+        throw new Error(res.errors[0].message || "Request failed");
+      }
+      return res.data;
+    });
+  }
+
+  // Decode a Cognito id token (JWT) payload, best-effort.
+  function decodeJwt(t) {
+    try {
+      return JSON.parse(decodeURIComponent(escape(atob(
+        String(t).split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+      ))));
+    } catch (e) { return null; }
+  }
+  function emailFromIdToken(t) { var p = decodeJwt(t); return (p && p.email) || null; }
+  function subFromIdToken(t) { var p = decodeJwt(t); return (p && p.sub) || null; }
+
+  /* ---- optional password protection (AES-GCM, key from PBKDF2) ----
+     A locked guide is stored as an envelope { enc:1, slug, salt, iv, ct }.
+     The real guide JSON is encrypted in `ct`; nothing readable is stored,
+     so the content is private even from the database. Needs a secure
+     context (https / localhost) for window.crypto.subtle. */
+  function subtle() {
+    return (window.crypto && window.crypto.subtle) ? window.crypto.subtle : null;
+  }
+  function b64(buf) {
+    var bytes = new Uint8Array(buf), s = "";
+    for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s);
+  }
+  function unb64(str) {
+    var bin = atob(str), a = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+  function deriveKey(password, salt) {
+    var enc = new TextEncoder();
+    return subtle().importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveKey"])
+      .then(function (base) {
+        return subtle().deriveKey(
+          { name: "PBKDF2", salt: salt, iterations: 150000, hash: "SHA-256" },
+          base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+      });
+  }
+
+  /* ---- localStorage fallback ---- */
+  function localGuides() {
+    try { return JSON.parse(localStorage.getItem(GUIDES_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function localTokens() {
+    try { return JSON.parse(localStorage.getItem(TOKENS_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function localPut(guide, editToken) {
+    var g = localGuides(); g[guide.slug] = guide;
+    localStorage.setItem(GUIDES_KEY, JSON.stringify(g));
+    if (editToken) rememberToken(guide.slug, editToken);
+  }
+  function rememberToken(slug, token) {
+    if (!slug || !token) return;
+    try {
+      var t = localTokens(); t[slug] = token;
+      localStorage.setItem(TOKENS_KEY, JSON.stringify(t));
+    } catch (e) { /* storage blocked — the feature just won't appear */ }
+  }
+
+  /* ---- HTML sanitiser for rich-text section bodies ----
+     Parses inertly (DOMParser, so no images load and no scripts run), then
+     rebuilds with only whitelisted tags and no attributes. */
+  /* DETAILS/SUMMARY power the "dropdown inside a section" blocks for long
+     lists. Attributes are stripped like everything else, which also drops
+     `open` — so published dropdowns always start collapsed. */
+  /* A is the one tag allowed to keep an attribute, and only href, and only
+     after safeHref approves the value. Everything else is still rebuilt bare. */
+  var ALLOWED_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, P: 1, DIV: 1, DETAILS: 1, SUMMARY: 1, A: 1 };
+
+  /* ---- Is this href safe to publish? ----
+     A guide travels by link to people who did not write it, so a link inside
+     one is an attacker's dream if the scheme is not checked: javascript: and
+     data: both execute in the reader's page. Only the four schemes a care
+     guide legitimately needs get through, plus a bare domain typed without
+     one, which is what most people actually type.
+
+     Whitespace and control characters are stripped BEFORE the scheme test,
+     because browsers ignore them inside a URL: "java\nscript:alert(1)" is a
+     working javascript: URL, and a test run against the raw string would see
+     something starting "java" and wave it past. */
+  function safeHref(raw) {
+    var v = String(raw == null ? "" : raw).replace(/[\u0000-\u0020\u007F-\u00A0]/g, "");
+    if (!v) return null;
+    if (/^(https?:\/\/|mailto:|tel:)/i.test(v)) return v;
+    // "gotitguides.com/g/x" or "www.example.com" — assume https rather than
+    // dropping a link the writer clearly meant.
+    if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([/?#]|$)/i.test(v)) return "https://" + v;
+    return null;
+  }
+
+  // Bare URLs sitting in text, so links a writer pasted before this existed
+  // (and any they paste without reaching for the button) still work.
+  var URL_RE = /((?:https?:\/\/|www\.)[^\s<>"')\]]*[^\s<>"')\].,;:!?]|[a-z0-9][a-z0-9-]*\.(?:com|net|org|au|co|io|nz|uk)(?:\.[a-z]{2,})?(?:\/[^\s<>"')\]]*[^\s<>"')\].,;:!?])?)/gi;
+
+  function insideLink(node, root) {
+    for (var n = node; n && n !== root; n = n.parentNode) {
+      if (n.nodeType === 1 && n.tagName === "A") return true;
+    }
+    return false;
+  }
+
+  function makeLink(href, text) {
+    var a = document.createElement("a");
+    a.setAttribute("href", href);
+    // Guides open on someone else's phone, often from a message. A link must
+    // not be able to reach back into the guide's tab (noopener) or leak the
+    // guide URL to wherever it points (noreferrer) — that URL is the secret.
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer nofollow");
+    a.textContent = text;
+    return a;
+  }
+
+  function linkifyIn(root) {
+    var texts = [];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var n;
+    while ((n = walker.nextNode())) {
+      if (!insideLink(n.parentNode, root)) texts.push(n);
+    }
+    texts.forEach(function (t) {
+      var s = t.nodeValue || "";
+      URL_RE.lastIndex = 0;
+      if (!URL_RE.test(s)) return;
+      URL_RE.lastIndex = 0;
+      var frag = document.createDocumentFragment(), last = 0, m;
+      while ((m = URL_RE.exec(s))) {
+        if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+        var href = safeHref(m[0]);
+        if (href) {
+          var auto = makeLink(href, m[0]);
+          // Marked so print can skip repeating an address that is already the
+          // visible text. Render-time only; never stored.
+          auto.className = "lnk-auto";
+          frag.appendChild(auto);
+        } else {
+          frag.appendChild(document.createTextNode(m[0]));
+        }
+        last = m.index + m[0].length;
+      }
+      if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+      t.parentNode.replaceChild(frag, t);
+    });
+  }
+
+  function sanitizeHtml(html) {
+    var docp;
+    try { docp = new DOMParser().parseFromString(String(html), "text/html"); }
+    catch (e) { return ""; }
+    function clean(node) {
+      var frag = document.createDocumentFragment();
+      Array.prototype.forEach.call(node.childNodes, function (ch) {
+        if (ch.nodeType === 3) {
+          frag.appendChild(document.createTextNode(ch.nodeValue));
+        } else if (ch.nodeType === 1) {
+          var inner = clean(ch);
+          if (ch.tagName === "A") {
+            // The one attribute that survives, and only once safeHref says so.
+            // A link with a rejected scheme is unwrapped, not dropped: the
+            // words stay readable, they just stop being clickable.
+            var href = safeHref(ch.getAttribute("href"));
+            if (href) {
+              var a = makeLink(href, "");
+              a.appendChild(inner);
+              frag.appendChild(a);
+            } else {
+              frag.appendChild(inner);
+            }
+          } else if (ALLOWED_TAGS[ch.tagName]) {
+            var keep = document.createElement(ch.tagName); // fresh = no attributes
+            keep.appendChild(inner);
+            frag.appendChild(keep);
+          } else {
+            frag.appendChild(inner); // unwrap disallowed tags, keep their text
+          }
+        }
+      });
+      return frag;
+    }
+    var out = document.createElement("div");
+    out.appendChild(clean(docp.body));
+    linkifyIn(out);
+    return out.innerHTML;
+  }
+
+  /* ---- public API (all async, return Promises) ---- */
+  return {
+    // Is the cloud backend available?
+    isCloud: function () { return loadConfig().then(function (c) { return !!c; }); },
+
+    /* ---- "My Guides" dashboard (owner-scoped SavedGuide, userPool auth) ----
+       These need a signed-in user's Cognito id token (from GotItAuth.idToken()).
+       The owner is set/enforced server-side, so a user only ever sees their own
+       saved guides. Storing slug + editToken lets the dashboard link straight to
+       viewing and editing. */
+    listSavedGuides: function (idToken) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return [];
+        return gqlAuth(cfg,
+          "query { listSavedGuides { items { id slug editToken title emoji status locked customTitle category createdAt updatedAt } } }",
+          {}, idToken
+        ).then(function (d) {
+          var items = (d.listSavedGuides && d.listSavedGuides.items) || [];
+          items.sort(function (a, b) {
+            return (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "");
+          });
+          return items;
+        });
+      });
+    },
+    saveGuide: function (idToken, g) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        return gqlAuth(cfg,
+          "mutation($input: CreateSavedGuideInput!) { createSavedGuide(input: $input) { id slug } }",
+          { input: {
+            slug: g.slug, editToken: g.editToken,
+            title: g.title || "Untitled guide", emoji: g.emoji || "📘",
+            status: g.status || "published", locked: !!g.locked,
+            category: g.category || null,
+            ownerEmail: emailFromIdToken(idToken), // so sitter feedback can reach them
+            ownerSub: subFromIdToken(idToken)      // ...and show on their dashboard
+          } },
+          idToken
+        ).then(function (d) { return d.createSavedGuide; });
+      });
+    },
+    // Update fields on a saved guide (rename, or refresh title/emoji/locked +
+    // bump updatedAt when the underlying guide is edited).
+    updateSavedGuide: function (idToken, id, fields) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        var input = { id: id };
+        ["title", "emoji", "status", "locked", "slug", "customTitle"].forEach(function (k) {
+          if (fields[k] !== undefined) input[k] = fields[k];
+        });
+        var oe = emailFromIdToken(idToken); // keep the owner email fresh for feedback routing
+        if (oe) input.ownerEmail = oe;
+        var os = subFromIdToken(idToken);
+        if (os) input.ownerSub = os;
+        return gqlAuth(cfg,
+          "mutation($input: UpdateSavedGuideInput!) { updateSavedGuide(input: $input) { id updatedAt } }",
+          { input: input }, idToken
+        ).then(function (d) { return d.updateSavedGuide; });
+      });
+    },
+    deleteSavedGuide: function (idToken, id) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) throw new Error("Backend not available");
+        return gqlAuth(cfg,
+          "mutation($input: DeleteSavedGuideInput!) { deleteSavedGuide(input: $input) { id } }",
+          { input: { id: id } }, idToken
+        );
+      });
+    },
+
+    /* ---- User profile (display name + the clinic kit) ---- */
+    getProfile: function (idToken) {
+      var sel = "{ id displayName clinicName clinicPhone clinicAfterHours clinicLogo }";
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        return gqlAuth(cfg,
+          "query { listUserProfiles { items " + sel + " } }", {}, idToken
+        ).then(function (d) {
+          var items = (d.listUserProfiles && d.listUserProfiles.items) || [];
+          return items[0] || null;
+        });
+      });
+    },
+    // `fields` is either a display-name string (legacy callers) or an object of
+    // profile fields to set ({ displayName, clinicName, clinicPhone,
+    // clinicAfterHours, clinicLogo }) — only the given fields are touched.
+    saveProfile: function (idToken, fields) {
+      var self = this;
+      var sel = "{ id displayName clinicName clinicPhone clinicAfterHours clinicLogo }";
+      var patch = typeof fields === "string" ? { displayName: fields } : (fields || {});
+      return self.getProfile(idToken).then(function (existing) {
+        return loadConfig().then(function (cfg) {
+          if (existing && existing.id) {
+            var input = { id: existing.id };
+            for (var k in patch) if (patch.hasOwnProperty(k)) input[k] = patch[k];
+            return gqlAuth(cfg,
+              "mutation($input: UpdateUserProfileInput!) { updateUserProfile(input: $input) " + sel + " }",
+              { input: input }, idToken
+            ).then(function (d) { return d.updateUserProfile; });
+          }
+          return gqlAuth(cfg,
+            "mutation($input: CreateUserProfileInput!) { createUserProfile(input: $input) " + sel + " }",
+            { input: patch }, idToken
+          ).then(function (d) { return d.createUserProfile; });
+        });
+      });
+    },
+    // Reads an image file into a logo-sized data URL, preserving transparency
+    // (JPEG re-encoding would paint transparent backgrounds black). Shared by
+    // the builder's logo picker and the dashboard's clinic kit.
+    logoFromFile: function (file) {
+      return new Promise(function (resolve, reject) {
+        var r = new FileReader();
+        r.onload = function () { resolve(String(r.result)); };
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      }).then(function (srcUrl) {
+        if (srcUrl.length < 120000) return srcUrl;
+        return new Promise(function (resolve) {
+          var img = new Image();
+          img.onload = function () {
+            var scale = Math.min(1, 480 / Math.max(img.width, img.height));
+            var canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            try { resolve(canvas.toDataURL("image/png")); } catch (e) { resolve(srcUrl); }
+          };
+          img.onerror = function () { resolve(srcUrl); };
+          img.src = srcUrl;
+        });
+      });
+    },
+    /* ---- Sitter suggestions on the dashboard ----
+       Read/dismissed through the guide-feedback function, scoped by the caller's
+       verified Cognito identity (access token), not AppSync owner-auth. */
+    // The signed-in creator's own per-guide analytics (views/shares + a
+    // 14-day daily series), served by the guide-feedback function after
+    // verifying the caller's identity. Resolves {} when unavailable.
+    guideStats: function () {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return {};
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "stats", idToken: idToken, tz: new Date().getTimezoneOffset() })
+        }).then(function (res) { return res.ok ? res.json() : { guides: {} }; })
+          .then(function (d) { return (d && d.guides) || {}; }, function () { return {}; });
+      }, function () { return {}; });
+    },
+
+    listGuideFeedback: function () {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return [];
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "list", idToken: idToken })
+        }).then(function (res) { return res.ok ? res.json() : { items: [] }; })
+          .then(function (d) { return (d && d.items) || []; }, function () { return []; });
+      }, function () { return []; });
+    },
+    dismissGuideFeedback: function (id) {
+      return Promise.all([loadConfig(), window.GotItAuth && GotItAuth.idToken()]).then(function (r) {
+        var cfg = r[0], idToken = r[1];
+        if (!cfg || !cfg.guideFeedbackUrl || !idToken) return null;
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ action: "dismiss", idToken: idToken, id: id })
+        }).then(function (res) { return res.ok ? res.json() : null; });
+      });
+    },
+
+    deleteProfile: function (idToken, id) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        return gqlAuth(cfg,
+          "mutation($input: DeleteUserProfileInput!) { deleteUserProfile(input: $input) { id } }",
+          { input: { id: id } }, idToken
+        );
+      });
+    },
+
+    // One-time welcome email for a new account. The backend emails the caller's
+    // own verified identity; `name` is just for the greeting. Best-effort.
+    sendWelcome: function (idToken, name) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return { ok: false };
+        return gqlAuth(cfg,
+          "query Sw($name: String) { sendWelcome(name: $name) }",
+          { name: name || null }, idToken
+        ).then(function (d) { return (d && d.sendWelcome) || { ok: true }; },
+          function () { return { ok: false }; });
+      }, function () { return { ok: false }; });
+    },
+
+    /* ---- Per-block accent colours (shared by builder + published guide) ----
+       Each block (section / log / emergency) can store a palette `color` key;
+       the cover stores `coverColor`. Applied as a tasteful accent: a coloured
+       edge + soft header tint, text stays dark. */
+    palette: [
+      { key: "coral",  accent: "#ED7446", soft: "#FFE7DC" },
+      { key: "red",    accent: "#E5484D", soft: "#FBE3E4" },
+      { key: "amber",  accent: "#F59E0B", soft: "#FCEFD3" },
+      { key: "green",  accent: "#22A06B", soft: "#DEF3E9" },
+      { key: "teal",   accent: "#14B8A6", soft: "#D6F3EF" },
+      { key: "blue",   accent: "#3B82F6", soft: "#E5EEFE" },
+      { key: "purple", accent: "#8B5CF6", soft: "#ECE6FD" },
+      { key: "pink",   accent: "#EC4899", soft: "#FBE3F1" }
+    ],
+    paletteColor: function (key) {
+      for (var i = 0; i < this.palette.length; i++) if (this.palette[i].key === key) return this.palette[i];
+      return null;
+    },
+    // Apply (or clear) a block's accent colour on its element.
+    applyAccent: function (el, key) {
+      if (!el) return;
+      var c = key && key !== "default" ? this.paletteColor(key) : null;
+      if (c) {
+        el.classList.add("has-accent");
+        el.style.setProperty("--accent", c.accent);
+        el.style.setProperty("--soft", c.soft);
+      } else {
+        el.classList.remove("has-accent");
+        el.style.removeProperty("--accent");
+        el.style.removeProperty("--soft");
+      }
+    },
+    // Recolour the cover gradient (kept separate so a cover photo can win).
+    applyCoverAccent: function (coverEl, key) {
+      if (!coverEl) return;
+      var c = key && key !== "default" ? this.paletteColor(key) : null;
+      coverEl.style.background = c
+        ? "linear-gradient(135deg, rgba(0,0,0,0.04), rgba(0,0,0,0.26)), " + c.accent
+        : "";
+    },
+
+    /* ---- Rich-text section bodies (shared by builder + published guide) ----
+       Bodies may be plain text (legacy) or limited HTML (bullets/bold/italic
+       added in the editor). renderBody returns safe HTML to drop into the DOM:
+       plain text is escaped with line breaks; HTML is sanitised to a small tag
+       whitelist, with href on a link the only attribute that survives (no XSS
+       from a shared link). Bare URLs in either become links, so the ones people
+       pasted before there was a link button start working on their own. */
+    renderBody: function (body) {
+      body = body == null ? "" : String(body);
+      if (!/<[a-z!/][\s\S]*>/i.test(body)) {
+        // Built as text nodes rather than escaped string surgery, so the
+        // linkifier sees real text and can't be fooled into writing markup.
+        var box = document.createElement("div");
+        String(body).split("\n").forEach(function (line, i) {
+          if (i) box.appendChild(document.createElement("br"));
+          box.appendChild(document.createTextNode(line));
+        });
+        linkifyIn(box);
+        return box.innerHTML;
+      }
+      return sanitizeHtml(body);
+    },
+    sanitizeHtml: function (html) { return sanitizeHtml(html); },
+    // Exposed so the editor can reject a bad address while the writer is still
+    // looking at it, rather than silently dropping the link on save.
+    safeHref: function (raw) { return safeHref(raw); },
+
+    /* ---- Does a Medications section actually list a medication? ----
+       Vet guides give Medications an orange spine, a bold title and an
+       open-by-default panel, because it's the section a carer reaches for
+       first. When nothing was sent home that emphasis points at an empty
+       room: the loudest thing on the page ends up being the news that there
+       is nothing to give, while Care at Home sits collapsed underneath.
+       Shared by the editor and the viewer so the two always agree.
+
+       Deliberately conservative. Only a body that says nothing BUT "none"
+       loses the treatment — a section that dispenses one drug and notes that
+       nothing else was sent home still counts as having medications, because
+       demoting a real instruction is the expensive mistake here. */
+    hasMeds: function (body) {
+      var t = String(body == null ? "" : body)
+        .replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ").trim();
+      if (!t || t === "Tap to add details…") return false;
+      if (t.length > 90) return true;
+      // One short sentence opening with a negative: "No medications were sent
+      // home.", "None.", "Nil". A second sentence means there's real content.
+      return !/^(no|none|nil|n\/?a|not)\b[^.!?]*[.!?]?$/i.test(t);
+    },
+
+    // Can we password-protect (needs a secure context)?
+    canEncrypt: function () { return !!subtle(); },
+
+    // True if a stored object is a locked/encrypted envelope.
+    // Identified by its PARTS, not just its flag. `enc === 1` alone is brittle:
+    // a payload that round-trips through a store which stringifies numbers
+    // comes back as enc:"1", the check fails, and the viewer renders the
+    // envelope as though it were a plain guide — an empty cover and nothing
+    // else, with the guide's contents sitting right there, unread. A ciphertext
+    // plus its salt and iv is an envelope whatever the flag says, and a
+    // plaintext guide has none of those, so this can't false-positive.
+    isEncrypted: function (obj) {
+      if (!obj || typeof obj !== "object" || !obj.ct) return false;
+      var flagged = obj.enc === 1 || obj.enc === "1" || obj.enc === true;
+      var shaped = typeof obj.ct === "string" &&
+        typeof obj.salt === "string" && typeof obj.iv === "string";
+      return flagged || shaped;
+    },
+
+    // Encrypt a guide object with a password → storable envelope. The title
+    // and cover emoji ride OUTSIDE the encryption on purpose: the unlock
+    // screen and link previews can then say whose guide it is ("Whiskey's
+    // Care Guide — protected") while everything else stays sealed.
+    encrypt: function (guide, password) {
+      if (!subtle()) return Promise.reject(new Error("Password protection needs https"));
+      var salt = window.crypto.getRandomValues(new Uint8Array(16));
+      var iv = window.crypto.getRandomValues(new Uint8Array(12));
+      return deriveKey(password, salt).then(function (key) {
+        var data = new TextEncoder().encode(JSON.stringify(guide));
+        return subtle().encrypt({ name: "AES-GCM", iv: iv }, key, data);
+      }).then(function (ct) {
+        return { enc: 1, slug: guide.slug, title: guide.title || "", emoji: guide.emoji || "",
+          salt: b64(salt), iv: b64(iv), ct: b64(ct) };
+      });
+    },
+
+    // Decrypt an envelope with a password → guide object (rejects if wrong).
+    decrypt: function (env, password) {
+      if (!subtle()) return Promise.reject(new Error("Password protection needs https"));
+      return deriveKey(password, unb64(env.salt)).then(function (key) {
+        return subtle().decrypt({ name: "AES-GCM", iv: unb64(env.iv) }, key, unb64(env.ct));
+      }).then(function (pt) {
+        return JSON.parse(new TextDecoder().decode(pt));
+      });
+    },
+
+    // Create a new guide. Resolves with { cloud: bool }.
+    // `opts.hasViewerLogs` matters for LOCKED guides only: the server can't see
+    // inside the envelope, so the owner's client declares whether viewers may
+    // append log entries (it gates the viewer log-write path server-side).
+    create: function (guide, editToken, opts) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideWriteUrl) { localPut(guide, editToken); return { cloud: false }; }
+        return guideWrite(cfg, {
+          action: "create",
+          slug: guide.slug,
+          token: editToken,
+          payload: JSON.stringify(guide),
+          hasViewerLogs: !!(opts && opts.hasViewerLogs)
+        }).then(function () {
+          // Remember the token on this device too, so the published guide
+          // can offer its creator a way back into editing.
+          rememberToken(guide.slug, editToken);
+          return { cloud: true };
+        });
+      });
+    },
+
+    // This device's edit token for a slug (recorded when the guide was
+    // published or opened for editing here), or null. Purely local — holding
+    // the token is what makes someone the owner.
+    editTokenFor: function (slug) { return localTokens()[slug] || null; },
+    rememberToken: function (slug, token) { rememberToken(slug, token); },
+
+    // Update an existing guide's contents. Requires the guide's edit token —
+    // the server verifies it before writing anything.
+    update: function (guide, editToken, opts) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideWriteUrl) { localPut(guide); return { cloud: false }; }
+        return guideWrite(cfg, {
+          action: "update",
+          slug: guide.slug,
+          token: editToken,
+          payload: JSON.stringify(guide),
+          hasViewerLogs: !!(opts && opts.hasViewerLogs)
+        }).then(function () { return { cloud: true }; });
+      });
+    },
+
+    // A viewer appends ONE log entry. Plaintext guides: the server validates
+    // and applies it ({ logId, entry }). Locked guides: the viewer re-encrypts
+    // locally and sends the whole envelope ({ envelope }) — accepted only when
+    // the owner's last save declared viewer-writable logs.
+    log: function (slug, opts) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideWriteUrl) {
+          // Local fallback: apply the entry to the localStorage copy.
+          var g = localGuides()[slug];
+          if (!g) return { ok: false };
+          if (opts.envelope) {
+            try { localPut(JSON.parse(opts.envelope)); } catch (e) { return { ok: false }; }
+            return { ok: true };
+          }
+          var log = (g.logs || []).filter(function (l) { return l.id === opts.logId; })[0];
+          if (!log || log.ownerOnly) return { ok: false };
+          log.rows = log.rows || [];
+          log.rows.push(opts.entry);
+          localPut(g);
+          return { ok: true };
+        }
+        var body = { action: "log", slug: slug };
+        if (opts.envelope) body.envelope = opts.envelope;
+        else { body.logId = opts.logId; body.entry = opts.entry; }
+        return guideWrite(cfg, body);
+      });
+    },
+
+    // Read a guide for public viewing (no edit token fetched).
+    get: function (slug) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) { return localGuides()[slug] || null; }
+        var q = "query Get($id: ID!){ getGuide(id: $id){ id payload } }";
+        return gql(cfg, q, { id: slug }).then(function (d) {
+          if (!d.getGuide) return null;
+          return parsePayload(d.getGuide.payload);
+        });
+      });
+    },
+
+    // Server-side AI (keyless). `opts` may include text, category, question,
+    // fileData (base64) and fileType. Resolves with the handler's JSON result,
+    // or null when no cloud backend is configured (so callers can fall back).
+    ai: function (mode, opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Ai($mode: String!, $text: String, $category: String, " +
+          "$question: String, $fileData: String, $fileType: String, " +
+          "$fileDatas: [String], $fileTypes: [String]){ " +
+          "aiAssist(mode: $mode, text: $text, category: $category, " +
+          "question: $question, fileData: $fileData, fileType: $fileType, " +
+          "fileDatas: $fileDatas, fileTypes: $fileTypes) }";
+        return gql(cfg, q, {
+          mode: mode,
+          text: opts.text || null,
+          category: opts.category || null,
+          question: opts.question || null,
+          fileData: opts.fileData || null,
+          fileType: opts.fileType || null,
+          fileDatas: opts.fileDatas && opts.fileDatas.length ? opts.fileDatas : null,
+          fileTypes: opts.fileTypes && opts.fileTypes.length ? opts.fileTypes : null
+        }).then(function (d) {
+          var r = d.aiAssist;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+          return r;
+        });
+      });
+    },
+
+    // Transcribe a recorded audio Blob via Whisper (server-side). Resolves with
+    // { ok, text } or { ok:false, error }, or null when there's no cloud backend.
+    transcribe: function (blob, mime) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.transcribeUrl) return null;
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onerror = function () { reject(new Error("Couldn't read the recording.")); };
+          reader.onload = function () {
+            var dataUrl = String(reader.result || "");
+            var b64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+            fetch(cfg.transcribeUrl, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ audio: b64, mime: mime || blob.type || "audio/webm" })
+            }).then(function (r) { return r.json(); }).then(resolve, reject);
+          };
+          reader.readAsDataURL(blob);
+        });
+      });
+    },
+
+    // Read a public web page / Google Doc link server-side and return its text.
+    // Resolves with { ok, title, text } or { ok:false, error }, or null offline.
+    readUrl: function (url) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query R($url: String!){ readUrl(url: $url) }";
+        return gql(cfg, q, { url: url }).then(function (d) {
+          var r = d.readUrl;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return null; } }
+          return r;
+        });
+      });
+    },
+
+    // Request a one-time Cloudflare Stream direct-upload URL. Resolves with
+    // { uploadURL, uid } (or { error }), or null when there's no cloud backend.
+    videoUploadUrl: function (maxDurationSeconds) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Vid($maxDurationSeconds: Int){ videoUpload(maxDurationSeconds: $maxDurationSeconds) }";
+        return gql(cfg, q, { maxDurationSeconds: maxDurationSeconds || 150 }).then(function (d) {
+          var r = d.videoUpload;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return null; } }
+          return r;
+        });
+      });
+    },
+
+    // Email a creator their links (server-side via SES). `opts`: email, slug,
+    // editToken, origin, and optional title/emoji/password. Resolves with the
+    // handler result, or null when there's no cloud backend to send through.
+    sendLinks: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return null;
+        var q = "query Send($email: String!, $slug: String!, $editToken: String!, " +
+          "$origin: String!, $title: String, $emoji: String, $password: String){ " +
+          "sendLinks(email: $email, slug: $slug, editToken: $editToken, origin: $origin, " +
+          "title: $title, emoji: $emoji, password: $password) }";
+        return gql(cfg, q, {
+          email: opts.email,
+          slug: opts.slug,
+          editToken: opts.editToken,
+          origin: opts.origin,
+          title: opts.title || null,
+          emoji: opts.emoji || null,
+          password: opts.password || null
+        }).then(function (d) {
+          var r = d.sendLinks;
+          if (typeof r === "string") { try { return JSON.parse(r); } catch (e) { return r; } }
+          return r;
+        });
+      });
+    },
+
+    // Submit in-app feedback. `opts`: message, email, context. Stores to the
+    // cloud when available, otherwise queues it in localStorage. Resolves with
+    // { cloud: bool } so it never rejects on the caller for a missing backend.
+    feedback: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg) {
+          try {
+            var list = JSON.parse(localStorage.getItem("how2_feedback") || "[]");
+            list.push({ message: opts.message, email: opts.email, context: opts.context, at: Date.now() });
+            localStorage.setItem("how2_feedback", JSON.stringify(list));
+          } catch (e) {}
+          return { cloud: false };
+        }
+        // Store durably (DynamoDB) and email the team. Both best-effort: as long
+        // as one succeeds the feedback isn't lost. Email needs SES configured.
+        var storeQ = "mutation Cr($input: CreateFeedbackInput!){ createFeedback(input: $input){ id } }";
+        var stored = gql(cfg, storeQ, { input: {
+          message: opts.message || "",
+          email: opts.email || null,
+          context: opts.context || null
+        } }).then(function () { return true; }, function () { return false; });
+
+        var mailQ = "query Fb($message: String!, $email: String, $context: String, $image: String, $imageType: String){ " +
+          "sendFeedback(message: $message, email: $email, context: $context, image: $image, imageType: $imageType) }";
+        var mailed = gql(cfg, mailQ, {
+          message: opts.message || "",
+          email: opts.email || null,
+          context: opts.context || null,
+          image: opts.image || null,
+          imageType: opts.imageType || null
+        }).then(function () { return true; }, function () { return false; });
+
+        return Promise.all([stored, mailed]).then(function (r) {
+          if (!r[0] && !r[1]) throw new Error("Couldn't submit feedback");
+          return { cloud: true };
+        });
+      });
+    },
+
+    // Log a lightweight analytics event (kind: publish/view/share, + slug).
+    // Best-effort and never rejects, so callers can fire-and-forget.
+    event: function (kind, slug) {
+      // Anonymous per-browser id so views can be counted unique-vs-total.
+      var vid = null;
+      try {
+        vid = localStorage.getItem("gotit_vid");
+        if (!vid) {
+          var a = new Uint8Array(12); window.crypto.getRandomValues(a);
+          vid = Array.prototype.map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+          localStorage.setItem("gotit_vid", vid);
+        }
+      } catch (e) { vid = null; }
+      // Where the visit came from: the referrer's domain only (never the full
+      // URL). Same-site or no referrer both count as "direct" — unless this
+      // session arrived from outside earlier (e.g. Facebook → a guide → the
+      // "Create your free guide" CTA → the builder): the inbound source is
+      // remembered for the session so internal hops keep their attribution.
+      var ref = "direct";
+      try {
+        if (document.referrer) {
+          var host = new URL(document.referrer).hostname;
+          if (host && host !== window.location.hostname) {
+            ref = host.replace(/^www\./, "").slice(0, 80);
+            sessionStorage.setItem("gotit_ref", ref);
+          }
+        }
+        if (ref === "direct") {
+          var stored = sessionStorage.getItem("gotit_ref");
+          if (stored) ref = stored;
+        }
+      } catch (e) { /* keep "direct" */ }
+      return loadConfig().then(function (cfg) {
+        if (!cfg) return false;
+        var q = "mutation Cr($input: CreateEventInput!){ createEvent(input: $input){ id } }";
+        return gql(cfg, q, { input: { kind: kind, slug: slug || null, vid: vid, ref: ref } })
+          .then(function () { return true; }, function () { return false; });
+      }, function () { return false; });
+    },
+
+    // Sitter feedback left on a published guide → routed server-side to the
+    // guide's owner (if it's saved to an account) or the team inbox. Resolves
+    // { ok:true }, or null if the backend isn't available (rejects on failure).
+    sendGuideFeedback: function (opts) {
+      opts = opts || {};
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideFeedbackUrl) return null;
+        return fetch(cfg.guideFeedbackUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            slug: opts.slug || "", title: opts.title || "",
+            message: opts.message || "", email: opts.email || ""
+          })
+        }).then(function (r) {
+          if (r.status === 200) return r.json();
+          throw new Error("Couldn't send feedback");
+        });
+      });
+    },
+
+    // Read aggregate analytics (passphrase-protected Lambda URL). Resolves with
+    // the stats object, null if unavailable, or rejects on a wrong passphrase.
+    stats: function (key, win) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.statsUrl) return null;
+        var body = { key: key, tz: new Date().getTimezoneOffset() };
+        // Optional {from, to} local dates: the backend then answers every
+        // aggregate for that window instead of all time.
+        if (win && win.from) body.from = win.from;
+        if (win && win.to) body.to = win.to;
+        // A pinned "since this moment" mark (epoch ms) — minute-accurate,
+        // unlike the date-only from/to pair.
+        if (win && win.sinceTs) body.sinceTs = win.sinceTs;
+        return fetch(cfg.statsUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body)
+        }).then(function (r) {
+          if (r.status === 200) return r.json();
+          if (r.status === 401) throw new Error("wrong passphrase");
+          if (r.status === 503) return null; // not configured yet
+          throw new Error("stats unavailable");
+        });
+      });
+    },
+
+    // Broadcast-email admin API (passphrase-protected Lambda URL, /stats page
+    // only). `payload`: { key, action: "audience"|"test"|"send", subject, body, to }.
+    // Resolves with the response object, null if unavailable, rejects on 401.
+    broadcast: function (payload) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.broadcastUrl) return null;
+        return fetch(cfg.broadcastUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function (r) {
+          if (r.status === 401) throw new Error("wrong passphrase");
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error(j && j.error || "failed");
+            return j;
+          });
+        });
+      });
+    },
+
+    // Open a guide for editing: the server verifies the caller's token and
+    // only then returns the payload. The token itself never travels back —
+    // { denied: true } means the guide exists but the token was wrong.
+    getForEdit: function (slug, token) {
+      return loadConfig().then(function (cfg) {
+        if (!cfg || !cfg.guideWriteUrl) {
+          var g = localGuides()[slug];
+          if (!g) return null;
+          var local = localTokens()[slug] || null;
+          if (local && token !== local) return { denied: true };
+          return { guide: g, editToken: token || local };
+        }
+        return guideWrite(cfg, { action: "verify", slug: slug, token: token || "" })
+          .then(function (res) {
+            if (!res.ok) return { denied: true };
+            var g = parsePayload(res.payload);
+            if (!g) return null; // unreadable — treat as missing, not as a crash
+            return { guide: g, editToken: token };
+          }, function (err) {
+            if (/not found/i.test(err.message || "")) return null;
+            throw err;
+          });
+      });
+    }
+  };
+})();

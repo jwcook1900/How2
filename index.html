@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Create a simple, shareable guide with the routines, instructions, videos and important details someone needs when they look after your pet, your home, your kids or a loved one." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>GotIt Guides | Everything they need. One simple guide</title>
+
+  <link rel="canonical" href="https://www.gotitguides.com/" />
+
+  <!-- Open Graph / social preview -->
+  <meta property="og:title" content="GotIt Guides | Everything they need. One simple guide" />
+  <meta property="og:description" content="One simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, home, kids or a loved one." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.gotitguides.com/" />
+  <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="GotIt Guides | Everything they need. One simple guide" />
+  <meta name="twitter:description" content="One simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, home, kids or a loved one." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- Structured data: what the product is + who runs it -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "name": "GotIt Guides",
+        "url": "https://www.gotitguides.com/",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Any (web)",
+        "description": "Create one simple, shareable guide with the routines, instructions, photos and important details someone needs when they look after your pet, your home, your kids or a loved one.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" }
+      },
+      {
+        "@type": "Organization",
+        "name": "GotIt Guides",
+        "url": "https://www.gotitguides.com/",
+        "logo": "https://www.gotitguides.com/icon-512.png",
+        "email": "hello@gotitguides.com",
+        "founder": { "@type": "Person", "name": "James Cook" },
+        "address": { "@type": "PostalAddress", "addressLocality": "Sydney", "addressCountry": "AU" }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <!-- ───────────────────────── Header ───────────────────────── -->
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <div class="header-left">
+        <div class="nav-menu">
+          <button class="nav-toggle glass" id="navToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+          </button>
+          <!-- Items carry data-auth so the menu matches the visitor: "in"
+               only when signed in, "out" only when signed out, none = always.
+               app.js sets it on open; without JS every item still shows.
+               Icons are inline line-art (stroke: currentColor) so they take
+               the row's colour on hover — emoji would fight the type. -->
+          <div class="nav-dropdown glass" id="navDropdown" hidden>
+            <p class="navd-label">Menu</p>
+            <div class="navd-group">
+              <a href="/"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>Home</a>
+              <a href="dashboard.html" data-auth="in"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.6.8l.9 1.2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>My guides <span class="nav-badge" id="myGuidesBadge" hidden></span></a>
+              <a href="builder.html" data-evt="home_cta" data-evt-slug="menu_create"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8.5v7M8.5 12h7"/></svg></span>Create a guide</a>
+              <a href="/g/whiskeys101-kd8d-wbxx" data-evt="home_cta" data-evt-slug="menu_example"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.6 12S6.1 5.8 12 5.8 21.4 12 21.4 12 17.9 18.2 12 18.2 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="2.9"/></svg></span>See an example</a>
+              <a href="vets.html" data-evt="home_cta" data-evt-slug="menu_vets"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l2.2-5.5 3.6 11 2.2-5.5H21"/></svg></span>For vet clinics</a>
+            </div>
+            <div class="navd-group">
+              <p class="navd-label">On this page</p>
+              <a href="#how"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.6" cy="6" r="1.1"/><circle cx="4.6" cy="12" r="1.1"/><circle cx="4.6" cy="18" r="1.1"/></svg></span>How it works</a>
+              <a href="#examples"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg></span>Guide types</a>
+              <a href="#pricing"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.4 13.4 13.4 20.4a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12V5a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><circle cx="8" cy="8" r="1.2"/></svg></span>Pricing</a>
+            </div>
+            <div class="navd-group">
+              <a href="about.html#who"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11.2v5.3"/><path d="M12 7.9h.01"/></svg></span>About</a>
+              <a href="about.html#privacy"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4 5 6.1v5.4c0 4.3 2.9 7.6 7 9 4.1-1.4 7-4.7 7-9V6.1Z"/></svg></span>Privacy</a>
+              <a href="dashboard.html#account" data-auth="in"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="2.9"/><path d="M6.3 19a6.4 6.4 0 0 1 11.4 0"/></svg></span>Account</a>
+              <a href="dashboard.html" data-auth="out" data-evt="home_cta" data-evt-slug="menu_signin"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3.5h3.5a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H15"/><path d="M10 8.5 13.5 12 10 15.5"/><path d="M13.5 12H3.6"/></svg></span>Sign in</a>
+              <button type="button" id="navSignOut" data-auth="in"><span class="navd-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5H5.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2H9"/><path d="M16.5 8.5 20 12l-3.5 3.5"/><path d="M20 12H10.1"/></svg></span>Sign out</button>
+            </div>
+          </div>
+        </div>
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="dashboard.html" class="btn btn-ghost btn-sm nav-myguides" id="navMyGuides">My guides</a>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ───────────────────────── Hero ───────────────────────── -->
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-content reveal">
+          <span class="eyebrow">For pets, homes, kids and loved ones</span>
+          <h1 class="hero-title">Everything they need. <span class="accent">One simple guide.</span></h1>
+          <p class="hero-sub">
+            Create a simple, shareable guide with the routines, instructions,
+            videos and the little details someone needs when you're not there.
+          </p>
+          <div class="hero-cta">
+            <a href="builder.html" class="btn btn-primary btn-lg" data-evt="home_cta" data-evt-slug="create">Create your guide</a>
+            <!-- A real, living guide (Whiskey's public copy) beats mockups -->
+            <a href="/g/whiskeys101-kd8d-wbxx" class="btn btn-ghost btn-lg" data-evt="home_cta" data-evt-slug="example">See an example</a>
+          </div>
+          <ul class="hero-reassure">
+            <li>Free to create &amp; share</li>
+            <li>No sign-up required</li>
+            <li>Ready in minutes</li>
+            <li>Update anytime</li>
+          </ul>
+        </div>
+
+        <!-- Decorative phone mockup — swipeable handover-guide examples -->
+        <div class="hero-visual reveal" aria-hidden="true">
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div class="mock-track" id="mockTrack">
+                <!-- First slide is static so it shows even without JS;
+                     js/app.js adds the rest and enables swiping. -->
+                <div class="mock-slide">
+                  <div class="mock-cover">
+                    <span class="mock-emoji">🐶</span>
+                    <div class="mock-title">Whiskey's Care Guide</div>
+                    <div class="mock-subtitle">Everything my dog sitter needs</div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">🦴</span>
+                    <div>
+                      <div class="mock-card-title">Feeding &amp; Routine</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">💊</span>
+                    <div>
+                      <div class="mock-card-title">Medication</div>
+                      <div class="mock-card-bar short"></div>
+                    </div>
+                  </div>
+                  <div class="mock-card">
+                    <span class="mock-card-icon">🚨</span>
+                    <div>
+                      <div class="mock-card-title">Vet &amp; Emergency</div>
+                      <div class="mock-card-bar"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="mock-dots" id="mockDots"></div>
+          </div>
+          <div class="blob blob-1"></div>
+          <div class="blob blob-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Who it's for ─────────────────────────
+         Four real use cases directly beneath the hero, so "they" in the
+         headline immediately has a face. Each card is a live builder
+         category, not marketing. -->
+    <section class="section section-usecases" id="examples">
+      <div class="container">
+        <div class="cards cards-4">
+          <a class="card reveal" href="builder.html?cat=pet" data-evt="home_usecase" data-evt-slug="pet">
+            <span class="card-emoji">🐶</span>
+            <h2 class="card-title">Pet care</h2>
+            <ul class="card-points">
+              <li>Feeding</li>
+              <li>Medication</li>
+              <li>Behaviour</li>
+              <li>Vet details</li>
+            </ul>
+          </a>
+          <a class="card reveal" href="builder.html?cat=housesit" data-evt="home_usecase" data-evt-slug="housesit">
+            <span class="card-emoji">🏡</span>
+            <h2 class="card-title">Home care</h2>
+            <ul class="card-points">
+              <li>Alarm</li>
+              <li>Keys</li>
+              <li>Plants</li>
+              <li>Appliances</li>
+            </ul>
+          </a>
+          <a class="card reveal" href="builder.html?cat=kids" data-evt="home_usecase" data-evt-slug="kids">
+            <span class="card-emoji">👶</span>
+            <h2 class="card-title">Babysitting</h2>
+            <ul class="card-points">
+              <li>Meals</li>
+              <li>Bedtime</li>
+              <li>Allergies</li>
+              <li>Emergency contacts</li>
+            </ul>
+          </a>
+          <a class="card reveal" href="builder.html?cat=care" data-evt="home_usecase" data-evt-slug="care">
+            <span class="card-emoji">🧡</span>
+            <h2 class="card-title">Family care</h2>
+            <ul class="card-points">
+              <li>Medication</li>
+              <li>Appointments</li>
+              <li>Daily routine</li>
+              <li>Important preferences</li>
+            </ul>
+          </a>
+        </div>
+        <p class="usecase-more reveal">Also handy for Airbnb handovers and team onboarding —
+          <a href="/g/whiskeys101-kd8d-wbxx">or open a real guide →</a></p>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── The problem: scattered instructions ───────────────────────── -->
+    <section class="section section-tint" id="paste">
+      <div class="container">
+        <div class="section-head section-head--solo reveal">
+          <span class="eyebrow">Sound familiar?</span>
+          <h2 class="section-title">Stop explaining the same things over and over.</h2>
+          <p class="section-lead">
+            Important details often end up scattered across WhatsApp messages,
+            Google Docs, printed notes, photos, videos and last-minute
+            conversations. GotIt Guides keeps everything together in one place
+            that's easy to update and simple to share.
+          </p>
+        </div>
+        <!-- The familiar scatter, gathered into one guide. These tools aren't
+             the enemy — they're where everyone starts. -->
+        <div class="frag-flow reveal" aria-hidden="true">
+          <div class="frag-cloud">
+            <span class="frag-chip">💬 WhatsApp threads</span>
+            <span class="frag-chip">📄 Google Docs</span>
+            <span class="frag-chip">🖨️ Printed notes</span>
+            <span class="frag-chip">🎥 Videos on your phone</span>
+            <span class="frag-chip">🗣️ &ldquo;Call me if anything happens&rdquo;</span>
+          </div>
+          <div class="frag-arrow">→</div>
+          <div class="frag-dest">
+            <div class="frag-dest-head"><span>🐶</span> One simple guide</div>
+            <div class="frag-dest-row">🕐 Daily routine</div>
+            <div class="frag-dest-row">💊 Medication</div>
+            <div class="frag-dest-row">🚨 Emergency contacts</div>
+          </div>
+        </div>
+        <div class="section-cta section-cta--center reveal">
+          <!-- The paste flow really does this: notes in, structured guide out -->
+          <a href="builder.html?start=paste" class="btn btn-ghost" data-evt="home_cta" data-evt-slug="paste">Start with your messy notes</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── The little things ─────────────────────────
+         Straight from customer research: the detail that feels too obvious
+         to write down is the one the next person needs most. -->
+    <section class="section" id="little">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Real examples</span>
+          <h2 class="section-title">It's the little things people forget to explain.</h2>
+        </div>
+        <!-- One from each core use case: pet, home, kids, family care -->
+        <div class="little-quotes">
+          <blockquote class="little-quote reveal">He growls when he's happy.</blockquote>
+          <blockquote class="little-quote reveal">The back door sticks. Give it a firm push.</blockquote>
+          <blockquote class="little-quote reveal">She'll always ask for one more bedtime story.</blockquote>
+          <blockquote class="little-quote reveal">He'll say he's &lsquo;fine&rsquo; even when he needs help.</blockquote>
+        </div>
+        <p class="little-lead reveal">
+          The things that feel obvious to you are often the things someone else
+          needs to know most.
+        </p>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Videos ─────────────────────────
+         Videos are a real guide feature (record or embed per section).
+         Tiles are stylised stand-ins, not fake screenshots. -->
+    <section class="section section-tint" id="videos">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Videos inside your guide</span>
+          <h2 class="section-title">Show, don't just tell.</h2>
+          <p class="section-lead">Sometimes a 20-second video explains more than five paragraphs.</p>
+        </div>
+        <div class="vid-grid">
+          <div class="vid-tile reveal"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-label">How to give the medication</span></div>
+          <div class="vid-tile reveal"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-label">How to arm the alarm</span></div>
+          <div class="vid-tile reveal"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-label">How bedtime works</span></div>
+          <div class="vid-tile reveal"><span class="vid-play" aria-hidden="true">▶</span><span class="vid-label">Where the spare key lives</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Three steps ───────────────────────── -->
+    <section class="section" id="how">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">How it works</span>
+          <h2 class="section-title">From scattered notes to a guide they can follow.</h2>
+        </div>
+        <div class="steps">
+          <div class="step reveal">
+            <div class="step-num">1</div>
+            <h3 class="step-title">Create</h3>
+            <p class="step-text">Start with a template, talk it out or build from scratch.</p>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">2</div>
+            <h3 class="step-title">Personalise</h3>
+            <p class="step-text">Add routines, contacts, videos and important details.</p>
+          </div>
+          <div class="step reveal">
+            <div class="step-num">3</div>
+            <h3 class="step-title">Share</h3>
+            <p class="step-text">Send one simple link that's always up to date.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── More than a document ───────────────────────── -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Why people love it</span>
+          <h2 class="section-title">Confidence for them. Peace of mind for you.</h2>
+        </div>
+        <div class="features features-4">
+          <div class="feature reveal">
+            <span class="feature-icon">😌</span>
+            <div>
+              <h3 class="feature-title">Less stress</h3>
+              <p class="feature-text">Everyone knows what to do, without a flurry of last-minute messages.</p>
+            </div>
+          </div>
+          <div class="feature reveal">
+            <span class="feature-icon">🤝</span>
+            <div>
+              <h3 class="feature-title">More confidence</h3>
+              <p class="feature-text">Help someone feel like they already know what they're looking after.</p>
+            </div>
+          </div>
+          <div class="feature reveal">
+            <span class="feature-icon">✅</span>
+            <div>
+              <h3 class="feature-title">Nothing forgotten</h3>
+              <p class="feature-text">Everything has its place: routines, contacts, instructions and emergency details.</p>
+            </div>
+          </div>
+          <div class="feature reveal">
+            <span class="feature-icon">🔄</span>
+            <div>
+              <h3 class="feature-title">Update once</h3>
+              <p class="feature-text">The link always shows the latest version, so nothing goes stale.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Trust & privacy ─────────────────────────
+         Claims here must match the real behaviour (and about.html#privacy):
+         unlisted links, on-device encryption behind a guide code, edit and
+         delete anytime. Nothing else. -->
+    <section class="section section-tint" id="privacy">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Trust &amp; privacy</span>
+          <h2 class="section-title">Yours to control.</h2>
+          <p class="section-lead">
+            Make it as simple or detailed as you like, and decide exactly who
+            can open it.
+          </p>
+        </div>
+        <div class="trust-grid">
+          <div class="trust-item reveal">
+            <div class="trust-emoji">🔗</div>
+            <h3>Unlisted by default</h3>
+            <p>Your guide won't show up in Google or any other search, and it isn't listed anywhere on this site. The only way in is the link you share.</p>
+          </div>
+          <div class="trust-item reveal">
+            <div class="trust-emoji">🔒</div>
+            <h3>Lock anything sensitive</h3>
+            <p>Add a guide code and the contents are encrypted on your device before they're stored. Even we can't read them.</p>
+          </div>
+          <div class="trust-item reveal">
+            <div class="trust-emoji">✏️</div>
+            <h3>Change your mind anytime</h3>
+            <p>Update the guide and the same link stays current. Remove it from your dashboard, or email us and we'll delete it.</p>
+          </div>
+        </div>
+        <div class="section-cta section-cta--center reveal">
+          <a class="btn btn-ghost btn-sm" href="about.html#privacy">More in About &amp; privacy →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Pricing ───────────────────────── -->
+    <section class="section" id="pricing">
+      <div class="container">
+        <div class="section-head reveal">
+          <span class="eyebrow">Pricing</span>
+          <h2 class="section-title">Start free</h2>
+          <p class="section-lead">Create your first guide and share it in minutes. No card, no commitment.</p>
+        </div>
+        <div class="pricing pricing-2">
+          <article class="plan reveal">
+            <h3 class="plan-name">Personal</h3>
+            <div class="plan-price"><span class="plan-amount">Free</span><span class="plan-period">to start</span></div>
+            <p class="plan-tagline">For pets, homes and family handovers.</p>
+            <ul class="plan-features">
+              <li>Create &amp; share living guides</li>
+              <li>Photos, videos, QR &amp; emergency contacts</li>
+              <li>Update anytime, the link never changes</li>
+            </ul>
+            <a href="builder.html" class="btn btn-primary btn-block">Create your first guide</a>
+          </article>
+
+          <article class="plan reveal">
+            <span class="plan-badge plan-badge--soon">Coming soon</span>
+            <h3 class="plan-name">Pro</h3>
+            <div class="plan-price"><span class="plan-amount">—</span></div>
+            <p class="plan-tagline">For hosts, teams and repeat workflows.</p>
+            <ul class="plan-features">
+              <li>Multiple guides &amp; team access</li>
+              <li>Remove GotIt Guides branding</li>
+              <li>Views &amp; sharing insights</li>
+            </ul>
+            <a href="#waitlist" class="btn btn-ghost btn-block">Join the waitlist</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── About / story ───────────────────────── -->
+    <section class="section section-tint" id="about">
+      <div class="container about-inner">
+        <div class="about-photo reveal">
+          <img src="images/whiskey-circle.jpg" alt="James holding his dog Whiskey, a cocker spaniel" width="800" height="800" loading="lazy" />
+        </div>
+        <div class="about-text reveal">
+          <span class="eyebrow">Our story</span>
+          <h2 class="section-title about-title">Why we built GotIt Guides</h2>
+          <p>Hi, I'm James. I live in Sydney with my girlfriend Jude, our golden retriever Percy, and my dog Whiskey.</p>
+          <p>
+            At two years old, Whiskey was diagnosed with idiopathic epilepsy. We
+            quickly learned there's no silver bullet. Managing it means multiple
+            medications, up to three times a day. It was a life-changing moment.
+          </p>
+          <p>
+            It also meant that every time I went away, whoever looked after him
+            needed to understand exactly what to do: the medications, the timing,
+            the signs to watch for, and who to call if something went wrong.
+          </p>
+          <p>
+            So I'd write pages and pages of instructions. It worked, but a wall of
+            text is the last thing anyone wants to scroll through in a stressful moment.
+          </p>
+          <p>
+            GotIt Guides came out of those pages: one clear, living guide a sitter
+            can actually follow, with routines, medication, behaviour notes and
+            emergency contacts, in a single link you share once and update anytime.
+          </p>
+          <p class="about-kicker">If it helps one more pet get looked after properly, it's done its job.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quiet second front door: clinics mostly arrive by direct link, but a
+         vet browsing here should still find their own page. A signpost, not a
+         fork in the consumer funnel. -->
+    <section class="section" id="forvets">
+      <div class="container">
+        <div class="vets-band reveal">
+          <span class="vets-band-emoji">🩺</span>
+          <div class="vets-band-body">
+            <div class="vets-band-title">Are you a vet clinic?</div>
+            <p>Turn the discharge notes you already write into Digital Recovery Guides owners actually follow, reviewed by your team before sending.</p>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="vets.html" data-evt="home_cta" data-evt-slug="vets_band">GotIt Guides for vet clinics →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Final CTA + waitlist ───────────────────────── -->
+    <section class="section cta-band" id="waitlist">
+      <div class="container">
+        <div class="cta-inner reveal">
+          <h2 class="cta-title">Ready for your next handover?</h2>
+          <p class="cta-sub">
+            Whether someone's looking after your pet, your home, your kids or
+            someone you love, make sure they have everything they need.
+          </p>
+          <a href="builder.html" class="btn btn-ghost btn-lg" data-evt="home_cta" data-evt-slug="create_band">Create your guide</a>
+
+          <div class="cta-waitlist">
+            <p class="cta-waitlist-label">Want to hear when new features land?</p>
+            <form class="waitlist" id="waitlistForm" novalidate>
+              <input
+                type="email"
+                class="waitlist-input"
+                id="waitlistEmail"
+                placeholder="you@example.com"
+                aria-label="Email address"
+                required
+              />
+              <button type="submit" class="btn btn-primary">Notify me</button>
+            </form>
+            <p class="waitlist-msg" id="waitlistMsg" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── Footer ───────────────────────── -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img class="logo-img" src="/brand/logo-reversed.svg" alt="GotIt Guides" />
+        <p class="footer-made">Made in Sydney by James</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="about.html#who">About</a>
+        <a href="vets.html">For vet clinics</a>
+        <a href="about.html#privacy">Privacy</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="mailto:hello@gotitguides.com">Contact</a>
+      </nav>
+      <p class="footer-copy">© <span id="year"></span> GotIt Guides. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    // If signed in, badge the "My guides" link with the count of new sitter
+    // suggestions (and a dot on the menu button, visible without opening it).
+    (function () {
+      if (!window.GotItAuth || !window.GotItStore || !GotItStore.listGuideFeedback) return;
+      GotItAuth.idToken().then(function (tok) {
+        if (!tok) return;
+        return GotItStore.listGuideFeedback().then(function (items) {
+          var n = (items || []).length;
+          if (!n) return;
+          var badge = document.getElementById("myGuidesBadge");
+          if (badge) { badge.textContent = n; badge.hidden = false; }
+          // Compact alert dot on the visible "My guides" pill (count stays in the menu).
+          var pill = document.getElementById("navMyGuides");
+          if (pill) pill.classList.add("has-alert");
+          var toggle = document.getElementById("navToggle");
+          if (toggle) toggle.classList.add("has-alert");
+        });
+      }).catch(function () {});
+    })();
+  </script>
+</body>
+</html>

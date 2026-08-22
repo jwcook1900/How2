@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1A1A1A" />
+  <meta name="robots" content="noindex" />
+  <title>Stats — GotIt Guides</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+  <main class="builder-main">
+    <div class="container" style="max-width:600px">
+      <h1 class="step-heading">GotIt Guides — Stats</h1>
+
+      <!-- A real form with username + current-password autocomplete so phone
+           password managers offer to save and autofill the sign-in. Only the
+           passphrase is checked server-side; the name exists for the keychain. -->
+      <form class="lock-row" id="statsGate" method="post" action="#">
+        <label class="slug-label" for="statsUser">Sign in to your stats</label>
+        <input type="text" id="statsUser" name="username" class="q-input" placeholder="Name"
+          autocomplete="username" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" />
+        <input type="password" id="statsKey" name="password" class="q-input" placeholder="Passphrase"
+          autocomplete="current-password" />
+        <p class="email-links-hint" style="margin-top:8px">The passphrase unlocks the page. The name is whatever you like — it lets your phone save and autofill both.</p>
+        <div class="builder-toolbar" style="margin-top:14px">
+          <button class="btn btn-primary" id="statsGo" type="submit">View stats</button>
+        </div>
+        <p class="lock-error" id="statsErr" hidden></p>
+      </form>
+
+      <div id="statsOut" hidden></div>
+
+      <!-- Broadcast email composer — separate from statsOut so re-renders of
+           the stats (sort chips etc.) never wipe a half-written email. -->
+      <div id="bcast" hidden>
+        <h2 class="stat-h2">📣 Email your users</h2>
+        <p class="stat-empty" id="bcastWho" style="margin-bottom:14px">Checking who you can email…</p>
+        <details class="bcast-pick" id="bcastPick" hidden>
+          <summary id="bcastPickSummary">Choose recipients</summary>
+          <div class="bcast-recips">
+            <label class="bcast-recip bcast-recip-all"><input type="checkbox" id="bcastAll" checked /> <b>All</b></label>
+            <div id="bcastRecipList"></div>
+          </div>
+        </details>
+        <input type="text" id="bcastSubject" class="q-input" placeholder="Subject" maxlength="200" autocomplete="off" />
+        <textarea id="bcastBody" class="q-input" rows="8" style="margin-top:10px;resize:vertical"
+          placeholder="Write your update in plain text. Blank line = new paragraph; links become clickable.&#10;&#10;Every email automatically gets your name, contact and an unsubscribe link at the bottom."></textarea>
+        <div class="builder-toolbar" style="margin-top:12px;flex-wrap:wrap;gap:10px">
+          <input type="email" id="bcastTestTo" class="q-input" placeholder="you@example.com" style="max-width:240px" autocomplete="off" />
+          <button class="btn btn-ghost" id="bcastTestBtn" type="button">Send test to me</button>
+          <button class="btn btn-primary" id="bcastSendBtn" type="button" disabled>Send</button>
+        </div>
+        <p class="lock-error" id="bcastNote" hidden></p>
+      </div>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script src="js/store.js"></script>
+  <script src="js/stats.js"></script>
+</body>
+</html>

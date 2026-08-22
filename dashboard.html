@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>My Guides | GotIt Guides</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="builder.html" class="btn btn-ghost btn-sm" id="dashCreateTop" hidden>Create a guide</a>
+        <button class="btn btn-ghost btn-sm" id="settingsBtn" type="button" hidden>Settings</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container dash-main">
+
+    <!-- Loading -->
+    <div class="dash-loading" id="dashLoading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Loading your guides…</p>
+    </div>
+
+    <!-- Signed out -->
+    <section class="dash-signin" id="dashSignin" hidden>
+      <span class="dash-emoji">🔐</span>
+      <h1 class="dash-title">Your guides, in one place</h1>
+      <p class="dash-lead">Sign in to save guides to your free dashboard so you can find and update them any time. Creating and sharing guides never needs an account.</p>
+      <div class="dash-signin-actions">
+        <button class="btn btn-primary" id="signinBtn" type="button">Sign in</button>
+      </div>
+      <p class="dash-signin-ways">Continue with Google, or get a one-time code sent to any work email.</p>
+      <p class="dash-signin-note" id="dashSigninNote" hidden></p>
+      <a href="/" class="dash-back">← Back to home</a>
+    </section>
+
+    <!-- Signed in -->
+    <section class="dash-guides" id="dashGuides" hidden>
+      <div class="dash-head">
+        <div>
+          <h1 class="dash-title" id="dashGreeting">My Guides</h1>
+          <p class="dash-lead" id="dashSub">Create, edit and share your guides from one place.</p>
+        </div>
+        <a href="builder.html" class="btn btn-primary btn-sm">+ New guide</a>
+      </div>
+
+      <!-- First-run: ask for a display name -->
+      <form class="name-prompt" id="namePrompt" hidden>
+        <label for="nameInput">👋 What should we call you?</label>
+        <div class="name-prompt-row">
+          <input type="text" id="nameInput" class="q-input" placeholder="First name" autocomplete="given-name" maxlength="40" />
+          <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        </div>
+      </form>
+
+      <!-- The clinic kit: a vet clinic sets its logo + contact details once,
+           and every new vet discharge guide starts stamped with them. -->
+      <div class="clinic-kit" id="clinicKit" hidden>
+        <div class="clinic-kit-head">
+          <span class="clinic-kit-emoji">🏥</span>
+          <div>
+            <h2 class="clinic-kit-title">My clinic</h2>
+            <p class="clinic-kit-sub">For vet discharge guides: save your logo and contact details once, and every new discharge guide starts with them automatically.</p>
+          </div>
+        </div>
+        <div class="clinic-kit-body">
+          <div class="clinic-kit-logo">
+            <img id="ckLogoImg" alt="Clinic logo" hidden />
+            <label class="tool-btn clinic-kit-logo-btn">🏥 <span id="ckLogoLabel">Add your logo</span>
+              <input type="file" id="ckLogoFile" accept="image/*" hidden /></label>
+            <button class="btn-link" id="ckLogoRemove" type="button" hidden>Remove logo</button>
+          </div>
+          <div class="clinic-kit-fields">
+            <input type="text" id="ckName" class="q-input" placeholder="Clinic name" maxlength="80" autocomplete="organization" />
+            <input type="tel" id="ckPhone" class="q-input" placeholder="Clinic phone" maxlength="40" />
+            <input type="tel" id="ckAfter" class="q-input" placeholder="After-hours / emergency number (optional)" maxlength="60" />
+            <button class="btn btn-primary btn-sm" id="ckSave" type="button">Save clinic details</button>
+            <p class="set-note" id="ckNote" hidden></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search (only when 3+ guides) -->
+      <div class="dash-search" id="dashSearchWrap" hidden>
+        <input type="search" id="dashSearch" class="q-input" placeholder="Search your guides…" autocomplete="off" />
+      </div>
+
+      <!-- Empty state -->
+      <div class="dash-empty" id="dashEmpty" hidden>
+        <span class="dash-emoji">📭</span>
+        <h2 class="dash-empty-title">Your guides will live here</h2>
+        <p>Create your first guide, save it to your dashboard, then come back any time to edit, share or duplicate it.</p>
+        <a href="builder.html" class="btn btn-primary btn-sm">Create a guide</a>
+      </div>
+
+      <div class="dash-grid" id="dashGrid"></div>
+      <p class="dash-noresults" id="dashNoResults" hidden>No guides match that search.</p>
+
+
+      <!-- Soft teaser for where things are headed -->
+      <div class="dash-teaser" id="dashTeaser" hidden>
+        <span class="dash-teaser-emoji">🚀</span>
+        <div class="dash-teaser-body">
+          <div class="dash-teaser-title">Coming soon: team spaces</div>
+          <p>Manage guides for teams, businesses, homes and handovers in one place.</p>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="/#waitlist">Tell us what you'd want →</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Account settings -->
+  <div class="dash-modal" id="settingsModal" hidden>
+    <div class="dash-modal-backdrop" data-set-close></div>
+    <div class="dash-modal-card" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+      <button class="dash-modal-x" id="settingsClose" type="button" aria-label="Close" data-set-close>×</button>
+      <h2 class="dash-modal-title" id="setTitle">Account settings</h2>
+
+      <label class="set-label" for="setName">Display name</label>
+      <div class="set-row">
+        <input type="text" id="setName" class="q-input" placeholder="First name" maxlength="40" />
+        <button class="btn btn-primary btn-sm" id="setNameSave" type="button">Save</button>
+      </div>
+      <p class="set-note" id="setNameNote" hidden></p>
+
+      <label class="set-label">Email</label>
+      <p class="set-email" id="setEmail">—</p>
+
+      <div class="set-actions">
+        <button class="btn btn-ghost btn-sm" id="setSignout" type="button">Sign out</button>
+        <button class="btn btn-danger-ghost btn-sm" id="setDelete" type="button">Delete account</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

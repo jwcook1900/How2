@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+# Published guides are unlisted — never crawl or index them.
+# (guide.html also carries <meta name="robots" content="noindex">, which is
+#  what actually keeps a shared link out of search results.)
+Disallow: /g/
+# Private / no-value-to-index pages
+Disallow: /stats.html
+Disallow: /dashboard.html
+Disallow: /builder.html
+
+Sitemap: https://www.gotitguides.com/sitemap.xml

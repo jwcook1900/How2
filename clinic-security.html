@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="How GotIt Guides handles your clinic's discharge information: where it's stored, who can read it, and what the AI does and doesn't do. One page, plain English." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>Security &amp; privacy for vet clinics — GotIt Guides</title>
+
+  <meta property="og:title" content="Security &amp; privacy for vet clinics — GotIt Guides" />
+  <meta property="og:description" content="Where discharge information is stored, who can read it, and what the AI does and doesn't do. One page, plain English." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.gotitguides.com/clinic-security.html" />
+  <link rel="canonical" href="https://www.gotitguides.com/clinic-security.html" />
+  <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="builder.html?cat=vet" class="btn btn-primary btn-sm">Try it</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section policy">
+      <div class="container policy-inner">
+        <span class="eyebrow">For vet clinics</span>
+        <h1 class="section-title">Security &amp; privacy, on one page<span class="accent">.</span></h1>
+        <p>
+          GotIt Guides doesn't change your clinical advice. It takes the discharge notes your clinic
+          already writes and transforms them into a clearer, easier-to-follow digital guide that your
+          team reviews before sending. The clinician stays in control; we handle presentation and
+          delivery. Here's how the information is looked after, in plain English — with the
+          <a href="data-processing.html">full data processing summary</a> behind it.
+        </p>
+
+        <div class="sec-claim">
+          <h2 class="sec-claim-t">We can't read your discharge notes<span class="accent">.</span></h2>
+          <p>
+            Your discharge notes are encrypted on your own computer before they reach us, with a code
+            only your clinic sets. We can't read them. Neither can anyone who gets hold of the link,
+            because the code that opens it never travels with the link. It goes home on the paperwork.
+          </p>
+          <ul class="sec-contrast">
+            <li>No readable copy sitting in an inbox</li>
+            <li>No wrong address moment you can't take back</li>
+            <li>Nothing a search engine can ever find</li>
+          </ul>
+          <p class="sec-honest">
+            <strong>One thing worth knowing:</strong> to turn your notes into a guide, they pass
+            through our AI provider in the United States. Transiently, never stored there, never used
+            to train anything. Everything else stays on AWS in Sydney. The detail is below.
+          </p>
+        </div>
+
+        <h2>Where is the data stored?</h2>
+        <p>
+          On Amazon Web Services in Sydney, Australia — the same infrastructure most Australian
+          practice-management and pathology systems run on. Encrypted in transit and at rest.
+        </p>
+
+        <h2>Who can read a guide?</h2>
+        <p>
+          Discharge guides are <strong>locked by default</strong> and encrypted on the device before
+          they're stored, using a guide code your front desk writes on the discharge paperwork. We store
+          unreadable ciphertext: GotIt Guides staff cannot read a locked guide, and neither can anyone
+          else without the code. Guide links are randomly generated and never appear in Google or
+          anywhere on our site.
+        </p>
+
+        <h2>What does the AI actually do?</h2>
+        <p>
+          It reformats. The AI reads your existing notes and restructures them into sections — it is
+          specifically instructed never to invent, infer or "fill in" a clinical detail. Anything
+          missing or ambiguous becomes a visible "⚠️ Check with your clinic" flag, and publishing is
+          gated behind your team confirming medications, warning signs, follow-up and contact details
+          against the paperwork.
+        </p>
+
+        <h2>Is AI training on our information?</h2>
+        <p>
+          No. Guide content is processed by Anthropic's Claude API, which does not use API data to
+          train models. Processing is transient — what persists is the guide your team publishes,
+          nothing else. No document content is ever written to our server logs.
+        </p>
+
+        <h2>Does data leave Australia?</h2>
+        <p>
+          Storage stays in Sydney. The one exception is the AI step itself: notes are transiently
+          processed through the AI provider in the United States (not retained long-term, never used
+          for training) — the same pattern as most cloud healthcare software your clinic already uses.
+        </p>
+
+        <h2>Whose data is it, and can it be deleted?</h2>
+        <p>
+          Yours. The clinic (or the owner) controls the guide, can edit or unpublish it at any time,
+          and can have it permanently deleted on request — email
+          <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> with the link, no questions
+          asked. We use the information solely to generate and serve the guide: no advertising, no
+          data resale, and anonymous first-party analytics only.
+        </p>
+
+        <h2>What about consent?</h2>
+        <p>
+          The workflow builds it in: before a clinic-created guide can be published, the person
+          publishing confirms they have the owner's consent to create and send it. A sentence at
+          discharge is all it takes — "Would you like your discharge instructions as a digital guide?
+          We'll securely process today's notes into an easier-to-follow format."
+        </p>
+
+        <p>
+          Questions we haven't answered here? A real person reads
+          <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> — usually within a day.
+          The fine print lives in the <a href="data-processing.html">data processing summary</a> and
+          the <a href="privacy.html">privacy policy</a>. There's also a
+          <a href="clinic-onepager.html">printable one-page summary</a> if it's easier to hand your
+          practice manager a sheet of paper.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img class="logo-img" src="/brand/logo-reversed.svg" alt="GotIt Guides" />
+        <p class="footer-made">Made in Sydney by James</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="about.html#who">About</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="data-processing.html">Data processing</a>
+        <a href="mailto:hello@gotitguides.com">Contact</a>
+      </nav>
+      <p class="footer-copy">© <span id="year"></span> GotIt Guides. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

@@ -1,0 +1,332 @@
+import type { Schema } from "../../data/resource";
+
+const MODEL = "claude-opus-4-8";
+
+type Block =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  | { type: "document"; source: { type: "base64"; media_type: string; data: string } };
+
+/**
+ * Modes:
+ *  - "polish": rewrite one field's text clearly/warmly, using the guide
+ *              category + the question being answered as context. Returns { text }.
+ *  - "field":  read an attached photo/PDF and write the content for one field
+ *              (the question being answered). Returns { text }.
+ *  - "import": turn a blob of notes and/or an uploaded file (image or PDF)
+ *              into a structured guide. Returns
+ *              { title, sections:[{emoji,title,body}], contacts:[{label,value}] }.
+ */
+/**
+ * Per-guide-type section ordering for the "import" flow. When the pasted notes
+ * cover these topics, the AI groups and orders sections to match — so a pet or
+ * babysitter guide comes out structured the way a carer expects to read it.
+ * Returns "" for types without a preferred order.
+ */
+function importPriorities(category: string): string {
+  const c = (category || "").toLowerCase();
+  let order: string[] | null = null;
+  if (c.includes("pet")) {
+    order = [
+      "Feeding",
+      "Medication",
+      "Walks and exercise",
+      "Vet and emergency contacts",
+      "Behaviour and quirks",
+      "House rules",
+    ];
+  } else if (c.includes("baby") || c.includes("kid")) {
+    order = [
+      "Meals and snacks",
+      "Nap and bedtime routine",
+      "Allergies and medication",
+      "Screen time rules",
+      "Emergency contacts",
+      "Comfort items",
+      "House rules",
+    ];
+  }
+  if (!order) return "";
+  return (
+    "When the notes cover them, prefer these sections, in this order: " +
+    order.join("; ") +
+    ". Only include the ones the notes actually support, and add any other " +
+    "useful sections the notes contain. "
+  );
+}
+
+export const handler: Schema["aiAssist"]["functionHandler"] = async (event) => {
+  const mode = event.arguments.mode;
+  // The whole-guide polish sends every field at once, so give it more headroom.
+  const bigModes = mode === "guide" || mode === "vetrefine";
+  const text = (event.arguments.text || "").slice(0, bigModes ? 24000 : 8000);
+  const category = event.arguments.category || "general";
+  const question = event.arguments.question || "";
+  const fileData = event.arguments.fileData || "";
+  const fileType = event.arguments.fileType || "";
+  // Import can carry several attachments (e.g. multiple photos of notes).
+  const fileDatas = (event.arguments.fileDatas || []) as (string | null)[];
+  const fileTypes = (event.arguments.fileTypes || []) as (string | null)[];
+  const files: { data: string; type: string }[] = [];
+  if (fileData && fileType) files.push({ data: fileData, type: fileType });
+  for (let i = 0; i < fileDatas.length; i++) {
+    const d = fileDatas[i];
+    const t = fileTypes[i];
+    if (d && t) files.push({ data: d, type: t });
+  }
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("AI is not configured");
+
+  let system: string;
+  let maxTokens = 1024;
+  let userContent: string | Block[];
+
+  // Veterinary discharge guides carry clinical instructions, so the import
+  // prompt is stricter: transcribe-only, never infer, and flag anything
+  // missing or ambiguous for the owner to confirm before publishing.
+  const isVet = /vet|discharge/i.test(category);
+
+  if (mode === "import" && isVet) {
+    maxTokens = 3072;
+    system =
+      "You turn a veterinary discharge document (a scan, photo, PDF or email from a vet clinic, and/or " +
+      "the owner's typed notes) into a structured GotIt Guides recovery guide the pet's owner and carers " +
+      "can follow at home. " +
+      "Return ONLY a JSON object of this exact shape: " +
+      '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}], "flagGroups": [{"question": string, "lines": [string]}]}. ' +
+      'Title: use "<Pet name>\'s Recovery Guide" when the pet\'s name appears in the document, otherwise "Recovery Guide". ' +
+      "Prefer these sections, in this order, but include ONLY the ones the document actually supports: " +
+      "📋 Visit Summary; 🩺 Diagnosis & Procedure; 💊 Medications; 🏠 Care at Home; " +
+      "🩹 Wound & Treatment Care; 👍 What's Normal; 📞 When to Contact the Clinic; " +
+      "🚨 Emergency Warning Signs; 📅 Follow-Up. " +
+      "Medications: one block per medication, blocks separated by a blank line. Start each block with the " +
+      "medication name and strength on its own line, then only the labelled lines the document supports, " +
+      'chosen from: "Dose:", "How often:", "With food:", "Start / finish:", "Special instructions:", ' +
+      '"If a dose is missed:". ' +
+      '"When to Contact the Clinic": when the document distinguishes them, use two labelled lists — ' +
+      '"Call the clinic if:" and "Seek urgent care if:". ' +
+      "SAFETY-CRITICAL RULES: " +
+      "Transcribe every clinical detail EXACTLY as written — medication names, strengths, doses, " +
+      "frequencies, durations, dates, restrictions. Never invent, infer, calculate, round, or fill in a " +
+      '"typical" value for anything. ' +
+      "If a detail an owner needs is missing, illegible, ambiguous, or contradicted elsewhere in the " +
+      'document, do NOT guess: add a line in the relevant section of the exact form ' +
+      '"⚠️ Check with your clinic: <what was unclear>" — for example ' +
+      '"⚠️ Check with your clinic: how often to give this medication was unclear in the notes." ' +
+      "flagGroups: one entry for each underlying unknown that MORE THAN ONE warning line depends on. " +
+      "A dental discharge that never says whether teeth came out produces several flags - the extraction " +
+      "itself, whether soft food is needed, whether a recheck applies - and one answer settles them all. " +
+      '"question" is that single unknown as a short plain question the clinic can answer in a few words ' +
+      '("Were any teeth extracted?"). "lines" holds the EXACT, character-for-character text of every ' +
+      "flagged line it covers, copied from the bodies above. Group only lines a single answer genuinely " +
+      "resolves; when in doubt leave a line out, because a wrong grouping makes a clinic answer one " +
+      "question and silently change an unrelated instruction. A lone flag needs no entry, and an empty " +
+      "list is correct when every flag stands on its own. " +
+      "Write calmly, clearly and reassuringly, in plain language; where the document uses a medical term " +
+      "an owner may not know, keep it and add a short plain-language explanation in brackets. " +
+      "Put the clinic's name and phone number, and any after-hours or emergency hospital numbers, into " +
+      "contacts (label + value). Skip the document's boilerplate legal or billing text. " +
+      "Do not add any advice, section or detail the document does not contain.";
+
+    const blocks: Block[] = [];
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+      }
+    }
+    const instruction = blocks.length
+      ? (text ? "My notes:\n" + text + "\n\n" : "") +
+        "Build the recovery guide from the attached discharge document" +
+        (blocks.length > 1 ? "s" : "") + (text ? " and the notes above." : ".")
+      : text;
+    blocks.push({ type: "text", text: instruction || "Build a recovery guide." });
+    userContent = blocks;
+  } else if (mode === "import") {
+    maxTokens = 2048;
+    system =
+      "You turn a person's existing notes (and any attached file) into a structured GotIt Guides guide. " +
+      "Return ONLY a JSON object of this exact shape: " +
+      '{"title": string, "sections": [{"emoji": string, "title": string, "body": string}], "contacts": [{"label": string, "value": string}]}. ' +
+      "Give each section a short title and a fitting emoji. Group related details together. " +
+      "Put vets, doctors, phone numbers and emergency people into contacts (label + value). " +
+      "Keep the person's own wording, lightly tidied for clarity. Be concise. Do not invent details. " +
+      "The notes may be rough or incomplete — that is fine. Only create sections the notes actually " +
+      "support; never pad with empty or invented sections. " +
+      importPriorities(category) +
+      'This guide is about: "' + category + '".';
+
+    const blocks: Block[] = [];
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+      }
+    }
+    const attachWord = blocks.length > 1 ? "attached files (they may be several photos of the same notes)" : "attached file";
+    const instruction = blocks.length
+      ? (text ? "My notes:\n" + text + "\n\n" : "") + "Build one guide from the " + attachWord + " (and any notes above)."
+      : text;
+    blocks.push({ type: "text", text: instruction || "Build a starter guide." });
+    userContent = blocks;
+  } else if (mode === "field") {
+    // Pull the content for ONE field out of an attached photo / PDF (+ optional notes).
+    maxTokens = 1500;
+    system =
+      "You read an attached file (a photo, scan, or document) and write the content for ONE field of a " +
+      "GotIt Guides guide. " +
+      (question ? 'This field answers: "' + question + '". ' : "") +
+      'The guide is about "' + category + '". ' +
+      "Extract only the information relevant to this field. Transcribe real details exactly (names, numbers, " +
+      "times, doses, addresses) and keep any list structure. Write it clearly and concisely. Do not invent " +
+      "anything. If there is no relevant content, return an empty string. " +
+      "Return only the field text — no preamble, headings, or quotes.";
+    // `files` may be one attachment, or several (a big PDF arrives from the
+    // client rasterised into one image per page).
+    const blocks: Block[] = [];
+    for (const f of files) {
+      if (f.type === "application/pdf") {
+        blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } });
+      } else if (f.type.indexOf("image/") === 0) {
+        blocks.push({ type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+      }
+    }
+    blocks.push({
+      type: "text",
+      text: (text ? "Existing notes for this field:\n" + text + "\n\n" : "") +
+        "Write this field's content from the attached file" + (blocks.length > 1 ? "(s)" : "") +
+        (text ? ", merged with the notes above." : "."),
+    });
+    userContent = blocks;
+  } else if (mode === "vetrefine") {
+    // Second pass over a vet guide, after the clinic answered what the
+    // discharge document left unclear. Those answers are facts about the WHOLE
+    // guide, so the hedged passages they resolve ("if any teeth have been
+    // extracted…") have to go. Strictly subtractive: this mode may delete and
+    // rejoin, never add.
+    maxTokens = 4096;
+    system =
+      "You are tidying a veterinary recovery guide that was drafted from a clinic's discharge document. " +
+      "The clinic has now answered the questions the document left unclear. Fold those answers through the " +
+      "guide and delete what they make irrelevant — nothing else. " +
+      'Input is JSON: {"sections":[{"id","title","body"}],"answers":[{"section","unclear","answer"}]}. ' +
+      'Return ONLY JSON: {"sections":[{"id":string,"body":string}],"remove":[string],"summary":string}. ' +
+      'In "sections" return ONLY sections whose body you actually changed, with the full new body. ' +
+      'In "remove" put the ids of sections left with nothing meaningful to say. ' +
+      "APPLYING AN ANSWER: treat it as confirmed fact everywhere in the guide, not only in its own section. " +
+      "When an answer rules something out — say the clinic confirms no teeth were extracted — delete every " +
+      "conditional passage anywhere in the guide that depended on it (soft-food instructions that applied only " +
+      "after extractions, dissolving stitches in the mouth, extraction-only rechecks). Do not leave the owner " +
+      "to work out which half applies to their pet. " +
+      "When an answer says something was not given or is not needed (no medications went home, no recheck " +
+      "booked), state that once, plainly, in that section — and if the section then holds nothing else, put its " +
+      'id in "remove" instead. ' +
+      "SAFETY RULES, absolute: " +
+      "Never invent, infer, calculate or add any clinical instruction, medication, dose, frequency, date or " +
+      "warning sign. You may only delete text the answers made irrelevant and lightly rejoin what remains. " +
+      "Keep surviving wording as close to the original as possible. " +
+      "Never remove or soften emergency warning signs, when-to-contact-the-clinic guidance, or contact details. " +
+      "Never remove a section just because it is short. " +
+      "If an answer is ambiguous, change nothing rather than guess. " +
+      "Leave any remaining ⚠️ lines exactly as they are. " +
+      '"summary": one plain sentence in Australian English saying what changed, e.g. "Removed the Medications ' +
+      'section and the soft-food instructions, since no teeth were extracted and no medications went home."';
+    userContent = text;
+  } else if (mode === "guide") {
+    // Whole-guide polish: improve every field's wording/labels at once, without
+    // touching facts. Returns only the fields that actually changed.
+    maxTokens = 4096;
+    system =
+      "You are an editor for GotIt Guides, a tool for warm, clear, shareable care guides " +
+      "(pets, kids, homes, sitters, guests). You are given the guide's editable text fields as a JSON " +
+      'array: [{"id": string, "kind": string, "text": string}]. ' +
+      "kind is one of: title, subtitle, sectionTitle, body. " +
+      "Rewrite each field so the whole guide reads clearly, warmly and consistently: fix spelling and " +
+      "grammar, tighten wordy phrasing, and make titles and labels clear and consistent in style. " +
+      "CRITICAL: preserve every fact exactly — names, nicknames, numbers, times, doses, medication names, " +
+      "addresses, phone numbers — and keep any list structure. Never change, add, or invent any factual " +
+      "detail, and never add new sections or information. Keep the creator's meaning and voice; improve, " +
+      "don't rewrite from scratch. Body fields may contain simple HTML (<br>, <ul>, <li>, <b>, <a>); keep " +
+      "it valid and add no headings. " +
+      'Return ONLY a JSON array [{"id": string, "text": string}] containing ONLY the fields you actually ' +
+      "improved — omit any field you would leave unchanged. If nothing needs changing, return []. " +
+      'This guide is about: "' + category + '".';
+    userContent = text;
+  } else {
+    system =
+      "You are an editor for GotIt Guides, a tool for friendly, shareable how-to guides. " +
+      (question ? 'The text is the answer to: "' + question + '". ' : "") +
+      'It belongs to a guide about "' + category + '". ' +
+      "Rewrite the text so it reads clearly, warmly and professionally, keeping every specific " +
+      "detail (names, numbers, times, doses, addresses) and any list structure. Keep it concise. " +
+      "Do not add new information or headings. Return only the rewritten text, no preamble or quotes.";
+    userContent = text;
+  }
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      messages: [{ role: "user", content: userContent }],
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error("AI request failed (" + resp.status + ")");
+  }
+
+  const data: any = await resp.json();
+  let out = "";
+  for (const b of data.content || []) if (b.type === "text") out += b.text;
+  out = out.trim();
+
+  if (mode === "import") {
+    const m = out.match(/\{[\s\S]*\}/);
+    try {
+      const r = JSON.parse(m ? m[0] : out);
+      // Only well-formed groups survive: each needs a question and two or more
+      // exact line texts, or there is nothing for it to link.
+      if (Array.isArray(r.flagGroups)) {
+        r.flagGroups = r.flagGroups.filter(
+          (g: any) =>
+            g && typeof g.question === "string" && g.question.trim() &&
+            Array.isArray(g.lines) &&
+            g.lines.filter((l: any) => typeof l === "string").length > 1
+        );
+      }
+      return r;
+    } catch (e) {
+      return { title: "", sections: [{ emoji: "📝", title: "Notes", body: text }], contacts: [] };
+    }
+  }
+  if (mode === "vetrefine") {
+    const m = out.match(/\{[\s\S]*\}/);
+    try {
+      const r = JSON.parse(m ? m[0] : out);
+      return {
+        sections: Array.isArray(r.sections) ? r.sections : [],
+        remove: Array.isArray(r.remove) ? r.remove : [],
+        summary: typeof r.summary === "string" ? r.summary : "",
+      };
+    } catch (e) {
+      return { sections: [], remove: [], summary: "" };
+    }
+  }
+  if (mode === "guide") {
+    const m = out.match(/\[[\s\S]*\]/);
+    let changes: any[] = [];
+    try { changes = JSON.parse(m ? m[0] : out); } catch (e) { changes = []; }
+    if (!Array.isArray(changes)) changes = [];
+    return { changes };
+  }
+  return { text: out.replace(/^["'“”]|["'“”]$/g, "").trim() };
+};

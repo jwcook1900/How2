@@ -2774,6 +2774,65 @@ body.dragging-active * {
 }
 
 /* ---------- Vet discharge guides ---------- */
+/* ---- "Last done" care tracker ----
+   A living record pinned under the cover: tick treatment, worming, grooming,
+   each with its latest date and a one-tap ✓ Done today. Sits above the
+   sections because "when was his last one?" is the question a sitter has
+   before they read anything else. */
+.guide-care {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin: 14px 0;
+}
+.care-head { font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+.care-rows { display: flex; flex-direction: column; gap: 8px; }
+.care-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--color-cream); border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+.care-ico { flex: none; }
+.care-label { font-weight: 700; color: var(--ink); }
+.care-status { font-size: 0.88rem; color: var(--ink-soft); }
+.care-none { color: var(--ink-muted); font-style: italic; }
+/* Overdue is a nudge, not an alarm: the darker accent, no red, no shouting. */
+.care-due.over { color: var(--coral-dark); font-weight: 700; }
+.care-done {
+  margin-left: auto; flex: none;
+  background: var(--white); color: var(--ink);
+  border: 1.5px solid var(--line); border-radius: 999px;
+  padding: 6px 14px; font-size: 0.85rem; font-weight: 700;
+  font-family: inherit; cursor: pointer;
+}
+.care-done:hover:not(:disabled) { border-color: var(--color-orange); color: var(--coral-dark); }
+.care-done:disabled { opacity: 0.6; cursor: default; }
+.care-history { flex: 1 1 100%; font-size: 0.78rem; color: var(--ink-muted); }
+.care-history summary { cursor: pointer; }
+.care-history span { margin-right: 10px; }
+.care-msg { margin: 8px 0 0; font-size: 0.85rem; }
+.care-msg.ok { color: var(--ink-soft); }
+.care-msg.err { color: var(--coral-dark); }
+
+/* Editor version: the same bubble with inputs where the statuses go. */
+.guide-care-edit .care-title { padding: 2px 6px; border-radius: 6px; }
+.guide-care-edit .care-title:focus { outline: 2px solid var(--color-orange); }
+.care-edit-hint { font-size: 0.82rem; color: var(--ink-muted); margin: 0 0 12px; line-height: 1.5; }
+.care-edit-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.care-edit-row {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: var(--color-cream); border-radius: var(--radius-sm); padding: 8px 10px;
+}
+.care-edit-row .care-ico { width: 32px; text-align: center; padding: 4px 0; border-radius: 6px; }
+.care-edit-row .care-ico:focus { outline: 2px solid var(--color-orange); }
+.care-label-in { flex: 1 1 150px; font-size: 0.9rem; padding: 8px 10px; }
+.care-every, .care-date { flex: 0 1 150px; font-size: 0.85rem; padding: 8px 10px; }
+@media (max-width: 560px) {
+  .care-label-in { flex-basis: 100%; }
+  .care-every, .care-date { flex: 1 1 40%; }
+}
+
 /* The veterinary-advice disclaimer: shown in the builder above the publish
    bar, inside the safety-check modal, and under the published guide's cover.
    Deliberately quiet — present, not alarming. */

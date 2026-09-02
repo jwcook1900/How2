@@ -268,6 +268,24 @@
     return { noRoutine: !ROUTINE_CATS[catId], noEmergency: !!NO_EMERGENCY_CATS[catId] };
   }
 
+  // The "Last done" care tracker: seeded on every new pet guide with the two
+  // treatments almost every pet has, undated — an empty date invites the first
+  // tap rather than demanding a memory. Repeat intervals start unset on
+  // purpose: products range from fortnightly to quarterly, and a wrong
+  // "overdue" nag is worse than none. Stored as a kind:"care" log so viewer
+  // taps ride the existing log-write path (see store.careOf).
+  function seedCareLog(catId) {
+    if (catId !== "pet") return [];
+    return [{
+      id: uid(), kind: "care", title: "Last done",
+      care: [
+        { id: uid(), icon: "🕷️", label: "Tick & flea", every: 0 },
+        { id: uid(), icon: "🪱", label: "Worming", every: 0 }
+      ],
+      rows: []
+    }];
+  }
+
   /* ---------- App state ---------- */
   var state = {
     category: null,
@@ -1252,7 +1270,7 @@
       cover: null,
       sections: sections,
       contacts: contacts,
-      logs: [],
+      logs: seedCareLog(cat.id),
       blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
       // Category defaults — but if the import found contacts, keep the emergency
       // block so they're not hidden.
@@ -2430,7 +2448,7 @@
       coverEmojiOff: !!state.liveCover,
       sections: sections,
       contacts: contacts,
-      logs: [],
+      logs: seedCareLog(cat.id),
       blockOrder: sections.map(function (s) { return "s:" + s.id; }).concat(["e"]),
       // Category defaults — but keep the emergency block if the flow gathered
       // any contacts (so they're never hidden).
@@ -2622,6 +2640,13 @@
 
     var rendered = {};
     var firstSection = true;
+    // The care tracker is pinned first, mirroring where viewers see it, so it
+    // never takes part in the drag order below.
+    var careL = GotItStore.careOf(g);
+    if (careL) {
+      doc.appendChild(buildCareEl(careL));
+      rendered["l:" + careL.id] = true;
+    }
     g.blockOrder.forEach(function (tok) {
       if (tok === "e") {
         doc.appendChild(buildEmergencyEl());
@@ -2637,7 +2662,7 @@
         if (sec) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; rendered[tok] = true; }
       } else if (tok.indexOf("l:") === 0) {
         var log = findLog(tok.slice(2));
-        if (log) { doc.appendChild(buildLogEl(log)); rendered[tok] = true; }
+        if (log && !rendered[tok]) { doc.appendChild(buildLogEl(log)); rendered[tok] = true; }
       }
     });
     // Reconcile anything missing from blockOrder (e.g. legacy guides)
@@ -2648,7 +2673,7 @@
       if (!rendered["s:" + sec.id]) { doc.appendChild(buildSectionEl(sec, firstSection)); firstSection = false; }
     });
     g.logs.forEach(function (log) {
-      if (!rendered["l:" + log.id]) doc.appendChild(buildLogEl(log));
+      if (!rendered["l:" + log.id]) doc.appendChild(log.kind === "care" ? buildCareEl(log) : buildLogEl(log));
     });
     syncBlockOrder();
     reselectAfterRender();
@@ -3232,6 +3257,9 @@
       r.textContent = g.category === "vet" ? "＋ Add dose reminders" : "＋ Add daily routine";
     }
     var v = $("addVideos"); if (v) v.hidden = !!g.videos;
+    // The care tracker: offered wherever it makes sense (anything but the
+    // clinic flow, which has dose reminders), hidden once the guide has one.
+    var c = $("addCare"); if (c) c.hidden = g.category === "vet" || !!GotItStore.careOf(g);
   }
 
   function buildSectionEl(sec, openFirst) {
@@ -4122,6 +4150,122 @@
     recordHistory();
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+  /* ---------- "Last done" care tracker (editor) ----------
+     The owner names the treatments and optional repeat intervals here; the
+     dates mostly arrive later, from ✓ Done today taps on the published page.
+     Setting a date here resets that row's record to the one date — it's the
+     owner's undo for a sitter's mis-tap, which viewers deliberately don't get
+     (the server only ever appends for them). */
+  function buildCareEl(log) {
+    var el = document.createElement("div");
+    el.className = "guide-care guide-care-edit";
+    el.dataset.id = log.id;
+    el.innerHTML = '<div class="care-head">💊 <span contenteditable="true" class="care-title">' +
+      esc(log.title || "Last done") + "</span></div>" +
+      '<p class="care-edit-hint">Pinned to the top of the guide. Whoever has it can tap ✓ Done today when a treatment happens, so "when was his last one?" always has an answer.</p>';
+    addBlockRemoveBtn(el.querySelector(".care-head"), "Remove the care tracker", function () { removeWidget("log", el, log); });
+    bindEditable(el.querySelector(".care-title"), function (v) { log.title = v || "Last done"; });
+
+    var rowsWrap = document.createElement("div");
+    rowsWrap.className = "care-edit-rows";
+    el.appendChild(rowsWrap);
+
+    function everySelect(row) {
+      var sel = document.createElement("select");
+      sel.className = "q-input care-every";
+      sel.setAttribute("aria-label", "How often it repeats");
+      var opts = [[0, "no schedule"], [1, "every week"], [2, "every 2 weeks"], [4, "every 4 weeks"],
+        [6, "every 6 weeks"], [8, "every 8 weeks"], [12, "every 12 weeks"], [26, "every 6 months"], [52, "every year"]];
+      opts.forEach(function (o) {
+        var op = document.createElement("option");
+        op.value = o[0]; op.textContent = o[1];
+        if (Number(row.every) === o[0]) op.selected = true;
+        sel.appendChild(op);
+      });
+      sel.addEventListener("change", function () {
+        row.every = Number(sel.value) || 0;
+        scheduleHistory();
+      });
+      return sel;
+    }
+    function renderRows() {
+      rowsWrap.innerHTML = "";
+      (log.care || []).forEach(function (row) {
+        var r = document.createElement("div");
+        r.className = "care-edit-row";
+        var ico = document.createElement("span");
+        ico.className = "care-ico"; ico.contentEditable = "true";
+        ico.setAttribute("aria-label", "Emoji"); ico.textContent = row.icon || "💊";
+        bindEditable(ico, function (v) { row.icon = v; });
+        var label = document.createElement("input");
+        label.type = "text"; label.className = "q-input care-label-in";
+        label.placeholder = "e.g. Heartworm tablet"; label.maxLength = 60;
+        label.value = row.label || "";
+        label.addEventListener("change", function () { row.label = label.value.trim(); scheduleHistory(); });
+        var date = document.createElement("input");
+        date.type = "date"; date.className = "q-input care-date";
+        date.setAttribute("aria-label", "Last done");
+        var st = GotItStore.careStatus(row, log);
+        if (st.last) date.value = st.last;
+        date.addEventListener("change", function () {
+          // The owner's date is authoritative: one entry replaces the row's
+          // history, so a wrong tap can actually be corrected.
+          log.rows = (log.rows || []).filter(function (t) { return !(t && t.note === row.id); });
+          if (date.value) log.rows.push({ when: date.value, note: row.id });
+          scheduleHistory();
+        });
+        var del = document.createElement("button");
+        del.type = "button"; del.className = "contact-del"; del.textContent = "✕";
+        del.setAttribute("aria-label", "Remove this treatment");
+        del.addEventListener("click", function () {
+          log.care = (log.care || []).filter(function (x) { return x.id !== row.id; });
+          log.rows = (log.rows || []).filter(function (t) { return !(t && t.note === row.id); });
+          renderRows(); recordHistory();
+        });
+        r.appendChild(ico); r.appendChild(label); r.appendChild(everySelect(row));
+        r.appendChild(date); r.appendChild(del);
+        rowsWrap.appendChild(r);
+      });
+    }
+    renderRows();
+
+    var add = document.createElement("button");
+    add.className = "tool-btn"; add.type = "button";
+    add.textContent = "＋ Add another treatment";
+    add.addEventListener("click", function () {
+      log.care = log.care || [];
+      log.care.push({ id: uid(), icon: "💊", label: "", every: 0 });
+      renderRows(); recordHistory();
+    });
+    el.appendChild(add);
+
+    // Same permission pattern as logs: sitters tapping is the point, so it's
+    // on by default; a public/example guide wants it off.
+    var perm = document.createElement("label");
+    perm.className = "log-perm";
+    perm.innerHTML = '<input type="checkbox"' + (log.ownerOnly ? "" : " checked") + " /> " +
+      "Anyone with the link can tap ✓ Done today <span class=\"log-perm-hint\">(untick for public or example guides)</span>";
+    perm.querySelector("input").addEventListener("change", function () {
+      if (this.checked) delete log.ownerOnly;
+      else log.ownerOnly = true;
+      scheduleHistory();
+    });
+    el.appendChild(perm);
+    return el;
+  }
+  function addCare() {
+    var g = state.guide;
+    if (GotItStore.careOf(g)) return;
+    g.logs = g.logs || [];
+    var seeded = seedCareLog("pet")[0] ||
+      { id: uid(), kind: "care", title: "Last done", care: [{ id: uid(), icon: "💊", label: "", every: 0 }], rows: [] };
+    if (g.category !== "pet") seeded.care = [{ id: uid(), icon: "💊", label: "", every: 0 }];
+    g.logs.push(seeded);
+    renderGuideEditor(); recordHistory();
+    var el = $("guideDoc").querySelector(".guide-care-edit");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   function addLog() {
     var log = { id: uid(), title: "Log", rows: [{ id: uid(), when: "", note: "" }] };
     state.guide.logs.push(log);
@@ -5790,6 +5934,7 @@
     el.addEventListener("click", function () { $("secPickModal").hidden = true; });
   });
   $("addLog").addEventListener("click", addLog);
+  if ($("addCare")) $("addCare").addEventListener("click", addCare);
   $("addEmergency").addEventListener("click", function () {
     state.guide.noEmergency = false; renderGuideEditor();
   });

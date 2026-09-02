@@ -129,6 +129,43 @@
     html += '<p class="vet-disclaimer">This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>';
   }
 
+  // The "Last done" care tracker: a living record pinned under the cover, so
+  // "when was his last tick treatment?" is answered before anyone scrolls.
+  // Tapping ✓ Done today writes back through the same path as log entries.
+  var careLog = GotItStore.careOf(guide);
+  function careRowsHtml(log) {
+    var canTap = !log.ownerOnly;
+    return (log.care || []).map(function (row) {
+      if (!row || !row.label) return "";
+      var st = GotItStore.careStatus(row, log);
+      var status = st.last
+        ? '<span class="care-ago">' + esc(st.ago) + "</span>" +
+          (st.due ? ' · <span class="care-due' + (st.overdue ? " over" : "") + '">' + esc(st.due) + "</span>" : "")
+        : '<span class="care-ago care-none">not recorded yet</span>';
+      var history = "";
+      var past = (log.rows || []).filter(function (r) { return r && r.note === row.id && r.when; })
+        .map(function (r) { return r.when; }).sort().reverse();
+      if (past.length > 1) {
+        history = '<details class="care-history no-print"><summary>' + past.length + " dates</summary>" +
+          past.slice(0, 12).map(function (d) { return "<span>" + esc(d) + "</span>"; }).join("") +
+          "</details>";
+      }
+      return '<div class="care-row" data-care-row="' + esc(row.id) + '">' +
+        '<span class="care-ico">' + esc(row.icon || "💊") + "</span>" +
+        '<span class="care-label">' + esc(row.label) + "</span>" +
+        '<span class="care-status">' + status + "</span>" + history +
+        (canTap ? '<button class="care-done no-print" type="button">✓ Done today</button>' : "") +
+        "</div>";
+    }).join("");
+  }
+  if (careLog && (careLog.care || []).some(function (r) { return r && r.label; })) {
+    html += '<div class="guide-care" data-care="' + esc(careLog.id) + '">' +
+      '<div class="care-head">💊 ' + esc(careLog.title || "Last done") + "</div>" +
+      '<div class="care-rows">' + careRowsHtml(careLog) + "</div>" +
+      '<p class="care-msg no-print" role="status" aria-live="polite" hidden></p>' +
+      "</div>";
+  }
+
   // Subtle hint so sitters notice the routine + calendar option.
   var hasRoutine = !guide.noRoutine && guide.routine && guide.routine.items &&
     guide.routine.items.some(function (it) { return it.times && it.times.length; });
@@ -331,7 +368,9 @@
       if (sec) { html += sectionHtml(sec); done[tok] = true; }
     } else if (tok.indexOf("l:") === 0) {
       var log = byId(guide.logs, tok.slice(2));
-      if (log) { html += logHtml(log); done[tok] = true; }
+      // The care tracker renders pinned under the cover, never in the flow.
+      if (log && log.kind === "care") { done[tok] = true; }
+      else if (log) { html += logHtml(log); done[tok] = true; }
     }
   });
   // Reconcile anything missing from the order
@@ -339,7 +378,9 @@
   if (!done.e) html += emergencyHtml();
   if (!done.r) html += routineHtml();
   if (guide.videos && !done.v) html += videosHtml();
-  (guide.logs || []).forEach(function (log) { if (!done["l:" + log.id]) html += logHtml(log); });
+  (guide.logs || []).forEach(function (log) {
+    if (log.kind !== "care" && !done["l:" + log.id]) html += logHtml(log);
+  });
 
   // Suggestion box: lets a sitter using the guide flag anything unclear/missing.
   // Routed server-side to the creator (if the guide is saved to their account)
@@ -452,6 +493,41 @@
     }
     btn.addEventListener("click", addEntry);
     noteInp.addEventListener("keydown", function (e) { if (e.key === "Enter") addEntry(); });
+  });
+
+  // Care tracker taps: one tap stamps the row with today and saves it back,
+  // so the owner's guide is current the moment the sitter gives the tablet.
+  doc.querySelectorAll(".guide-care").forEach(function (careEl) {
+    var log = byId(guide.logs, careEl.getAttribute("data-care"));
+    if (!log || log.ownerOnly) return;
+    var msg = careEl.querySelector(".care-msg");
+    var rowsEl = careEl.querySelector(".care-rows");
+    function wire() {
+      rowsEl.querySelectorAll(".care-done").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var rowId = btn.parentNode.getAttribute("data-care-row");
+          var entry = { id: uid(), when: GotItStore.todayIso(), note: rowId };
+          btn.disabled = true; btn.textContent = "Saving…";
+          msg.hidden = true;
+          // Optimistic, same as log entries: show it now, roll back on failure.
+          log.rows = log.rows || [];
+          log.rows.push(entry);
+          persistLogEntry(log.id, entry, function (ok) {
+            if (!ok) {
+              log.rows = log.rows.filter(function (x) { return x !== entry; });
+              msg.textContent = "Couldn't save — check your connection and try again.";
+              msg.className = "care-msg err"; msg.hidden = false;
+            } else {
+              msg.textContent = "Recorded ✓"; msg.className = "care-msg ok"; msg.hidden = false;
+              setTimeout(function () { msg.hidden = true; }, 2500);
+            }
+            rowsEl.innerHTML = careRowsHtml(log);
+            wire();
+          });
+        });
+      });
+    }
+    wire();
   });
 
   // Footer. On the free tier, every shared guide invites its viewer — often a

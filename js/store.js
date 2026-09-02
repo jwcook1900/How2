@@ -541,6 +541,58 @@ window.GotItStore = (function () {
     // looking at it, rather than silently dropping the link on save.
     safeHref: function (raw) { return safeHref(raw); },
 
+    /* ---- "Last done" care tracker (pet guides) ----
+       A living record of repeating care: tick treatment, worming, grooming.
+       Stored as a log with kind:"care" so a viewer's "Done today" tap rides the
+       existing log-write path unchanged — the server already validates,
+       enforces the owner's viewers-may-write choice, and handles locked guides
+       via the re-encrypted envelope. A tap is {when:"YYYY-MM-DD", note:rowId}.
+       The row definitions (icon, label, repeat interval) live on log.care. */
+    careOf: function (guide) {
+      var logs = (guide && guide.logs) || [];
+      for (var i = 0; i < logs.length; i++) {
+        if (logs[i] && logs[i].kind === "care") return logs[i];
+      }
+      return null;
+    },
+    todayIso: function () {
+      var d = new Date();
+      return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    },
+    // What to say about one care row: when it last happened, and (if it
+    // repeats) whether it's due. Overdue is a nudge for the reader, not an
+    // alarm — the wording stays plain on purpose.
+    careStatus: function (row, log, todayIsoStr) {
+      var taps = ((log && log.rows) || []).filter(function (r) {
+        return r && r.note === row.id && r.when;
+      });
+      var last = null;
+      taps.forEach(function (r) {
+        var d = new Date(String(r.when) + "T00:00:00");
+        if (!isNaN(d.getTime()) && (!last || d > last)) last = d;
+      });
+      if (!last) return { last: null, days: null, ago: "not recorded yet", due: null, overdue: false };
+      var t = new Date((todayIsoStr || this.todayIso()) + "T00:00:00");
+      var days = Math.round((t - last) / 86400000);
+      var ago = days <= 0 ? "today" : days === 1 ? "yesterday"
+        : days < 14 ? days + " days ago"
+        : Math.round(days / 7) + " weeks ago";
+      var out = {
+        last: last.getFullYear() + "-" + ("0" + (last.getMonth() + 1)).slice(-2) + "-" + ("0" + last.getDate()).slice(-2),
+        days: days, ago: ago, due: null, overdue: false
+      };
+      var every = Number(row.every) || 0;
+      if (every > 0) {
+        var dueIn = every * 7 - days;
+        out.overdue = dueIn < 0;
+        out.due = dueIn < 0 ? (dueIn === -1 ? "1 day overdue" : (-dueIn) + " days overdue")
+          : dueIn === 0 ? "due today"
+          : dueIn === 1 ? "due tomorrow"
+          : "due in " + dueIn + " days";
+      }
+      return out;
+    },
+
     /* ---- Does a Medications section actually list a medication? ----
        Vet guides give Medications an orange spine, a bold title and an
        open-by-default panel, because it's the section a carer reaches for

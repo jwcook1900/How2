@@ -4,7 +4,8 @@
   "type": "module",
   "description": "GotIt Guides — guides people get",
   "scripts": {
-    "ampx": "ampx"
+    "ampx": "ampx",
+    "test": "node tests/smoke.mjs && node tests/authemail.test.mjs && node tests/synth.test.mjs"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.4.0",
@@ -13,6 +14,7 @@
     "@types/node": "^20.14.0",
     "aws-cdk-lib": "^2.158.0",
     "constructs": "^10.3.0",
+    "playwright-core": "^1.62.1",
     "typescript": "^5.5.0"
   },
   "dependencies": {

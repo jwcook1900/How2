@@ -1,0 +1,27 @@
+{
+  "name": "gotit-guides",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GotIt Guides — guides people get",
+  "scripts": {
+    "ampx": "ampx",
+    "test": "node tests/smoke.mjs && node tests/authemail.test.mjs && node tests/synth.test.mjs"
+  },
+  "devDependencies": {
+    "@aws-amplify/backend": "^1.4.0",
+    "@aws-amplify/backend-cli": "^1.2.0",
+    "@aws-sdk/client-ses": "^3.1074.0",
+    "@types/node": "^20.14.0",
+    "aws-cdk-lib": "^2.158.0",
+    "constructs": "^10.3.0",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@aws-crypto/client-node": "^5.0.2",
+    "@aws-sdk/client-cognito-identity-provider": "^3.1089.0",
+    "@aws-sdk/client-dynamodb": "^3.1075.0",
+    "@aws-sdk/util-dynamodb": "^3.996.7",
+    "@resvg/resvg-wasm": "^2.6.2"
+  }
+}

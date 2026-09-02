@@ -1,0 +1,998 @@
+/* ============================================================
+   GotIt Guides — Published guide view (read-only)
+   Loads a guide from localStorage by ?g=slug and renders it
+   in the same style as the builder preview.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+  // A friendly "now" stamp for new log entries, e.g. "Sat 28 Jun, 3:11 pm".
+  function nowStamp() {
+    try {
+      return new Date().toLocaleString(undefined, {
+        weekday: "short", day: "numeric", month: "short",
+        hour: "numeric", minute: "2-digit"
+      });
+    } catch (e) { return new Date().toLocaleString(); }
+  }
+  // The guide code for a locked guide, kept so viewers can save log entries
+  // back into the encrypted payload.
+  var currentPassword = null;
+  function findById(list, id) {
+    list = list || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  // Save one log entry so every viewer (and the owner) sees it. Plaintext
+  // guides: the server validates and applies the append itself (and enforces
+  // ownerOnly). Locked guides: the server can't see inside, so re-encrypt the
+  // freshest copy locally and send the envelope — the server accepts it only
+  // when the owner declared viewer-writable logs. Calls done(true|false).
+  function persistLogEntry(logId, entry, done) {
+    if (!slug) { done(true); return; } // no backend — keep in memory only
+    GotItStore.get(slug).then(function (obj) {
+      if (!obj) throw new Error("missing");
+      if (!GotItStore.isEncrypted(obj)) {
+        return GotItStore.log(slug, { logId: logId, entry: entry });
+      }
+      if (!currentPassword) throw new Error("locked");
+      return GotItStore.decrypt(obj, currentPassword).then(function (latest) {
+        var log = findById(latest.logs, logId);
+        if (!log) throw new Error("nolog");
+        // Re-check on the freshest copy: if the owner has since made this log
+        // read-only, a stale open tab must not write into it.
+        if (log.ownerOnly) throw new Error("readonly");
+        log.rows = log.rows || [];
+        log.rows.push(entry);
+        return GotItStore.encrypt(latest, currentPassword).then(function (env) {
+          return GotItStore.log(slug, { envelope: JSON.stringify(env) });
+        });
+      });
+    }).then(function (r) { done(!(r && r.ok === false)); }, function () { done(false); });
+  }
+  function getSlug() {
+    // Pretty path: /g/<slug>
+    var p = location.pathname.match(/\/g\/([^/?#]+)/);
+    if (p) return decodeURIComponent(p[1]);
+    // Legacy query string: ?g=<slug> (older shared links still work)
+    var m = location.search.match(/[?&]g=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  // turn "tel"-like values into links
+  function linkify(value) {
+    var safe = esc(value);
+    var phone = value.match(/(\+?[\d][\d\s().-]{6,}\d)/);
+    if (phone) {
+      var tel = phone[1].replace(/[^\d+]/g, "");
+      safe = safe.replace(phone[1], '<a href="tel:' + tel + '">' + esc(phone[1]) + "</a>");
+    }
+    return safe;
+  }
+
+  var doc = document.getElementById("guideDoc");
+  var footer = document.getElementById("guideFooter");
+  var slug = getSlug();
+
+  function render(guide) {
+    // A guide that loads but carries nothing renderable used to come out as an
+    // empty cover with the feedback box under it: a blank page that looks
+    // broken and says nothing. Treat it like a missing guide and say so.
+    var hasContent = !!(guide && typeof guide === "object" && (
+      guide.title || guide.subtitle ||
+      (guide.sections || []).length || (guide.contacts || []).length ||
+      (guide.logs || []).length ||
+      (guide.routine && guide.routine.items && guide.routine.items.length) ||
+      (guide.videos && guide.videos.items && guide.videos.items.length)
+    ));
+    if (!guide || !hasContent) {
+    doc.innerHTML =
+      '<div class="guide-cover"><span class="cover-emoji">🔍</span>' +
+      '<div class="cover-title">Guide not found</div>' +
+      '<div class="cover-sub">This guide may have been created on another device or browser.</div></div>' +
+      '<p style="text-align:center;margin-top:24px"><a class="btn btn-primary" href="builder.html">Create a guide →</a></p>';
+    document.title = "Guide not found — GotIt Guides";
+    if (footer) footer.innerHTML = "";
+    return;
+  }
+
+  document.title = guide.title + " — GotIt Guides";
+
+  // Count a view (best-effort, no personal data — just the slug).
+  if (slug && GotItStore.event) GotItStore.event("view", slug);
+
+  var html = "";
+
+  // Cover
+  var coverTextY = Math.max(-110, Math.min(110, Number(guide.coverTextY) || 0));
+  var coverTextStyle = coverTextY ? ' style="transform:translateY(' + coverTextY + 'px)"' : "";
+  // A clinic logo (vet guides) takes the emoji's place on the cover — a white
+  // badge, so it reads on cream, accent colours and photos alike.
+  html +=
+    '<div class="guide-cover">' +
+      '<div class="cover-text"' + coverTextStyle + ">" +
+        (guide.clinicLogo ? '<img class="cover-logo" src="' + guide.clinicLogo + '" alt="" />' :
+          (guide.emoji && !guide.coverEmojiOff ? '<span class="cover-emoji">' + guide.emoji + "</span>" : "")) +
+        '<div class="cover-title">' + esc(guide.title) + "</div>" +
+        '<div class="cover-sub">' + esc(guide.subtitle) + "</div>" +
+      "</div>" +
+    "</div>";
+
+  // Vet discharge guides carry the veterinary-advice disclaimer right under
+  // the cover — on screen and in print.
+  if (guide.category === "vet") {
+    html += '<p class="vet-disclaimer">This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>';
+  }
+
+  // The "Last done" care tracker: a living record pinned under the cover, so
+  // "when was his last tick treatment?" is answered before anyone scrolls.
+  // Tapping ✓ Done today writes back through the same path as log entries.
+  var careLog = GotItStore.careOf(guide);
+  function careRowsHtml(log) {
+    var canTap = !log.ownerOnly;
+    return (log.care || []).map(function (row) {
+      if (!row || !row.label) return "";
+      var st = GotItStore.careStatus(row, log);
+      var status = st.last
+        ? '<span class="care-ago">' + esc(st.ago) + "</span>" +
+          (st.due ? ' · <span class="care-due' + (st.overdue ? " over" : "") + '">' + esc(st.due) + "</span>" : "")
+        : '<span class="care-ago care-none">not recorded yet</span>';
+      var history = "";
+      var past = (log.rows || []).filter(function (r) { return r && r.note === row.id && r.when; })
+        .map(function (r) { return r.when; }).sort().reverse();
+      if (past.length > 1) {
+        history = '<details class="care-history no-print"><summary>' + past.length + " dates</summary>" +
+          past.slice(0, 12).map(function (d) { return "<span>" + esc(d) + "</span>"; }).join("") +
+          "</details>";
+      }
+      return '<div class="care-row" data-care-row="' + esc(row.id) + '">' +
+        '<span class="care-ico">' + esc(row.icon || "💊") + "</span>" +
+        '<span class="care-label">' + esc(row.label) + "</span>" +
+        '<span class="care-status">' + status + "</span>" + history +
+        (canTap ? '<button class="care-done no-print" type="button">✓ Done today</button>' : "") +
+        "</div>";
+    }).join("");
+  }
+  if (careLog && (careLog.care || []).some(function (r) { return r && r.label; })) {
+    html += '<div class="guide-care" data-care="' + esc(careLog.id) + '">' +
+      '<div class="care-head">💊 ' + esc(careLog.title || "Last done") + "</div>" +
+      '<div class="care-rows">' + careRowsHtml(careLog) + "</div>" +
+      '<p class="care-msg no-print" role="status" aria-live="polite" hidden></p>' +
+      "</div>";
+  }
+
+  // Subtle hint so sitters notice the routine + calendar option.
+  var hasRoutine = !guide.noRoutine && guide.routine && guide.routine.items &&
+    guide.routine.items.some(function (it) { return it.times && it.times.length; });
+  if (hasRoutine) {
+    html += guide.category === "vet"
+      ? '<a class="routine-chip no-print" href="#routine">⏰ Dose reminders inside — tap to add every dose to your calendar</a>'
+      : '<a class="routine-chip no-print" href="#routine">⏰ Daily routine inside — tap to add the reminders to your calendar</a>';
+  }
+
+  // ---- Block renderers ----
+  function videoSrcOf(o) {
+    return o.videoEmbed || (o.videoId ? "https://www.youtube.com/embed/" + o.videoId : null);
+  }
+  // A video embed with an optional title bar over its top (matches the editor).
+  function videoMediaHtml(src, title) {
+    var t = title ? '<div class="sec-video-title">' + esc(title) + "</div>" : "";
+    return '<div class="sec-media"><div class="sec-video"><iframe src="' + src +
+      '" allowfullscreen loading="lazy"></iframe>' + t + "</div>" +
+      '<p class="print-only video-note">▶ Video — scan the QR code at the top to watch online.</p></div>';
+  }
+  // Dedicated Videos widget (guide.videos.items), each clip with its own title.
+  function videosHtml() {
+    var v = guide.videos;
+    if (!v || !v.items || !v.items.length) return "";
+    var items = v.items.filter(function (it) { return videoSrcOf(it); });
+    if (!items.length) return "";
+    var s = '<div class="guide-videos" id="videos"><div class="videos-head">🎬 Videos</div>';
+    items.forEach(function (it) { s += videoMediaHtml(videoSrcOf(it), it.title); });
+    return s + "</div>";
+  }
+
+  // A section's videos: the array (sec.videos) or a legacy single video.
+  function sectionVideos(sec) {
+    if (Array.isArray(sec.videos)) return sec.videos;
+    if (sec.videoEmbed || sec.videoId) return [{ videoEmbed: sec.videoEmbed, videoId: sec.videoId, title: sec.videoTitle }];
+    return [];
+  }
+  // A section's photos: the array (sec.photos) or a legacy single photo.
+  function sectionPhotos(sec) {
+    if (Array.isArray(sec.photos)) return sec.photos;
+    if (sec.photo) return [{ src: sec.photo, pos: sec.photoPos, title: sec.photoTitle }];
+    return [];
+  }
+  // A photo (optionally cropped) with an optional caption bar under it.
+  function photoMediaHtml(photo) {
+    if (!photo || !photo.src) return "";
+    var cls = photo.pos ? " is-cropped" : "";
+    var style = photo.pos ? ' style="object-position:' + esc(photo.pos) + '"' : "";
+    var cap = photo.title ? '<div class="sec-photo-title">' + esc(photo.title) + "</div>" : "";
+    return '<div class="sec-media"><div class="sec-photo-wrap"><img class="sec-photo' + cls +
+      '" src="' + photo.src + '" alt=""' + style + " />" + cap + "</div></div>";
+  }
+  var firstSectionOpen = true;
+  function sectionHtml(sec) {
+    var media = "";
+    sectionPhotos(sec).forEach(function (photo) { media += photoMediaHtml(photo); });
+    sectionVideos(sec).forEach(function (vid) {
+      var s = videoSrcOf(vid);
+      if (s) media += videoMediaHtml(s, vid.title);
+    });
+    // The unedited "Tap to add details…" default is an editor placeholder, not
+    // real content — never show it (or an empty body) in the published guide.
+    var textOnly = (sec.body || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    var bodyHtml = (textOnly === "" || textOnly === "Tap to add details…") ? "" : GotItStore.renderBody(sec.body);
+    // Vet discharge: medications and urgent-warning sections are the two
+    // things a carer scans for, so they open by default and get their own
+    // chrome; any unresolved "⚠️ Check with your clinic" flags stand out too.
+    var isVet = guide.category === "vet";
+    var vetCls = "";
+    if (isVet && /medication/i.test(sec.title || "") && GotItStore.hasMeds(sec.body)) vetCls = " sec-med";
+    else if (isVet && /emergency|urgent|warning/i.test(sec.title || "")) vetCls = " sec-urgent";
+    if (isVet && bodyHtml && bodyHtml.indexOf("⚠️") >= 0) {
+      bodyHtml = bodyHtml.replace(/⚠️\s*([^<]*)/g, '<mark class="vet-flag">⚠️ $1</mark>');
+    }
+    var open = (firstSectionOpen || vetCls) ? " open" : "";
+    firstSectionOpen = false;
+    // The Quirks section gets its warm signature treatment in the published
+    // guide too — same title match as the editor, and still matching the
+    // "Before You Worry" name guides published before the rename carry.
+    var byw = /before you worry|\bquirks\b/i.test(sec.title || "") ? " sec-byw" : "";
+    if (byw && bodyHtml) {
+      bodyHtml = '<p class="byw-intro">Completely normal for them, reassuring for someone new.</p>' + bodyHtml;
+    }
+    return '<div class="guide-section' + open + byw + vetCls + '" data-sec="' + esc(sec.id) + '">' +
+        '<button class="acc-header" type="button">' +
+          (sec.icon ? '<span class="acc-icon">' + sec.icon + "</span>" : "") +
+          '<span class="acc-title-text">' + esc(sec.title) + "</span>" +
+          '<span class="acc-chevron">▾</span>' +
+        "</button>" +
+        '<div class="acc-body"><div class="acc-body-inner">' +
+          (bodyHtml ? '<div class="acc-content">' + bodyHtml + "</div>" : "") +
+          media +
+        "</div></div>" +
+      "</div>";
+  }
+  function emergencyHtml() {
+    if (guide.noEmergency) return "";
+    if (!(guide.contacts && guide.contacts.length)) return "";
+    // Vet guides hold the clinic + after-hours hospital here, so the label says so.
+    var s = '<div class="guide-emergency"><div class="em-head">' +
+      (guide.category === "vet" ? "📞 Clinic & Emergency Contacts" : "🚨 Emergency Contacts") + "</div>";
+    guide.contacts.forEach(function (c) {
+      s += '<div class="contact-row">' +
+          '<span class="contact-label">' + esc(c.label) + "</span>" +
+          '<span class="contact-value">' + linkify(c.value) + "</span>" +
+        "</div>";
+    });
+    return s + "</div>";
+  }
+  function fmt12(t) {
+    var parts = String(t || "").split(":");
+    var h = parseInt(parts[0], 10), m = parts[1] || "00";
+    if (isNaN(h)) return t;
+    var ap = h < 12 ? "am" : "pm", h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ":" + m + ap;
+  }
+  // Daily Routine timeline (Morning / Afternoon / Evening) + one button to add
+  // the whole routine to the sitter's calendar.
+  function routineHtml() {
+    if (guide.noRoutine) return "";
+    var r = guide.routine;
+    if (!r || !r.items || !r.items.length) return "";
+    var entries = [];
+    r.items.forEach(function (it) {
+      (it.times || []).forEach(function (t) { if (t) entries.push({ time: t, icon: it.icon || "", label: it.label || "" }); });
+    });
+    if (!entries.length) return "";
+    entries.sort(function (a, b) { return a.time.localeCompare(b.time); });
+    var groups = { morning: [], afternoon: [], evening: [] };
+    entries.forEach(function (e) {
+      var h = parseInt(e.time.split(":")[0], 10);
+      if (h < 12) groups.morning.push(e); else if (h < 17) groups.afternoon.push(e); else groups.evening.push(e);
+    });
+    var periods = [["morning", "🌅 Morning"], ["afternoon", "☀️ Afternoon"], ["evening", "🌙 Evening"]];
+    var s = '<div class="guide-routine" id="routine"><div class="routine-head">' +
+      (guide.category === "vet" ? "⏰ Dose Times & Reminders" : "⏰ Daily Routine") + "</div>";
+    periods.forEach(function (p) {
+      var list = groups[p[0]];
+      if (!list.length) return;
+      s += '<div class="routine-period"><div class="routine-period-label">' + p[1] + "</div>";
+      list.forEach(function (e) {
+        s += '<div class="routine-entry">' +
+          '<span class="routine-time">' + esc(fmt12(e.time)) + "</span>" +
+          '<span class="routine-emoji">' + (e.icon ? esc(e.icon) : "•") + "</span>" +
+          '<span class="routine-label">' + esc(e.label) + "</span>" +
+          "</div>";
+      });
+      s += "</div>";
+    });
+    s += '<button class="reminder-cal-btn no-print" data-routine="1">📅 Add all reminders to my calendar</button>';
+    return s + "</div>";
+  }
+  function logRowsHtml(log) {
+    var rows = (log.rows || []).filter(function (r) { return r.when || r.note; });
+    if (!rows.length) {
+      return '<tr class="log-empty"><td colspan="2">No entries yet. Add the first one below.</td></tr>';
+    }
+    return rows.map(function (r) {
+      return "<tr><td>" + esc(r.when) + "</td><td>" + esc(r.note) + "</td></tr>";
+    }).join("");
+  }
+  function logHtml(log) {
+    // ownerOnly: the creator turned off viewer entries (read-only log — used
+    // on public/example guides so passers-by can't write into the real record).
+    var addForm = log.ownerOnly
+      ? '<p class="log-readonly">📖 This log is read-only — only the owner can add entries.</p>'
+      : '<div class="log-add">' +
+          '<input type="text" class="q-input log-when" aria-label="When" placeholder="When" />' +
+          '<input type="text" class="q-input log-note" aria-label="Note" placeholder="Add a note, e.g. seizure, fed, walked…" />' +
+          '<button class="btn btn-primary btn-sm log-add-btn" type="button">Add entry</button>' +
+        "</div>" +
+        '<p class="log-add-msg" role="status" aria-live="polite" hidden></p>';
+    return '<div class="guide-log" data-log="' + esc(log.id) + '">' +
+        '<div class="log-head">📓 ' + esc(log.title) + "</div>" +
+        '<table class="log-table"><thead><tr><th>Date / time</th><th>Note</th></tr></thead>' +
+          '<tbody class="log-rows">' + logRowsHtml(log) + "</tbody></table>" +
+        addForm +
+      "</div>";
+  }
+  function byId(list, id) {
+    list = list || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  // ---- Render blocks in saved order (fall back to a sensible default) ----
+  var order = guide.blockOrder && guide.blockOrder.length ? guide.blockOrder.slice() : null;
+  if (!order) {
+    order = (guide.sections || []).map(function (s) { return "s:" + s.id; });
+    order.push("e");
+    (guide.logs || []).forEach(function (l) { order.push("l:" + l.id); });
+  }
+  var done = {};
+  order.forEach(function (tok) {
+    if (tok === "e") { html += emergencyHtml(); done.e = true; }
+    else if (tok === "r") { html += routineHtml(); done.r = true; }
+    else if (tok === "v") { html += videosHtml(); done.v = true; }
+    else if (tok.indexOf("s:") === 0) {
+      var sec = byId(guide.sections, tok.slice(2));
+      if (sec) { html += sectionHtml(sec); done[tok] = true; }
+    } else if (tok.indexOf("l:") === 0) {
+      var log = byId(guide.logs, tok.slice(2));
+      // The care tracker renders pinned under the cover, never in the flow.
+      if (log && log.kind === "care") { done[tok] = true; }
+      else if (log) { html += logHtml(log); done[tok] = true; }
+    }
+  });
+  // Reconcile anything missing from the order
+  (guide.sections || []).forEach(function (sec) { if (!done["s:" + sec.id]) html += sectionHtml(sec); });
+  if (!done.e) html += emergencyHtml();
+  if (!done.r) html += routineHtml();
+  if (guide.videos && !done.v) html += videosHtml();
+  (guide.logs || []).forEach(function (log) {
+    if (log.kind !== "care" && !done["l:" + log.id]) html += logHtml(log);
+  });
+
+  // Suggestion box: lets a sitter using the guide flag anything unclear/missing.
+  // Routed server-side to the creator (if the guide is saved to their account)
+  // or the team inbox.
+  html +=
+    '<div class="guide-feedback no-print" id="guideFeedback">' +
+      '<h3 class="gfb-title">💬 Spot something missing?</h3>' +
+      '<p class="gfb-lead">Using this guide in real life? If anything is unclear, hard to find, or could be better, send a quick note to whoever made it.</p>' +
+      '<textarea class="gfb-text" id="gfbText" rows="3" placeholder="e.g. Couldn\'t find where the spare key is kept…"></textarea>' +
+      '<input type="email" class="gfb-email" id="gfbEmail" placeholder="Your email (optional, for a reply)" autocomplete="email" />' +
+      '<button class="gfb-send" id="gfbSend" type="button">Send feedback</button>' +
+      '<p class="gfb-note" id="gfbNote" hidden></p>' +
+    "</div>";
+
+  doc.innerHTML = html;
+
+  wireGuideFeedback(doc, guide, slug);
+
+  // Cover photo (set via JS to avoid escaping the data URL in an attribute).
+  // A cover photo always wins; otherwise an optional accent colour recolours it.
+  var coverEl = doc.querySelector(".guide-cover");
+  if (coverEl && !guide.emoji && !guide.clinicLogo) coverEl.classList.add("no-emoji"); // title sits up top, clear of the photo subject
+  if (guide.cover) {
+    if (coverEl) {
+      coverEl.classList.add("has-cover");
+      coverEl.style.backgroundImage =
+        "linear-gradient(180deg, rgba(26,26,26,0.28), rgba(26,26,26,0.55)), url(" + guide.cover + ")";
+      coverEl.style.backgroundPosition = guide.coverPos || "center";
+    }
+  } else if (guide.coverColor) {
+    GotItStore.applyCoverAccent(coverEl, guide.coverColor);
+  }
+
+  // Per-block accent colours
+  doc.querySelectorAll(".guide-section[data-sec]").forEach(function (el) {
+    var sec = byId(guide.sections, el.getAttribute("data-sec"));
+    if (sec && sec.color) GotItStore.applyAccent(el, sec.color);
+  });
+  doc.querySelectorAll(".guide-log[data-log]").forEach(function (el) {
+    var log = byId(guide.logs, el.getAttribute("data-log"));
+    if (log && log.color) GotItStore.applyAccent(el, log.color);
+  });
+  if (guide.emergencyColor) {
+    var emgEl = doc.querySelector(".guide-emergency");
+    if (emgEl) GotItStore.applyAccent(emgEl, guide.emergencyColor);
+  }
+
+  // Accordion behaviour
+  doc.querySelectorAll(".guide-section").forEach(function (sec) {
+    sec.querySelector(".acc-header").addEventListener("click", function () {
+      sec.classList.toggle("open");
+    });
+  });
+
+  // "Add all reminders to my calendar" on the Daily Routine widget.
+  doc.querySelectorAll(".reminder-cal-btn[data-routine]").forEach(function (btn) {
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openRoutineModal(guide);
+    });
+  });
+
+  // "Daily routine inside" chip: scroll to the routine. The page has <base
+  // href="/">, so a bare href="#routine" would navigate to the home page —
+  // handle it in JS instead.
+  var routineChip = doc.querySelector(".routine-chip");
+  if (routineChip) routineChip.addEventListener("click", function (e) {
+    e.preventDefault();
+    var target = document.getElementById("routine");
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  // Interactive logs: let a viewer (sitter, carer, guest) record entries that
+  // save back into the guide so everyone sees the latest.
+  doc.querySelectorAll(".guide-log").forEach(function (logEl) {
+    var log = byId(guide.logs, logEl.getAttribute("data-log"));
+    if (!log) return;
+    if (log.ownerOnly) return; // read-only log: no add form was rendered
+    var whenInp = logEl.querySelector(".log-when");
+    var noteInp = logEl.querySelector(".log-note");
+    var btn = logEl.querySelector(".log-add-btn");
+    var msg = logEl.querySelector(".log-add-msg");
+    var rowsBody = logEl.querySelector(".log-rows");
+    whenInp.value = nowStamp();
+
+    function addEntry() {
+      var note = noteInp.value.trim();
+      if (!note) { noteInp.focus(); return; }
+      var entry = { id: uid(), when: whenInp.value.trim() || nowStamp(), note: note };
+      btn.disabled = true;
+      var label = btn.textContent; btn.textContent = "Saving…";
+      msg.hidden = true;
+      // Optimistically show it, then persist.
+      log.rows = log.rows || [];
+      log.rows.push(entry);
+      rowsBody.innerHTML = logRowsHtml(log);
+      persistLogEntry(log.id, entry, function (ok) {
+        btn.disabled = false; btn.textContent = label;
+        if (ok) {
+          noteInp.value = ""; whenInp.value = nowStamp(); noteInp.focus();
+          msg.textContent = "Saved ✓"; msg.className = "log-add-msg ok"; msg.hidden = false;
+          setTimeout(function () { msg.hidden = true; }, 2500);
+        } else {
+          log.rows = log.rows.filter(function (x) { return x.id !== entry.id; });
+          rowsBody.innerHTML = logRowsHtml(log);
+          msg.textContent = "Couldn't save — check your connection and try again.";
+          msg.className = "log-add-msg err"; msg.hidden = false;
+        }
+      });
+    }
+    btn.addEventListener("click", addEntry);
+    noteInp.addEventListener("keydown", function (e) { if (e.key === "Enter") addEntry(); });
+  });
+
+  // Care tracker taps: one tap stamps the row with today and saves it back,
+  // so the owner's guide is current the moment the sitter gives the tablet.
+  doc.querySelectorAll(".guide-care").forEach(function (careEl) {
+    var log = byId(guide.logs, careEl.getAttribute("data-care"));
+    if (!log || log.ownerOnly) return;
+    var msg = careEl.querySelector(".care-msg");
+    var rowsEl = careEl.querySelector(".care-rows");
+    function wire() {
+      rowsEl.querySelectorAll(".care-done").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var rowId = btn.parentNode.getAttribute("data-care-row");
+          var entry = { id: uid(), when: GotItStore.todayIso(), note: rowId };
+          btn.disabled = true; btn.textContent = "Saving…";
+          msg.hidden = true;
+          // Optimistic, same as log entries: show it now, roll back on failure.
+          log.rows = log.rows || [];
+          log.rows.push(entry);
+          persistLogEntry(log.id, entry, function (ok) {
+            if (!ok) {
+              log.rows = log.rows.filter(function (x) { return x !== entry; });
+              msg.textContent = "Couldn't save — check your connection and try again.";
+              msg.className = "care-msg err"; msg.hidden = false;
+            } else {
+              msg.textContent = "Recorded ✓"; msg.className = "care-msg ok"; msg.hidden = false;
+              setTimeout(function () { msg.hidden = true; }, 2500);
+            }
+            rowsEl.innerHTML = careRowsHtml(log);
+            wire();
+          });
+        });
+      });
+    }
+    wire();
+  });
+
+  // Footer. On the free tier, every shared guide invites its viewer — often a
+  // sitter/carer who's never heard of us — to create their own (the growth loop).
+  if (guide.branding !== false) {
+    footer.innerHTML =
+      '<div class="guide-cta no-print">' +
+        '<p class="guide-cta-eyebrow">Made with GotIt Guides</p>' +
+        '<h3 class="guide-cta-title">Make your own care guide — free</h3>' +
+        '<p class="guide-cta-sub">Pull your routine, contacts, medication and notes into one simple link to share with any sitter, carer or guest.</p>' +
+        // Straight into the builder (pre-set to this guide's category) — the
+        // homepage was an extra hop that lost people mid-conversion.
+        '<a class="btn btn-primary guide-cta-btn" href="builder.html' +
+          (guide.category ? "?cat=" + encodeURIComponent(guide.category) : "") +
+          '">Create your free guide →</a>' +
+      "</div>" +
+      '<p class="guide-foot-mini"><a href="index.html">GotIt Guides</a> · guides people get</p>';
+  } else {
+    footer.innerHTML = "";
+  }
+
+  setupPrint(guide);
+  }
+
+  // Wire the "spot something missing?" suggestion box.
+  function wireGuideFeedback(doc, guide, slug) {
+    var fb = doc.querySelector("#guideFeedback");
+    if (!fb) return;
+    var send = fb.querySelector("#gfbSend");
+    var note = fb.querySelector("#gfbNote");
+    function say(kind, msg) { note.className = "gfb-note " + kind; note.textContent = msg; note.hidden = false; }
+    send.addEventListener("click", function () {
+      var msg = (fb.querySelector("#gfbText").value || "").trim();
+      var email = (fb.querySelector("#gfbEmail").value || "").trim();
+      if (!msg) { say("err", "Type a quick note first."); return; }
+      send.disabled = true; send.textContent = "Sending…"; note.hidden = true;
+      GotItStore.sendGuideFeedback({ slug: slug, title: guide.title, message: msg, email: email }).then(function (res) {
+        if (res === null) { throw new Error("offline"); }
+        fb.querySelector("#gfbText").value = "";
+        fb.querySelector("#gfbEmail").value = "";
+        send.textContent = "Sent ✓";
+        say("ok", "Thanks — your note has been sent. 🙌");
+      }).catch(function () {
+        send.disabled = false; send.textContent = "Send feedback";
+        say("err", "Couldn't send just now — please try again.");
+      });
+    });
+  }
+
+  // ---- Print / Save-as-PDF (browser-native; a print stylesheet reflows the
+  // guide onto A4). Adds a compact print-only header with a QR back to the
+  // live guide so the paper copy always points to videos + the latest version.
+  function setupPrint(guide) {
+    // Canonical pretty URL for the QR, however the page was opened.
+    var liveUrl = slug ? (location.origin + "/g/" + encodeURIComponent(slug))
+                       : (location.origin + location.pathname);
+    if (!doc.querySelector(".print-header")) {
+      var h = document.createElement("div");
+      h.className = "print-header print-only";
+      h.innerHTML =
+        '<div class="print-head-text">' +
+          '<span class="print-emoji">' + esc(guide.emoji) + "</span>" +
+          "<div><div class=\"print-title\">" + esc(guide.title) + "</div>" +
+          '<div class="print-sub">' + esc(guide.subtitle || "") + "</div></div>" +
+        "</div>" +
+        '<div class="print-qr"><div id="printQr"></div>' +
+          '<span class="print-qr-label">📱 Scan for videos<br>& the latest version</span></div>';
+      doc.insertBefore(h, doc.firstChild);
+      if (window.QRCode) {
+        try {
+          new QRCode(document.getElementById("printQr"),
+            { text: liveUrl, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M });
+        } catch (e) {}
+      }
+    }
+    if (!document.getElementById("printFab")) {
+      var b = document.createElement("button");
+      b.id = "printFab";
+      b.className = "print-fab no-print";
+      b.type = "button";
+      b.textContent = "🖨️ Print / Save as PDF";
+      b.addEventListener("click", function () { window.print(); });
+      document.body.appendChild(b);
+    }
+    // Opened from the share screen's "Printable version" link → print straight away.
+    if (/[?&]print=1/.test(location.search)) {
+      setTimeout(function () { window.print(); }, 700);
+    }
+    // Dropdown blocks start collapsed on screen but must not hide content on
+    // paper: open them all for printing, then restore how the reader had them.
+    var reopen = [];
+    window.addEventListener("beforeprint", function () {
+      reopen = [];
+      Array.prototype.forEach.call(document.querySelectorAll(".acc-content details:not([open])"), function (d) {
+        d.setAttribute("open", ""); reopen.push(d);
+      });
+    });
+    window.addEventListener("afterprint", function () {
+      reopen.forEach(function (d) { d.removeAttribute("open"); });
+      reopen = [];
+    });
+  }
+
+  /* ---------- Add-to-calendar reminders (sitter side) ----------
+     Turns the routine's reminder times into a downloadable .ics calendar file
+     with a dated, alerted event for each time on each day the sitter is caring.
+     Works on any phone, no login or backend. */
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function isoFromToday(off) {
+    var d = new Date(); d.setDate(d.getDate() + (off || 0));
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function escICS(s) {
+    return String(s == null ? "" : s)
+      .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+  }
+  // opts.events: [{ summary, time }]. Emits an explicit dated VEVENT (with an
+  // alert) for every event on every day from startDate to endDate. We expand the
+  // days ourselves instead of using an RRULE: Apple's parser is unreliable with
+  // floating-time recurrence (it often keeps only day one), and explicit events
+  // also show up per-day in the "Add All" preview — obviously multi-day.
+  function buildICS(opts) {
+    function dtLocal(dateStr, timeStr) {
+      return dateStr.replace(/-/g, "") + "T" + (timeStr || "00:00").replace(/:/g, "") + "00";
+    }
+    function stampUTC() {
+      var n = new Date();
+      return n.getUTCFullYear() + pad2(n.getUTCMonth() + 1) + pad2(n.getUTCDate()) + "T" +
+        pad2(n.getUTCHours()) + pad2(n.getUTCMinutes()) + pad2(n.getUTCSeconds()) + "Z";
+    }
+    var d0 = new Date(opts.startDate + "T00:00:00");
+    var d1 = new Date(opts.endDate + "T00:00:00");
+    var days = Math.round((d1.getTime() - d0.getTime()) / 86400000) + 1;
+    if (!(days >= 1)) days = 1;
+    if (days > 92) days = 92; // safety cap (~a quarter) on file size
+    var L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//GotIt Guides//Care Reminders//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+    for (var day = 0; day < days; day++) {
+      var dt = new Date(d0.getTime() + day * 86400000);
+      var dateStr = dt.getFullYear() + "-" + pad2(dt.getMonth() + 1) + "-" + pad2(dt.getDate());
+      opts.events.forEach(function (ev, i) {
+        var uid = Date.now().toString(36) + "-" + day + "-" + i + "-" + Math.random().toString(36).slice(2, 8) + "@gotitguides.com";
+        L.push("BEGIN:VEVENT", "UID:" + uid, "DTSTAMP:" + stampUTC(), "DTSTART:" + dtLocal(dateStr, ev.time),
+          "DURATION:PT10M", "SUMMARY:" + escICS(ev.summary));
+        if (opts.description) L.push("DESCRIPTION:" + escICS(opts.description));
+        L.push("BEGIN:VALARM", "ACTION:DISPLAY", "DESCRIPTION:" + escICS(ev.summary), "TRIGGER:PT0S", "END:VALARM", "END:VEVENT");
+      });
+    }
+    L.push("END:VCALENDAR");
+    return L.join("\r\n");
+  }
+  function downloadICS(filename, ics) {
+    var blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+  }
+  function slugifyName(s) {
+    return String(s || "reminders").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "reminders";
+  }
+  function closeReminderModal() {
+    var m = document.getElementById("remModal");
+    if (m && m.parentNode) m.parentNode.removeChild(m);
+  }
+  function openRoutineModal(guide) {
+    closeReminderModal();
+    var r = guide.routine || { items: [] };
+    function f12(t) {
+      var pp = String(t || "").split(":"); var h = parseInt(pp[0], 10), m = pp[1] || "00";
+      if (isNaN(h)) return t; var ap = h < 12 ? "am" : "pm", h12 = h % 12 || 12; return h12 + ":" + m + ap;
+    }
+    function buildEvents() {
+      var events = [];
+      (r.items || []).forEach(function (it) {
+        (it.times || []).forEach(function (t) {
+          if (t) events.push({ summary: (it.icon ? it.icon + " " : "") + (it.label || "Reminder") + " · " + (guide.title || "GotIt guide"), time: t });
+        });
+      });
+      return events;
+    }
+
+    var overlay = document.createElement("div");
+    overlay.className = "rem-modal"; overlay.id = "remModal";
+    var backdrop = document.createElement("div");
+    backdrop.className = "rem-backdrop";
+    backdrop.addEventListener("click", closeReminderModal);
+    var card = document.createElement("div");
+    card.className = "rem-card";
+
+    var x = document.createElement("button");
+    x.className = "rem-x"; x.type = "button"; x.textContent = "×";
+    x.addEventListener("click", closeReminderModal);
+
+    var h = document.createElement("h3");
+    h.className = "rem-title";
+    h.textContent = "Add the daily routine to your calendar";
+    var p = document.createElement("p");
+    p.className = "rem-lead";
+    p.textContent = "Pick the days you're caring and we'll add every reminder, each with an alert.";
+
+    // Read-only summary of what's being added.
+    var summary = document.createElement("div");
+    summary.className = "rem-summary";
+    (r.items || []).forEach(function (it) {
+      if (!(it.times && it.times.length)) return;
+      var row = document.createElement("div"); row.className = "rem-summary-row";
+      row.textContent = (it.icon ? it.icon + " " : "") + (it.label || "") + " — " + it.times.map(f12).join(", ");
+      summary.appendChild(row);
+    });
+
+    function field(labelText, input) {
+      var w = document.createElement("div"); w.className = "rem-field";
+      var l = document.createElement("label"); l.textContent = labelText;
+      w.appendChild(l); w.appendChild(input); return w;
+    }
+    var start = document.createElement("input");
+    start.type = "date"; start.className = "q-input"; start.value = isoFromToday(0);
+    var end = document.createElement("input");
+    end.type = "date"; end.className = "q-input"; end.value = isoFromToday(6);
+    var dates = document.createElement("div"); dates.className = "rem-dates";
+    dates.appendChild(field("From", start));
+    dates.appendChild(field("To", end));
+
+    var note = document.createElement("p"); note.className = "rem-note"; note.hidden = true;
+    var actions = document.createElement("div"); actions.className = "rem-actions";
+    var cancel = document.createElement("button");
+    cancel.type = "button"; cancel.className = "btn btn-ghost btn-sm"; cancel.textContent = "Cancel";
+    cancel.addEventListener("click", closeReminderModal);
+    var go = document.createElement("button");
+    go.type = "button"; go.className = "btn btn-primary btn-sm"; go.textContent = "Add to my calendar";
+    go.addEventListener("click", function () {
+      var events = buildEvents();
+      if (!events.length) { note.hidden = false; note.className = "rem-note err"; note.textContent = "This routine has no times yet."; return; }
+      if (start.value && end.value && end.value < start.value) {
+        note.hidden = false; note.className = "rem-note err"; note.textContent = "The end date is before the start date."; return;
+      }
+      var liveUrl = slug ? (location.origin + "/g/" + encodeURIComponent(slug)) : location.href;
+      var ics = buildICS({
+        events: events,
+        description: "From your GotIt guide: " + liveUrl,
+        startDate: start.value || isoFromToday(0),
+        endDate: end.value || start.value || isoFromToday(6)
+      });
+      downloadICS(slugifyName(guide.title) + "-routine.ics", ics);
+      note.hidden = false; note.className = "rem-note ok";
+      note.textContent = "Opening your calendar… confirm there to add the reminders.";
+      go.disabled = true;
+      setTimeout(closeReminderModal, 2000);
+    });
+    actions.appendChild(cancel); actions.appendChild(go);
+
+    card.appendChild(x); card.appendChild(h); card.appendChild(p);
+    if (summary.children.length) card.appendChild(summary);
+    card.appendChild(dates);
+    card.appendChild(actions); card.appendChild(note);
+    overlay.appendChild(backdrop); overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  // Locked guides arrive as an encrypted envelope — show an unlock screen and
+  // decrypt in the browser once the right guide code is entered.
+  function showLock(env) {
+    // Envelopes published since mid-2026 carry the title/emoji in plaintext
+    // (see store.encrypt) so the unlock screen can say whose guide this is.
+    var name = String(env.title || "").trim();
+    var emoji = String(env.emoji || "").trim() || "🔒";
+    document.title = (name ? name + " (locked)" : "Locked guide") + " — GotIt Guides";
+    doc.innerHTML =
+      '<div class="guide-cover"><span class="cover-emoji">' + esc(emoji) + "</span>" +
+        '<div class="cover-title">' + (name ? esc(name) : "This guide is locked") + "</div>" +
+        '<div class="cover-sub">' + (name ? "🔒 This guide is locked — enter the guide code to open it." : "Enter the guide code to open it.") + "</div></div>" +
+      '<div class="lock-screen">' +
+        '<input type="password" id="unlockPass" class="q-input" placeholder="Guide code" autocomplete="off" />' +
+        '<button class="btn btn-primary" id="unlockBtn" type="button">Unlock</button>' +
+        '<p class="lock-error" id="unlockErr" hidden>That code\'s not right — try again.</p>' +
+      "</div>";
+    var input = document.getElementById("unlockPass");
+    var btn = document.getElementById("unlockBtn");
+    var err = document.getElementById("unlockErr");
+    function attempt() {
+      var p = input.value;
+      if (!p) return;
+      err.hidden = true;
+      btn.disabled = true; btn.textContent = "Unlocking…";
+      GotItStore.decrypt(env, p).then(function (real) {
+        currentPassword = p;
+        render(real);
+      }, function () {
+        err.hidden = false;
+        btn.disabled = false; btn.textContent = "Unlock";
+        input.select();
+      });
+    }
+    btn.addEventListener("click", attempt);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") attempt(); });
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  /* ---- Floating utility menu (top-left frosted bubble) ----
+     Share / feedback / create / home. Kept deliberately quiet so the published
+     page still reads as the creator's guide, not a GotIt Guides billboard. */
+  (function wireGuideNav() {
+    var toggle = document.getElementById("gnavToggle");
+    var menu = document.getElementById("gnavMenu");
+    if (!toggle || !menu) return;
+    // Signed-in owners get "Edit this guide" on any device: their dashboard
+    // records (slug + edit token) prove ownership. The device-local token
+    // stays as the instant, works-signed-out path; this fills the gap for
+    // guides published before token-remembering existed or on other devices.
+    var ownEdit = null;
+    if (slug && window.GotItAuth && GotItAuth.isSignedIn && GotItAuth.isSignedIn() &&
+        GotItStore.listSavedGuides) {
+      GotItAuth.idToken().then(function (tok) {
+        if (!tok) return null;
+        return GotItStore.listSavedGuides(tok);
+      }).then(function (items) {
+        (items || []).forEach(function (it) {
+          if (it.slug === slug && it.editToken) ownEdit = it.editToken;
+        });
+        // Remember it locally too — instant (and signed-out-proof) next time.
+        if (ownEdit && GotItStore.rememberToken) GotItStore.rememberToken(slug, ownEdit);
+      }).catch(function () { /* fall back to the local token silently */ });
+    }
+    function toast(msg) {
+      var t = document.createElement("div");
+      t.className = "dash-toast"; t.textContent = msg;
+      document.body.appendChild(t);
+      requestAnimationFrame(function () { t.classList.add("show"); });
+      setTimeout(function () {
+        t.classList.remove("show");
+        setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+      }, 2200);
+    }
+    function close() {
+      menu.hidden = true;
+      toggle.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", onDoc);
+    }
+    function onDoc(e) { if (!e.target.closest("#guideNav")) close(); }
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (menu.hidden) {
+        // Feedback only applies once a guide is actually showing (not while
+        // locked / not-found), and Share needs a shareable slug.
+        var fbItem = document.getElementById("gnavFeedback");
+        if (fbItem) fbItem.hidden = !doc.querySelector("#guideFeedback");
+        var shItem = document.getElementById("gnavShare");
+        if (shItem) shItem.hidden = !slug;
+        // Owner-only edit: shown when this device holds the guide's edit
+        // token (recorded at publish, or by opening the edit link here).
+        // Sitters' devices never have it, so they never see this. Locked
+        // guides additionally ask for their code inside the editor.
+        var edItem = document.getElementById("gnavEdit");
+        if (edItem) {
+          var tok = (slug && GotItStore.editTokenFor) ? GotItStore.editTokenFor(slug) : null;
+          if (!tok) tok = ownEdit; // signed-in owner on a fresh device
+          edItem.hidden = !slug;
+          if (tok) {
+            edItem.href = "builder.html?g=" + encodeURIComponent(slug) + "&t=" + encodeURIComponent(tok);
+            edItem.removeAttribute("data-help");
+          } else {
+            // No token on this device: the item stays visible (owners on a
+            // fresh device were getting lost) and opens a "get back in"
+            // explainer instead. Sitters who tap it just learn editing is
+            // owner-only — nothing sensitive is shown.
+            edItem.href = "#";
+            edItem.setAttribute("data-help", "1");
+          }
+        }
+        menu.hidden = false;
+        toggle.setAttribute("aria-expanded", "true");
+        document.addEventListener("click", onDoc);
+      } else close();
+    });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+
+    // "Edit this guide" without a token on this device: explain how the owner
+    // gets back in. Recovery never shows or emails a stored token from here —
+    // it only points at the places the owner already has it (their inbox, or
+    // their signed-in dashboard).
+    var edLink = document.getElementById("gnavEdit");
+    if (edLink) edLink.addEventListener("click", function (e) {
+      if (!edLink.getAttribute("data-help")) return; // has a real edit href
+      e.preventDefault();
+      close();
+      var overlay = document.getElementById("editHelpModal");
+      if (overlay) { overlay.hidden = false; return; }
+      overlay = document.createElement("div");
+      overlay.className = "rem-modal"; overlay.id = "editHelpModal";
+      var backdrop = document.createElement("div");
+      backdrop.className = "rem-backdrop";
+      var card = document.createElement("div");
+      card.className = "rem-card";
+      card.innerHTML =
+        '<button type="button" class="rem-x">×</button>' +
+        '<h3 class="rem-title">✏️ Editing this guide</h3>' +
+        '<p class="rem-lead">Only the owner can edit — it works from the guide’s private edit link, and this device doesn’t have it. If this is your guide, here’s how to get back in:</p>' +
+        '<p class="rem-lead" style="margin-top:14px">🔎 <b>Search your email</b> for “GotIt Guides” — if you emailed yourself your links when you published, the edit link is in that email.</p>' +
+        '<p class="rem-lead">🪪 <b>Signed up?</b> <a href="dashboard.html">Sign in to My guides</a> — every guide you saved opens for editing from there, on any device.</p>' +
+        '<p class="rem-lead">💬 <b>Still stuck?</b> Email <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> and we’ll get you back into your guide.</p>';
+      function hide() { overlay.hidden = true; }
+      backdrop.addEventListener("click", hide);
+      card.querySelector(".rem-x").addEventListener("click", hide);
+      overlay.appendChild(backdrop); overlay.appendChild(card);
+      document.body.appendChild(overlay);
+    });
+
+    var share = document.getElementById("gnavShare");
+    if (share) share.addEventListener("click", function () {
+      close();
+      var url = location.origin + "/g/" + encodeURIComponent(slug);
+      if (GotItStore.event) GotItStore.event("share", slug); // best-effort analytics
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: url }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied!"); },
+          function () { toast(url); });
+      } else {
+        window.prompt("Copy this link:", url);
+      }
+    });
+    var fb = document.getElementById("gnavFeedback");
+    if (fb) fb.addEventListener("click", function () {
+      close();
+      var box = doc.querySelector("#guideFeedback");
+      if (!box) return;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      var ta = box.querySelector("#gfbText");
+      if (ta) setTimeout(function () { ta.focus(); }, 450);
+    });
+  })();
+
+  /* ---- One-shot preview handoff from the builder ----
+     The clinic has just typed the guide code upstairs and taps "Preview live
+     page" to check their own work; asking for the code again is friction for
+     nothing. The code rides in sessionStorage (same origin, cloned into the
+     tab the button opens) and never in the URL — a URL would put the code in
+     browser history and in anything the clinic pastes to someone else, which
+     is exactly the promise that the code only travels on the paperwork.
+     Read once, deleted on read, and any miss falls back to the lock screen. */
+  function takePreviewCode() {
+    if (!slug) return null;
+    try {
+      var k = "gotit_preview_" + slug;
+      var v = sessionStorage.getItem(k);
+      if (v) sessionStorage.removeItem(k);
+      return v || null;
+    } catch (e) { return null; }
+  }
+
+  // Load the guide (cloud or local), then render (or prompt to unlock).
+  if (!slug) {
+    render(null);
+  } else {
+    doc.innerHTML = '<div class="guide-cover"><span class="cover-emoji">⏳</span>' +
+      '<div class="cover-title">Loading…</div></div>';
+    GotItStore.get(slug).then(function (obj) {
+      if (!GotItStore.isEncrypted(obj)) { render(obj); return; }
+      var pc = takePreviewCode();
+      if (!pc) { showLock(obj); return; }
+      GotItStore.decrypt(obj, pc).then(function (real) {
+        currentPassword = pc;
+        render(real);
+      }, function () { showLock(obj); });
+    }).catch(function () { render(null); });
+  }
+})();

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Served at pretty paths like /g/<slug>, so resolve assets/links from root. -->
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1A1A1A" />
+  <!-- Load-bearing privacy promise: published guides are unlisted, so they
+       must never be indexed. Kept here (not just robots.txt) because a
+       Disallow only stops crawling — noindex is what keeps a shared link out
+       of results. The OG lambda rewrites <title> and og:/twitter: tags only,
+       so this survives server-side rendering. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>GotIt Guides</title>
+
+  <!-- Social preview (shown when a guide link is shared) -->
+  <meta property="og:title" content="A GotIt Guides guide" />
+  <meta property="og:description" content="Open this guide — routines, contacts, photos and everything you need, in one link." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://www.gotitguides.com/images/og.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+  <!-- Floating utility menu. Deliberately minimal — the published guide is the
+       creator's own page, so no brand bar: just one frosted bubble, top-left,
+       with the handful of genuinely useful actions tucked inside. -->
+  <div class="guide-nav no-print" id="guideNav">
+    <button class="nav-toggle glass" id="gnavToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+    </button>
+    <div class="nav-dropdown glass" id="gnavMenu" hidden>
+      <!-- Owner-only: appears when this device holds the guide's edit token -->
+      <a href="#" id="gnavEdit" hidden>✏️ Edit this guide</a>
+      <button type="button" id="gnavShare">📤 Share this guide</button>
+      <button type="button" id="gnavFeedback">💬 Give feedback on this guide</button>
+      <a href="builder.html" id="gnavCreate">✨ Create your own guide</a>
+      <a href="about.html">🛡 About &amp; privacy</a>
+      <a href="index.html">🏠 GotIt Guides home</a>
+    </div>
+  </div>
+
+  <main class="builder-main">
+    <div class="container">
+      <div class="guide-doc" id="guideDoc">
+        <!-- Rendered from localStorage by guide.js -->
+      </div>
+      <div class="guide-footer" id="guideFooter"></div>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/guide.js"></script>
+</body>
+</html>

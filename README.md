@@ -1,1 +1,1 @@
-# How2
+# GotIt Guides

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="The GotIt Guides privacy policy: what we collect, where it's stored, who processes it, and how to have it deleted." />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>Privacy policy — GotIt Guides</title>
+
+  <meta property="og:title" content="Privacy policy — GotIt Guides" />
+  <meta property="og:description" content="What we collect, where it's stored, who processes it, and how to have it deleted." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://www.gotitguides.com/privacy.html" />
+  <link rel="canonical" href="https://www.gotitguides.com/privacy.html" />
+  <meta property="og:image" content="https://www.gotitguides.com/images/og.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="header-left">
+        <a href="/" class="logo" aria-label="GotIt Guides home">
+          <img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" />
+        </a>
+      </div>
+      <div class="header-right">
+        <a href="builder.html" class="btn btn-primary btn-sm">Create</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section policy">
+      <div class="container policy-inner">
+        <span class="eyebrow">Privacy policy</span>
+        <h1 class="section-title">The formal version<span class="accent">.</span></h1>
+        <p class="policy-updated">Last updated 29 July 2026</p>
+        <p>
+          The short, human version lives on our <a href="about.html#privacy">about page</a> and everything
+          there is true. This page is the fuller account: exactly what we collect, where it goes, who
+          processes it, and how to have it removed. GotIt Guides is run by James Cook in Sydney, Australia.
+          If anything here is unclear, email <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a>
+          and a real person will answer.
+        </p>
+
+        <h2>What we collect</h2>
+        <p>
+          <strong>Your guides.</strong> Whatever you choose to put in a guide: text, photos, videos,
+          contacts, routines and log entries. If you import notes, a document or a photo, we keep only the
+          guide it produced, not a separate copy of the upload.
+        </p>
+        <p>
+          <strong>Account details.</strong> You don't need an account to create or view a guide. If you
+          sign in to use the dashboard — with Google, or with a one-time code sent to your email — we
+          hold your email address and display name.
+        </p>
+        <p>
+          <strong>Emails you give us.</strong> If you ask us to email your guide links to you, we use that
+          address to send them. If you join the updates list, we hold that address until you unsubscribe.
+        </p>
+        <p>
+          <strong>Feedback.</strong> Anything you type into a feedback box, plus an email address if you
+          include one.
+        </p>
+        <p>
+          <strong>Anonymous analytics.</strong> Our analytics are first party and anonymous: which pages
+          are viewed, a random per-browser identifier, and the referring site's domain only (for example
+          "facebook.com", never a full address). We use no ad networks, no tracking pixels and no
+          third-party analytics, and we never sell or share data for marketing.
+        </p>
+
+        <h2>Who can see a guide</h2>
+        <p>
+          Guides are unlisted. They never appear in Google or any other search engine (we tell crawlers to
+          stay out, and no guide address is ever listed anywhere on this site), and they are not browsable.
+          Anyone who has the link can open the guide, so share it like you'd share a house key.
+        </p>
+        <p>
+          <strong>Locked guides.</strong> Add a guide code and the contents are encrypted on your device
+          before they are stored (AES-256; the key is derived from your code and never leaves your device).
+          We store unreadable ciphertext: we could not read a locked guide if we tried, and we cannot
+          recover one if the code is lost. Only the guide's title and emoji stay readable, so the person
+          you share it with knows what they've received.
+        </p>
+        <p>
+          <strong>Unlocked guides.</strong> Guides without a code are stored in readable form. In practice
+          that means the operator could access them for support or maintenance, though we never browse
+          guide content. If your guide contains anything sensitive, lock it.
+        </p>
+        <p>
+          <strong>Link previews.</strong> When a guide link is shared in a messaging app, the preview shows
+          only the title, subtitle, emoji, section titles and section count. Body text, contacts,
+          medication details and photos are never included in previews.
+        </p>
+        <p>
+          <strong>Edit access.</strong> Editing requires the guide's private edit link. The edit secret is
+          verified on our servers and stored only as a cryptographic hash; it is never sent to anyone
+          viewing the guide.
+        </p>
+
+        <h2>AI features</h2>
+        <p>
+          When you use an AI feature (turning notes, photos or documents into a guide, or polishing
+          wording), the content you provide is processed by Anthropic's Claude API to produce the result.
+          Anthropic does not use API data to train its models. Voice recordings made with "Talk it out"
+          are transcribed by OpenAI's Whisper API. In both cases the processing is transient: what we keep
+          is the guide you end up with, which stays under your control like any other guide. The AI never
+          adds information you didn't provide, and for veterinary discharge guides it is specifically
+          instructed to flag anything unclear rather than guess.
+        </p>
+
+        <h2>Where your data lives</h2>
+        <p>
+          Guides, accounts and analytics are stored on Amazon Web Services in Sydney, Australia
+          (ap-southeast-2), encrypted at rest and in transit. Some processing involves partners outside
+          Australia:
+        </p>
+        <ul>
+          <li><strong>Anthropic</strong> (United States) — AI guide building and polish, as above.</li>
+          <li><strong>OpenAI</strong> (United States) — voice transcription for "Talk it out", as above.</li>
+          <li><strong>Cloudflare Stream</strong> — hosts videos you upload to a guide.</li>
+          <li><strong>Resend</strong> — delivers the emails we send (your links, updates you asked for).</li>
+          <li><strong>Google</strong> — sign-in for the dashboard, if you choose to use it.</li>
+        </ul>
+        <p>These are the only third parties that touch your data, and each receives only what its job requires.</p>
+
+        <h2>Email</h2>
+        <p>
+          We email you your guide links when you ask us to. Product updates go only to account holders and
+          people who joined the updates list, and every one includes an unsubscribe link that works. We
+          never email the people you share guides with.
+        </p>
+
+        <h2>Retention and deletion</h2>
+        <p>
+          Guides stay published until deleted, because a care guide that vanishes mid-house-sit helps no
+          one. Removing a guide from your dashboard takes it off your dashboard; to delete the guide
+          itself, email us its link and we'll delete it, no questions asked. Deleting your account removes
+          your dashboard and its saved records. Analytics events carry no personal data and are kept in
+          aggregate.
+        </p>
+
+        <h2>Security</h2>
+        <p>
+          Everything travels over HTTPS and is encrypted at rest. Edit secrets are stored hashed and
+          verified server-side. Guide links and edit secrets are generated with a cryptographic random
+          number generator. Public endpoints are rate limited. Locked guides are end-to-end encrypted on
+          your device. No system is perfect; if you believe you've found a security issue, please email
+          <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a> and we'll respond quickly.
+        </p>
+
+        <h2>For vet clinics</h2>
+        <p>
+          Clinics using GotIt Guides for discharge instructions act as the data owner, with us as
+          their service provider. Two companion documents cover that relationship: the
+          <a href="clinic-security.html">one-page security &amp; privacy overview</a> (plain English,
+          for clinic staff) and the <a href="data-processing.html">data processing summary</a>
+          (storage, subprocessors, retention and deletion, in detail).
+        </p>
+
+        <h2>Your rights</h2>
+        <p>
+          You can ask us at any time what we hold about you, ask for a copy, or ask for it to be corrected
+          or deleted. Email <a href="mailto:hello@gotitguides.com">hello@gotitguides.com</a>. We handle
+          personal information in line with the Australian Privacy Principles. If we make a material
+          change to this policy, we'll note it here with a new date at the top.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img class="logo-img" src="/brand/logo-reversed.svg" alt="GotIt Guides" />
+        <p class="footer-made">Made in Sydney by James</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="about.html#who">About</a>
+        <a href="about.html#privacy">Privacy</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="mailto:hello@gotitguides.com">Contact</a>
+      </nav>
+      <p class="footer-copy">© <span id="year"></span> GotIt Guides. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>

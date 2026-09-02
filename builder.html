@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1A1A1A" />
+  <title>Build your guide — GotIt Guides</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3" />
+  <link rel="manifest" href="/site.webmanifest" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo" aria-label="GotIt Guides home"><img class="logo-img" src="/brand/logo-primary.svg" alt="GotIt Guides" /></a>
+      <div class="header-actions">
+        <a href="index.html" id="exitBtn" class="btn btn-sm btn-exit">Exit</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="builder-main">
+    <div class="container builder-wrap">
+
+      <!-- Progress dots -->
+      <div class="wizard-progress" id="wizardProgress" aria-hidden="true">
+        <span class="dot" data-step="1"></span>
+        <span class="dot" data-step="2"></span>
+        <span class="dot" data-step="3"></span>
+        <span class="dot" data-step="4"></span>
+      </div>
+
+      <!-- STEP 1 — Category -->
+      <section class="step" id="step1" data-step="1">
+        <span class="step-eyebrow">Step 1 of 4</span>
+        <h1 class="step-heading">What are you guiding?</h1>
+        <p class="step-lead">Pick a category and we'll set you up to paste your notes or answer a few quick questions.</p>
+        <div class="cat-grid" id="catGrid"><!-- categories injected --></div>
+      </section>
+
+      <!-- STEP 1b — How to start (paste vs scratch) -->
+      <section class="step" id="stepStart" data-step="2">
+        <span class="step-eyebrow">Step 2 of 4</span>
+        <h1 class="step-heading" id="startHeading">How would you like to create your guide?</h1>
+        <p class="step-lead">An imperfect note is enough to begin. You can edit everything afterwards.</p>
+
+        <div class="start-grid">
+          <button class="start-card" id="startScratch" type="button">
+            <span class="start-emoji">✍️</span>
+            <span class="start-name">Start from scratch</span>
+            <span class="start-desc">Follow our guided flow and we'll build your guide together.</span>
+          </button>
+          <button class="start-card" id="startTalk" type="button">
+            <span class="start-emoji" aria-hidden="true"><svg class="mic-modern" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3" fill="currentColor" stroke="none"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8.5 21h7"/></svg></span>
+            <span class="start-name">Talk it out</span>
+            <span class="start-desc">Prefer talking? Just tell us what matters and we'll turn it into a guide.</span>
+          </button>
+          <button class="start-card" id="startPaste" type="button">
+            <span class="start-emoji">📋</span>
+            <span class="start-name">Paste existing notes</span>
+            <span class="start-desc">Already have notes? Paste them in and we'll organise everything for you.</span>
+          </button>
+          <button class="start-card" id="startPhoto" type="button">
+            <span class="start-emoji">📸</span>
+            <span class="start-name">Photo of a guide</span>
+            <span class="start-desc">Have a paper or printed guide? Snap a photo and we'll turn it into a digital one.</span>
+          </button>
+        </div>
+
+        <div class="paste-panel" id="pastePanel" hidden>
+          <p class="paste-help" id="pasteHelp">Already written something in Notes, Google Docs, WhatsApp, SMS or email? Paste it here and GotIt Guides will turn it into a clean, organised guide.</p>
+          <!-- Vet flow only: the discharge paperwork is a file or photos, so
+               those actions lead — file first (most clinics export a PDF). -->
+          <div class="vet-upload-row" id="vetUploadRow" hidden>
+            <button class="btn btn-primary btn-block" id="vetUploadFile" type="button">📄 Upload the discharge file</button>
+            <button class="btn btn-ghost btn-block" id="vetUploadPhotos" type="button">📷 Take or add photos of the paperwork</button>
+            <div class="vet-upload-or"><span>or paste the text</span></div>
+          </div>
+          <div class="import-record" id="recordRow" hidden>
+            <button class="btn btn-primary btn-block record-btn" id="recordBtn" type="button">🎙️ Tap to record</button>
+            <p class="record-status" id="recordStatus" hidden></p>
+          </div>
+          <textarea class="q-textarea paste-text" id="pasteText" placeholder="Paste your rough notes here. For example: feeding times, medication, bedtime routine, emergency contacts, house rules…"></textarea>
+          <div class="import-file-row">
+            <label class="tool-btn import-file-btn">📷 Take or add photos
+              <input type="file" id="pastePhoto" accept="image/*" multiple hidden /></label>
+            <label class="tool-btn import-file-btn">📎 Add a file
+              <input type="file" id="pasteFile" accept=".pdf,.txt,.md,.csv,text/plain" hidden /></label>
+          </div>
+          <p class="paste-photo-hint">Got handwritten notes across a few pages? Add a photo of each one and we'll read them all in for you.</p>
+          <div class="import-link-row">
+            <input type="url" id="pasteUrl" class="q-input import-link-input" placeholder="🔗 Paste a link" aria-label="Paste a link to a public web page or Google Doc" autocomplete="off" inputmode="url" />
+            <button class="btn btn-ghost btn-sm" id="pasteUrlGo" type="button">Read</button>
+          </div>
+          <p class="import-link-note" id="pasteUrlNote" hidden></p>
+          <div class="paste-attach" id="pasteAttach"></div>
+          <button class="btn btn-primary btn-block" id="pasteGo" type="button">Create my guide</button>
+        </div>
+
+        <!-- Vet flow only: scratch survives as a quiet alternative, not a
+             competing card — the paperwork upload is the one path that matters. -->
+        <p class="start-scratch-alt" id="startScratchAlt" hidden>
+          No paperwork to upload? <button class="btn-link" id="startScratchAltBtn" type="button">Type it in from scratch →</button>
+        </p>
+
+        <div class="q-nav">
+          <button class="btn-link" id="startBack" type="button">← Back</button>
+        </div>
+      </section>
+
+      <!-- STEP 2 — Questions -->
+      <section class="step" id="step2" data-step="2">
+        <span class="step-eyebrow" id="qEyebrow">Step 2 of 4</span>
+        <h1 class="step-heading">A few quick questions</h1>
+        <p class="step-lead" id="qLead">Answer what you can — you can edit everything later.</p>
+
+        <div class="q-bar"><div class="q-bar-fill" id="qBarFill"></div></div>
+        <p class="q-count" id="qCount"></p>
+
+        <div class="q-card">
+          <h2 class="q-title" id="qTitle"></h2>
+          <p class="q-hint" id="qHint"></p>
+          <div id="qFieldWrap"></div>
+          <div class="q-nav">
+            <button class="btn-link" id="qBack" type="button">← Back</button>
+            <button class="btn btn-primary" id="qNext" type="button">Next →</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Building loader: the guide's emoji floats among sparkles (same
+           visual language as the publish ceremony) while the work happens -->
+      <section class="step" id="stepBuilding" data-step="2">
+        <div class="building">
+          <div class="building-fx" aria-hidden="true">
+            <span class="building-emoji" id="buildingEmoji">✨</span>
+            <div class="pub-sparks"><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span><span>✨</span></div>
+          </div>
+          <div class="building-title">Building your guide…</div>
+          <p class="building-sub">Structuring your answers into something beautiful.</p>
+        </div>
+      </section>
+
+      <!-- STEP 2 (live variant) — the guide builds itself on screen as each
+           answer lands; one spotlighted question at a time pinned above the
+           keyboard. Classic wizard remains at ?flow=classic. -->
+      <section class="step" id="stepLive" data-step="2">
+        <div class="lf-top">
+          <span class="step-eyebrow">Watch your guide build itself</span>
+          <p class="lf-count" id="lfCount"></p>
+        </div>
+        <div class="guide-doc lf-doc" id="lfDoc"><!-- ghost/lit cards injected --></div>
+        <!-- fixed to the viewport bottom, but inside the section so step
+             switching shows/hides it with everything else -->
+        <div class="lf-spot" id="lfSpot"><!-- spotlight question card --></div>
+      </section>
+
+      <!-- STEP 3 — Preview & edit -->
+      <section class="step" id="step3" data-step="3">
+        <span class="step-eyebrow">Step 3 of 4</span>
+        <h1 class="step-heading">Make it yours</h1>
+        <p class="step-lead">Tap any text to edit. Expand a section to add photos or video.</p>
+
+        <!-- Vet guides only: how many ⚠️ flags still need actioning, and the
+             way back into the triage list. Hidden once they're all resolved. -->
+        <button class="vet-triage-chip" id="vetTriageChip" type="button" hidden></button>
+
+        <div class="guide-doc" id="guideDoc"><!-- guide rendered here --></div>
+
+        <div class="add-block-row">
+          <button class="add-block" id="addSection" type="button">＋ Add another section</button>
+          <button class="add-block" id="addLog" type="button">＋ Add a log</button>
+          <button class="add-block" id="addCare" type="button" hidden>＋ Add a "Last done" tracker</button>
+          <button class="add-block" id="addEmergency" type="button" hidden>＋ Add emergency contacts</button>
+          <button class="add-block" id="addRoutine" type="button" hidden>＋ Add daily routine</button>
+          <button class="add-block" id="addVideos" type="button" hidden>＋ Add videos</button>
+        </div>
+
+        <div class="slug-row" id="slugRow">
+          <label class="slug-label" for="slugInput">Give your link a name ✨ <span class="slug-optional">(optional)</span></label>
+          <div class="slug-input-wrap">
+            <span class="slug-prefix" id="slugPrefix">gotitguides.com/g/</span>
+            <input type="text" id="slugInput" class="q-input" placeholder="e.g. whiskey" autocomplete="off" spellcheck="false" />
+          </div>
+          <p class="slug-hint" id="slugHint">Pick a fun, memorable web address for your guide — or leave it blank and we'll make one for you. Letters, numbers and hyphens only.</p>
+        </div>
+
+        <div class="lock-row">
+          <label class="lock-toggle">
+            <input type="checkbox" id="lockOn" /> 🔒 Lock with a guide code
+          </label>
+          <input type="password" id="lockPass" class="q-input" placeholder="Choose a guide code" autocomplete="new-password" hidden />
+          <p class="lock-hint" id="lockHint" hidden>
+            The guide is encrypted — only people you give the code to can open it.
+            Keep the code safe: if it's lost, the guide can't be recovered.
+          </p>
+        </div>
+
+        <div class="polish-all-row">
+          <button class="btn btn-polish btn-block" id="masterPolishBtn" type="button">✨ Polish my whole guide</button>
+          <p class="polish-all-hint">A quick AI read-through to tidy wording and titles. You approve every change, and facts (names, numbers, doses, contacts) stay exactly as you wrote them.</p>
+        </div>
+
+        <p class="vet-disclaimer" id="vetNote" hidden>🩺 This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>
+        <p class="pub-ready">You're ready to publish. Don't worry if it's not perfect — you can edit your guide anytime.</p>
+        <p class="publish-save-note" id="publishNote">💾 Your changes are saved to your live guide each time you hit <strong>Save &amp; publish</strong>.</p>
+        <div class="builder-toolbar" id="publishBar">
+          <button class="btn btn-ghost" id="previewBack" type="button">← Back to questions</button>
+          <button class="btn btn-primary" id="publishBtn" type="button">Save &amp; publish →</button>
+        </div>
+      </section>
+
+      <!-- STEP 4 — Share -->
+      <section class="step" id="step4" data-step="4">
+        <span class="step-eyebrow">Step 4 of 4</span>
+        <h1 class="step-heading">Your guide is live 🎉</h1>
+        <p class="step-lead">Share the link or QR code — it opens on any phone, no app needed.</p>
+
+        <div class="share-card">
+          <span class="share-emoji" id="shareEmoji">📘</span>
+          <div class="share-title" id="shareTitle">Your guide</div>
+          <p class="share-sub">Anyone with this link can view it.</p>
+          <p class="share-code" id="shareCodeRow" hidden>🔑 Guide code: <strong id="shareCodeVal"></strong><br />The owner needs it to open the guide — write it on the discharge paperwork.</p>
+
+          <!-- ① SHARE IT — everything here is the view-only link -->
+          <div class="qr-box" id="qrBox"></div>
+          <div class="share-qr-dl-row">
+            <button class="btn-link share-qr-dl" id="downloadQr" type="button">⬇ Download QR</button>
+          </div>
+
+          <label class="share-label">Share this link (view only)</label>
+          <div class="share-link">
+            <input type="text" id="shareUrl" readonly />
+            <button class="btn btn-primary btn-sm" id="copyBtn" type="button">Copy</button>
+          </div>
+
+          <label class="share-label" id="shareSendLabel">Send the view link to someone</label>
+          <p class="email-links-hint" id="shareSendHint">These send the view-only link — they can read the guide but not edit it.</p>
+          <div class="share-channels">
+            <button class="chip" id="shareNative" type="button" hidden>
+              <svg class="chip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share…
+            </button>
+            <a class="chip" id="shareWhatsapp" target="_blank" rel="noopener">
+              <svg class="chip-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347M12.05 21.785h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.885-9.885 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.359.101 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.582 0 11.94-5.359 11.944-11.893a11.821 11.821 0 0 0-3.487-8.453z"/></svg>WhatsApp
+            </a>
+            <a class="chip" id="shareSms">
+              <svg class="chip-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="6" fill="#34DA50"/><path fill="#fff" d="M12 5.2c-3.9 0-7 2.5-7 5.6 0 1.8 1 3.3 2.6 4.3-.2.8-.7 1.7-1.4 2.4 1.2-.1 2.4-.5 3.4-1.1.7.2 1.5.3 2.4.3 3.9 0 7-2.5 7-5.6S15.9 5.2 12 5.2z"/></svg>Messages
+            </a>
+            <a class="chip" id="shareEmail">
+              <svg class="chip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>Email
+            </a>
+          </div>
+
+          <!-- Clinics text owners; that's the channel they actually use. The
+               field is deliberately inert until the SMS backend exists — shown
+               faded, so it reads as a signpost rather than a broken button. -->
+          <div class="sms-soon" id="smsSoon" hidden>
+            <label class="share-label">Text it to them <span class="soon-pill">Coming soon</span></label>
+            <p class="email-links-hint" id="smsSoonHint">We're building one-tap SMS so the guide lands on the owner's phone before they've left the car park. For now, use Messages or WhatsApp above.</p>
+            <div class="share-link">
+              <input type="tel" id="smsSoonInput" placeholder="04XX XXX XXX" disabled />
+              <button class="btn btn-primary btn-sm" type="button" disabled>Send</button>
+            </div>
+          </div>
+
+          <!-- ② SAVE IT & COME BACK TO EDIT -->
+          <div class="share-divider" id="shareSaveDivider"><span>Save it &amp; edit later</span></div>
+
+          <div class="save-dash save-dash-hero" id="saveDash">
+            <label class="share-label">⭐ Keep it in your dashboard <span class="save-dash-rec">Recommended</span></label>
+            <p class="email-links-hint">Save this guide to a free account so you can find, edit and manage it any time — and we'll email your links to you as well. Sign in with Google, or a one-time code to your email.</p>
+            <button class="btn btn-primary btn-block" id="saveToDash" type="button">⭐ Save to my guides</button>
+            <a class="btn btn-ghost btn-sm" id="myGuidesLink" href="dashboard.html" hidden>My guides ↗</a>
+            <p class="email-links-note" id="saveToDashNote" hidden></p>
+          </div>
+
+          <!-- No-account fallback: keep your own edit link (copy it, or email it) -->
+          <div class="save-fallback">
+            <p class="save-fallback-head">Prefer not to make an account? Keep your edit link so you can come back to it:</p>
+
+            <label class="share-label">Your private edit link 🔒</label>
+            <div class="share-link">
+              <input type="text" id="editUrl" readonly />
+              <button class="btn btn-ghost btn-sm" id="copyEditBtn" type="button">Copy</button>
+            </div>
+            <p class="collab-note">👥 <strong>Editing together?</strong> You can send this edit link to a partner or co-carer — anyone with it can edit this guide, so only share it with people you trust.</p>
+
+            <label class="share-label">Or email these links to yourself</label>
+            <p class="email-links-hint" id="emailLinksHint">So you don't lose them — includes your view and edit links.</p>
+            <div class="share-link">
+              <input type="email" id="emailLinksInput" placeholder="you@email.com" autocomplete="email" />
+              <button class="btn btn-primary btn-sm" id="emailLinksBtn" type="button">Send</button>
+            </div>
+            <p class="email-links-note" id="emailLinksNote" hidden></p>
+          </div>
+
+          <div class="share-actions">
+            <a class="btn btn-ghost btn-sm" id="previewGuide" target="_blank" rel="noopener" hidden>👁️ Preview live page</a>
+            <a class="btn btn-ghost btn-sm" id="printGuide" target="_blank" rel="noopener">🖨️ Printable version</a>
+            <a class="btn btn-ghost btn-sm" id="openGuide" target="_blank" rel="noopener">Open guide ↗</a>
+          </div>
+        </div>
+
+        <div class="share-feedback">
+          <span class="share-feedback-emoji">💡</span>
+          <div class="share-feedback-body">
+            <div class="share-feedback-title">Help shape GotIt Guides</div>
+            <p class="share-feedback-text">What would make this better? Any idea, or anything that tripped you up — we'd genuinely love to hear it.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="shareFeedbackBtn" type="button">Share an idea</button>
+        </div>
+
+        <div class="builder-toolbar">
+          <button class="btn btn-ghost" id="editAgain" type="button">← Keep editing</button>
+          <a class="btn btn-primary" href="builder.html">Create another</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- AI polish: dim the screen with a centred sparkle while it works -->
+  <div class="polish-overlay" id="polishOverlay" hidden>
+    <div class="polish-overlay-inner">
+      <div class="polish-spark" aria-hidden="true">✨</div>
+      <div class="polish-label">Polishing your words…</div>
+    </div>
+  </div>
+
+  <!-- Floating glass editor dock (step 3 only): widget actions + global actions.
+       The grip at the top lets you drag the dock anywhere you like. -->
+  <div class="edit-dock glass" id="editDock" hidden>
+    <div class="dock-grip" id="dockGrip" title="Drag to move · double-tap to reset" aria-label="Drag to move the toolbar; double-tap to reset"></div>
+    <div class="dock-zone dock-widget" id="dockWidget">
+      <button class="dock-btn" id="dockColour" type="button" title="Colour" aria-label="Colour">🎨</button>
+      <button class="dock-btn" id="dockFormat" type="button" title="Format text" aria-label="Format">✏️</button>
+      <button class="dock-btn" id="dockMedia" type="button" title="Add photo or video" aria-label="Add media">📷</button>
+      <button class="dock-btn" id="dockPolish" type="button" title="Polish with AI" aria-label="Polish">✨</button>
+      <button class="dock-btn dock-danger" id="dockDelete" type="button" title="Delete this block" aria-label="Delete">🗑</button>
+    </div>
+    <div class="dock-sep"></div>
+    <div class="dock-zone">
+      <button class="dock-btn" id="undoFab" type="button" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" disabled>↶</button>
+      <button class="dock-btn" id="redoFab" type="button" title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" disabled>↷</button>
+      <button class="dock-btn" id="dockFeedback" type="button" title="Send feedback" aria-label="Feedback">💬</button>
+    </div>
+    <!-- Mobile only: the dock collapses to this pill (+ a quick-undo bubble) -->
+    <div class="dock-collapsed-row">
+      <button class="dock-quick-undo" id="undoQuick" type="button" title="Undo" aria-label="Undo" hidden>↶</button>
+      <button class="dock-toggle" id="dockToggle" type="button" aria-expanded="false">✏️ Edit</button>
+    </div>
+    <div class="dock-pop" id="dockPop" hidden></div>
+  </div>
+
+  <!-- Feedback (persistent across every step of the build) -->
+  <button class="feedback-fab" id="feedbackFab" type="button" aria-label="Send feedback">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8A8.5 8.5 0 0 1 21 11.5z"/></svg>
+    <span>Feedback</span>
+  </button>
+
+  <div class="feedback-modal" id="feedbackModal" hidden>
+    <div class="feedback-backdrop" data-fb-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="fbTitle">
+      <button class="feedback-x" id="feedbackClose" type="button" aria-label="Close" data-fb-close>×</button>
+      <h3 class="feedback-title" id="fbTitle">Share feedback</h3>
+      <p class="feedback-lead" id="feedbackLead">What's working, what's confusing, what's missing? It goes straight to the team.</p>
+      <textarea class="q-textarea" id="feedbackText" placeholder="Your feedback…" rows="4"></textarea>
+      <input class="q-input" id="feedbackEmail" type="email" placeholder="Email (optional — if you'd like a reply)" autocomplete="email" />
+      <div class="feedback-attach">
+        <label class="tool-btn feedback-attach-btn">📷 Add a screenshot
+          <input type="file" id="feedbackImg" accept="image/*" hidden /></label>
+        <div class="feedback-attach-preview" id="feedbackImgPreview" hidden>
+          <img id="feedbackImgThumb" alt="" />
+          <button type="button" class="feedback-attach-x" id="feedbackImgRemove" aria-label="Remove screenshot">×</button>
+        </div>
+      </div>
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-fb-close>Cancel</button>
+        <button class="btn btn-primary btn-sm" id="feedbackSend" type="button">Send feedback</button>
+      </div>
+      <p class="feedback-note" id="feedbackNote" hidden></p>
+    </div>
+  </div>
+
+  <!-- Publish-time cover-photo nudge: shown once per guide when publishing
+       without a cover. Never blocking — "Publish without" proceeds at once
+       and stops it ever asking again for this guide. -->
+  <!-- Keep-your-key nudge: shown once, right after a signed-out creator's
+       FIRST publish. The save actions sit below the fold on the share step,
+       and the thrill of a live guide sends people straight to it — this asks
+       for one explicit choice before they can dash off. Backdrop taps do
+       nothing on purpose; the skip link is the only way past. -->
+  <div class="feedback-modal" id="keepModal" hidden>
+    <div class="feedback-backdrop"></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="keepTitle">
+      <h3 class="feedback-title" id="keepTitle">🔑 Don't lose edit access.</h3>
+      <p class="feedback-lead">Your guide is live! To edit it later you'll need a way back in. Save it to a free account with Google, or keep your private edit link somewhere safe.</p>
+      <div class="keep-actions">
+        <button class="btn btn-primary btn-block" id="keepDash" type="button">⭐ Save to my guides</button>
+        <button class="btn btn-ghost btn-block" id="keepCopy" type="button">📋 Copy my edit link</button>
+      </div>
+      <p class="email-links-note ok" id="keepNote" hidden>Copied ✓ Now paste it somewhere safe: your notes app, or a message to yourself.</p>
+      <button class="btn-link keep-skip" id="keepSkip" type="button">Skip for now (it stays saved on this device)</button>
+    </div>
+  </div>
+
+  <!-- One-time note after a clinic logo lands on a vet guide: it can live in
+       the clinic kit and stamp every future discharge guide automatically. -->
+  <div class="feedback-modal" id="logoKitModal" hidden>
+    <div class="feedback-backdrop" data-logokit-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="logoKitTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-logokit-close>×</button>
+      <h3 class="feedback-title" id="logoKitTitle">🏥 Saved for next time.</h3>
+      <p class="feedback-lead" id="logoKitLead"></p>
+      <div class="feedback-actions">
+        <button class="btn btn-primary btn-sm" type="button" data-logokit-close>Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flag triage: opens as soon as a vet guide lands in the editor with
+       ⚠️ "Check with your clinic" flags. Staff action each one on the spot —
+       type the answer, or remove it in one click — instead of hunting the
+       ⚠️ lines through the guide. Reopens any time from the editor chip. -->
+  <div class="feedback-modal" id="vetTriageModal" hidden>
+    <div class="feedback-backdrop" data-triage-close></div>
+    <div class="feedback-card vt-card" role="dialog" aria-modal="true" aria-labelledby="vetTriageTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-triage-close>×</button>
+      <h3 class="feedback-title" id="vetTriageTitle">⚠️ A few details to check.</h3>
+      <p class="feedback-lead" id="vetTriageLead"></p>
+      <div id="vetTriageList"></div>
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-triage-close>I'll sort these later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vet discharge safety check: shown before the first publish of a vet
+       guide (and re-armed by ⚠️ flags). The confirm button stays disabled
+       until the owner ticks that they've checked the clinical details against
+       the vet's paperwork — the one gate we make deliberately explicit. -->
+  <div class="feedback-modal" id="vetCheckModal" hidden>
+    <div class="feedback-backdrop" data-vetcheck-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vetCheckTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-vetcheck-close>×</button>
+      <h3 class="feedback-title" id="vetCheckTitle">🩺 A quick safety check.</h3>
+      <p class="feedback-lead">This guide carries medical instructions. Before it goes live, please check these against the paperwork from your vet:</p>
+      <!-- Filled in by openVetCheck() from what this guide actually contains,
+           so a guide with no medications isn't asked to check the doses. -->
+      <ul class="vetcheck-list" id="vetCheckList"></ul>
+      <p class="vetcheck-flags" id="vetCheckFlags" hidden></p>
+      <label class="vetcheck-confirm"><input type="checkbox" id="vetCheckBox" /> I've checked these against the vet's paperwork.</label>
+      <label class="vetcheck-confirm" id="vetConsentRow" hidden><input type="checkbox" id="vetConsentBox" /> I confirm I have the owner's consent to create and send this digital guide.</label>
+      <p class="vet-disclaimer">This guide does not replace veterinary advice. Confirm all instructions with your veterinary clinic before sharing.</p>
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-vetcheck-close>← Keep checking</button>
+        <button class="btn btn-primary btn-sm" id="vetCheckGo" type="button" disabled>Confirmed — publish →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="feedback-modal" id="coverAskModal" hidden>
+    <div class="feedback-backdrop" data-coverask-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="coverAskTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-coverask-close>×</button>
+      <h3 class="feedback-title" id="coverAskTitle">📸 Add a cover photo first?</h3>
+      <p class="feedback-lead">Guides with a photo feel instantly theirs — and it's the first thing the person you share it with sees.</p>
+      <div class="feedback-actions coverask-actions">
+        <button class="btn btn-ghost btn-sm" id="coverAskSkip" type="button">Publish without</button>
+        <button class="btn btn-primary btn-sm" id="coverAskLogo" type="button" hidden>🏥 Add clinic logo</button>
+        <button class="btn btn-primary btn-sm" id="coverAskAdd" type="button">📸 Add a photo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add-section template picker: shortcuts to common sections; Custom
+       keeps the old blank behaviour -->
+  <div class="feedback-modal" id="secPickModal" hidden>
+    <div class="feedback-backdrop" data-secpick-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="secPickTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-secpick-close>×</button>
+      <h3 class="feedback-title" id="secPickTitle">Add a section</h3>
+      <p class="feedback-lead">Pick a starting point, or go custom.</p>
+      <div class="secpick-list" id="secPickList"></div>
+    </div>
+  </div>
+
+  <!-- Add-a-video instructions modal -->
+  <div class="feedback-modal" id="videoModal" hidden>
+    <div class="feedback-backdrop" data-vid-close></div>
+    <div class="feedback-card" role="dialog" aria-modal="true" aria-labelledby="vidTitle">
+      <button class="feedback-x" type="button" aria-label="Close" data-vid-close>×</button>
+      <h3 class="feedback-title" id="vidTitle">🎥 Show, don't just tell.</h3>
+      <p class="feedback-lead">Sometimes a 20-second video explains more than five paragraphs. Upload or record straight from your phone and we'll optimise it to play on any device.</p>
+      <p class="video-ideas" id="videoIdeas">Ideas: giving medication · fitting the harness · where the spare keys live · arming the alarm · the bedtime routine · a favourite walking route</p>
+
+      <button class="btn btn-primary btn-block" id="videoUploadBtn" type="button">📹 Upload or record videos</button>
+      <input type="file" id="videoFileInput" accept="video/*" multiple hidden />
+      <p class="video-upload-hint">You can pick several at once. Best under about 2 minutes each. No YouTube or Drive account needed.</p>
+
+      <div class="video-progress" id="videoProgress" hidden>
+        <div class="video-progress-track"><div class="video-progress-fill" id="videoProgressFill"></div></div>
+        <p class="video-progress-label" id="videoProgressLabel">Uploading…</p>
+      </div>
+
+      <div class="video-or"><span>or paste a link</span></div>
+      <ul class="video-help">
+        <li><strong>Google Drive</strong> — upload the video, right-click it → <em>Share</em> → set to <em>“Anyone with the link”</em>, then <em>Copy link</em>.</li>
+        <li><strong>YouTube</strong> — upload your clip (you can set it to <em>“Unlisted”</em>), then <em>Share</em> → <em>Copy link</em>.</li>
+      </ul>
+      <input class="q-input" id="videoUrl" type="url" placeholder="Paste video link" autocomplete="off" />
+      <div class="feedback-actions">
+        <button class="btn btn-ghost btn-sm" type="button" data-vid-close>Cancel</button>
+        <button class="btn btn-primary btn-sm" id="videoAdd" type="button">Add link</button>
+      </div>
+      <p class="feedback-note error" id="videoErr" hidden></p>
+    </div>
+  </div>
+
+  <!-- QR library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/builder.js"></script>
+</body>
+</html>
